@@ -59,6 +59,25 @@ export function computeBenefit(
 }
 
 /**
+ * compute_benefit over several budgets against one rule, in a single round
+ * trip — used for the breakeven sparkline's ATL-spend scan so it doesn't
+ * need one HTTP call per sample point.
+ */
+export function computeBenefitBatch(
+  budgets: BudgetVector[],
+  rule: JurisdictionRule,
+  opts?: { assumptions?: RelocationAssumptions },
+): Promise<BenefitBreakdown[]> {
+  return postJson<BenefitBreakdown[]>("/compute/batch", {
+    budgets,
+    rule,
+    distance_km: null,
+    travel_time_hours: null,
+    assumptions: opts?.assumptions ?? null,
+  });
+}
+
+/**
  * Layer 1, over the wire. Returns 501 until GOOGLE_CLOUD_PROJECT,
  * PARALLEL_API_KEY and GOOGLE_MAPS_API_KEY are configured on the backend —
  * see backend/app/extraction/agent.py.

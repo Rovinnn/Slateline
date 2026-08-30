@@ -44,13 +44,32 @@ def compute(
 ) -> BenefitBreakdown:
     """Layer 2, exposed directly. Given an already-extracted rule (or a
     hand-written fixture, for now) and a distance, returns the net benefit.
-    Recompute-on-slider-drag on the frontend should hit this endpoint, or
-    port compute_benefit to the frontend in TypeScript for a zero-latency
-    slider per the brief's "no network round trip for the recompute" note —
-    decide once the frontend sensitivity sliders are being built.
+    The frontend's sensitivity sliders and relocation-assumptions panel both
+    debounce and hit this endpoint on every change, rather than porting
+    compute_benefit to TypeScript — "no network round trip for the recompute"
+    in the brief means no model call, not no HTTP call; duplicating the
+    arithmetic into a second language would undermine the "one deterministic
+    Python place" credibility claim in section 4.
     """
     verified_rule = verify_rule(rule)
     return compute_benefit(budget, verified_rule, distance_km, travel_time_hours, assumptions)
+
+
+@app.post("/compute/batch", response_model=list[BenefitBreakdown])
+def compute_batch(
+    budgets: list[BudgetVector],
+    rule: JurisdictionRule,
+    distance_km: Optional[float] = None,
+    travel_time_hours: Optional[float] = None,
+    assumptions: Optional[RelocationAssumptions] = None,
+) -> list[BenefitBreakdown]:
+    """compute_benefit over a list of budgets against one rule, in a single
+    round trip. Used by the frontend's breakeven sparkline (BUILD_BRIEF.md
+    section 7) to scan ATL spend across ~50 points without one HTTP call per
+    point. Same pure function as /compute, just batched — no new arithmetic.
+    """
+    verified_rule = verify_rule(rule)
+    return [compute_benefit(b, verified_rule, distance_km, travel_time_hours, assumptions) for b in budgets]
 
 
 @app.post("/jurisdictions/search")

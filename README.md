@@ -58,9 +58,19 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [x] Map tab (`frontend/src/screens/MapView.tsx`) — deliberately lightweight:
       plain SVG, no D3/topojson/CDN fetch, no country boundaries (see its file
       docstring for why). Real jurisdiction centroids, schematic projection.
-- [ ] Breakeven sparkline, constraint-based greying (needs a schema decision —
-      JurisdictionRule has no field for "does this jurisdiction satisfy X
-      constraint", see comment in Results.tsx), PDF upload, export
+- [x] Breakeven line + sparkline under the hero card (`frontend/src/lib/breakeven.ts`,
+      `BreakevenLine` in Results.tsx). Scans ATL spend via a new
+      `POST /compute/batch` endpoint (same pure `compute_benefit`, batched to
+      avoid ~50 individual HTTP calls per scan). Honest caveat: with the
+      current 3 ranked seed jurisdictions (Georgia/New Mexico/Louisiana),
+      all flat-rate with no caps, ranking never actually flips as spend
+      scales, so it always correctly reports "leads across the whole range
+      tested" — the crossover-found branch is implemented and reasoned
+      through carefully but not exercised by real data yet. It'll show up
+      once a tiered or capped jurisdiction is added to the ranked set.
+- [ ] Constraint-based greying (needs a schema decision — JurisdictionRule has
+      no field for "does this jurisdiction satisfy X constraint", see comment
+      in Results.tsx), PDF upload, export
 - [ ] Deployment to Cloud Run / a public URL
 
 See BUILD_BRIEF.md section 8 for the intended build order.

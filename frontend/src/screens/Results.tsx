@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, computeBenefit, getSeedJurisdictions } from "../lib/api";
+import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
 import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
@@ -36,6 +37,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
   const [tab, setTab] = useState<"memo" | "map">("memo");
+  const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Fetched once — the seed jurisdiction list doesn't depend on the budget.
@@ -86,6 +88,31 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     };
   }, [rules, liveBudget, assumptions]);
 
+  // Scans ATL spend to find where the top pick stops leading — a second,
+  // coarser sweep than the main recompute above, so it rides the same
+  // debounced trigger (state.status flips to "ready" after each recompute)
+  // rather than firing its own independent request storm on every drag tick.
+  useEffect(() => {
+    if (state.status !== "ready" || !rules) return;
+    const computable = state.rows.filter((r) => r.benefit.computable);
+    if (computable.length < 2) {
+      setBreakeven(null);
+      return;
+    }
+    const hero = computable.reduce((a, b) => (b.benefit.net_benefit > a.benefit.net_benefit ? b : a));
+    const atlBase = initialBudget.atl_cast + initialBudget.atl_noncast;
+    let cancelled = false;
+    setBreakeven("loading");
+    scanBreakeven(rules, hero.rule.jurisdiction, liveBudget, atlBase, assumptions)
+      .then((result) => !cancelled && setBreakeven(result))
+      .catch(() => !cancelled && setBreakeven("error"));
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately keyed on `state` (not liveBudget/assumptions directly) so
+    // this rides the main recompute's debounce instead of double-firing.
+  }, [state, rules]);
+
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
       <div className="flex flex-wrap items-center gap-5 pt-4">
@@ -127,6 +154,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           onBudgetChange={setLiveBudget}
           assumptions={assumptions}
           onAssumptionsChange={setAssumptions}
+          breakeven={breakeven}
           showAll={showAll}
           setShowAll={setShowAll}
           showUnverified={showUnverified}
@@ -153,6 +181,7 @@ function ReadyResults({
   onBudgetChange,
   assumptions,
   onAssumptionsChange,
+  breakeven,
   showAll,
   setShowAll,
   showUnverified,
@@ -164,6 +193,7 @@ function ReadyResults({
   onBudgetChange: (b: BudgetVector) => void;
   assumptions: RelocationAssumptions;
   onAssumptionsChange: (a: RelocationAssumptions) => void;
+  breakeven: BreakevenResult | "loading" | "error" | null;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
   showUnverified: boolean;
@@ -190,7 +220,7 @@ function ReadyResults({
         RECOMMENDATION · RANKED BY NET BENEFIT
       </div>
 
-      <HeroCard row={hero} />
+      <HeroCard row={hero} breakeven={breakeven} />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
 
@@ -449,7 +479,61 @@ function RelocationAssumptionsPanel({
   );
 }
 
-function HeroCard({ row }: { row: Row }) {
+function BreakevenLine({ breakeven }: { breakeven: BreakevenResult }) {
+  const { series, hi, heroName, atlNow, crossAtl, above, rivalName } = breakeven;
+  const W = 260;
+  const H = 51;
+  const heroYs = series.map((p) => p.nets[heroName] ?? null);
+  const rivalYs = rivalName ? series.map((p) => p.nets[rivalName] ?? null) : series.map(() => null);
+  const allVals = [...heroYs, ...rivalYs].filter((v): v is number => v != null);
+  const lo = allVals.length ? Math.min(...allVals) : 0;
+  const hiVal = allVals.length ? Math.max(...allVals) : 1;
+  const x = (atl: number) => (atl / hi) * W;
+  const y = (v: number) => H - ((v - lo) / (hiVal - lo || 1)) * (H - 4) - 2;
+
+  const toPolyline = (ys: (number | null)[]) =>
+    series
+      .map((p, i) => (ys[i] != null ? `${x(p.atl).toFixed(1)},${y(ys[i] as number).toFixed(1)}` : null))
+      .filter((v): v is string => v != null)
+      .join(" ");
+
+  const cx = crossAtl != null ? x(crossAtl) : W;
+  const nearest = series.reduce((acc, p) => (Math.abs(p.atl - atlNow) < Math.abs(acc.atl - atlNow) ? p : acc), series[0]);
+  const nearestNet = nearest.nets[heroName];
+  const mx = x(nearest.atl);
+  const my = nearestNet != null ? y(nearestNet) : H;
+
+  let text: string;
+  let note: string;
+  if (crossAtl == null) {
+    text = `${heroName} leads across the whole range tested, up to ${moneyShort(hi)} of ATL spend.`;
+    note = `Crossover tested in ${series.length} steps at current resident-labor share.`;
+  } else if (above) {
+    text = `${heroName} leads until ATL spend exceeds ${moneyShort(crossAtl)} — you're at ${moneyShort(atlNow)}.`;
+    note = `Above that, ${rivalName ?? "the runner-up"} takes the lead. Other lines held constant.`;
+  } else {
+    text = `${heroName} leads while ATL spend stays above ${moneyShort(crossAtl)} — you're at ${moneyShort(atlNow)}.`;
+    note = `Below that, ${rivalName ?? "the runner-up"} takes the lead. Other lines held constant.`;
+  }
+
+  return (
+    <div className="flex items-center gap-4.5 pt-4">
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="shrink-0" style={{ overflow: "visible" }}>
+        <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="#D8DFE3" strokeWidth={1} />
+        <polyline points={toPolyline(rivalYs)} fill="none" stroke="#919A9F" strokeWidth={1.4} />
+        <polyline points={toPolyline(heroYs)} fill="none" stroke="#008687" strokeWidth={1.8} />
+        <line x1={cx} y1={0} x2={cx} y2={H} stroke="#AE4538" strokeWidth={1} strokeDasharray="2 3" />
+        <circle cx={mx} cy={my} r={3.2} fill="#008687" />
+      </svg>
+      <div>
+        <div className="font-sans text-[13px] font-medium leading-relaxed text-ink">{text}</div>
+        <div className="mt-0.5 font-mono text-[11px] text-ink-3">{note}</div>
+      </div>
+    </div>
+  );
+}
+
+function HeroCard({ row, breakeven }: { row: Row; breakeven: BreakevenResult | "loading" | "error" | null }) {
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
@@ -487,6 +571,10 @@ function HeroCard({ row }: { row: Row }) {
               Distance from home base not available yet — Google Maps integration pending, so relocation cost
               above excludes flights/ground transport.
             </div>
+          )}
+
+          {breakeven && breakeven !== "loading" && breakeven !== "error" && (
+            <BreakevenLine breakeven={breakeven} />
           )}
         </div>
 
