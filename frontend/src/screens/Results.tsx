@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, computeBenefit, getSeedJurisdictions } from "../lib/api";
 import { hostOf, money, moneyShort } from "../lib/format";
-import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus } from "../types";
+import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
+import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
 
 interface Row {
   rule: JurisdictionRule;
@@ -29,6 +30,7 @@ const RECOMPUTE_DEBOUNCE_MS = 200;
 export function Results({ budget: initialBudget, onEditInputs }: { budget: BudgetVector; onEditInputs: () => void }) {
   const [rules, setRules] = useState<JurisdictionRule[] | null>(null);
   const [liveBudget, setLiveBudget] = useState<BudgetVector>(initialBudget);
+  const [assumptions, setAssumptions] = useState<RelocationAssumptions>(DEFAULT_RELOCATION_ASSUMPTIONS);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
@@ -63,7 +65,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       (async () => {
         try {
           const rows = await Promise.all(
-            rules.map(async (rule) => ({ rule, benefit: await computeBenefit(liveBudget, rule) })),
+            rules.map(async (rule) => ({ rule, benefit: await computeBenefit(liveBudget, rule, { assumptions }) })),
           );
           if (!cancelled) setState({ status: "ready", rows });
         } catch (err) {
@@ -80,7 +82,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [rules, liveBudget]);
+  }, [rules, liveBudget, assumptions]);
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
@@ -117,6 +119,8 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           liveBudget={liveBudget}
           initialBudget={initialBudget}
           onBudgetChange={setLiveBudget}
+          assumptions={assumptions}
+          onAssumptionsChange={setAssumptions}
           showAll={showAll}
           setShowAll={setShowAll}
           showUnverified={showUnverified}
@@ -139,6 +143,8 @@ function ReadyResults({
   liveBudget,
   initialBudget,
   onBudgetChange,
+  assumptions,
+  onAssumptionsChange,
   showAll,
   setShowAll,
   showUnverified,
@@ -148,6 +154,8 @@ function ReadyResults({
   liveBudget: BudgetVector;
   initialBudget: BudgetVector;
   onBudgetChange: (b: BudgetVector) => void;
+  assumptions: RelocationAssumptions;
+  onAssumptionsChange: (a: RelocationAssumptions) => void;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
   showUnverified: boolean;
@@ -177,6 +185,8 @@ function ReadyResults({
       <HeroCard row={hero} />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
+
+      <RelocationAssumptionsPanel assumptions={assumptions} onChange={onAssumptionsChange} />
 
       {rest.length > 0 && (
         <>
@@ -335,6 +345,84 @@ function SensitivityPanel({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface AssumptionField {
+  key: keyof RelocationAssumptions;
+  label: string;
+  prefix?: string;
+  suffix?: string;
+  step: number;
+  note: string;
+  /** UI shows percent 0-100; state stores a 0-1 fraction. */
+  isPercent?: boolean;
+}
+
+const ASSUMPTION_FIELDS: AssumptionField[] = [
+  { key: "flight_threshold_km", label: "Flight threshold", suffix: "km", step: 10, note: "below this, ground travel only" },
+  { key: "flight_cost_per_person", label: "Airfare base", prefix: "$", step: 10, note: "per traveller, round trip" },
+  { key: "ground_cost_per_person_per_km", label: "Ground transport", prefix: "$", suffix: "/km", step: 0.01, note: "per traveller-km, under threshold" },
+  { key: "per_diem_per_person_per_day", label: "Per diem", prefix: "$", step: 5, note: "per traveller, per shoot day" },
+  { key: "hotel_per_person_per_day", label: "Hotel", prefix: "$", step: 5, note: "per traveller, per shoot day" },
+  { key: "equipment_shipping_base", label: "Equipment shipping", prefix: "$", step: 500, note: "flat, per production" },
+  { key: "imported_crew_pct", label: "Crew relocating", suffix: "%", step: 1, note: "fraction of crew_headcount that travels", isPercent: true },
+];
+
+/** BUILD_BRIEF.md section 6: "Every assumption must be visible and editable in the UI." */
+function RelocationAssumptionsPanel({
+  assumptions,
+  onChange,
+}: {
+  assumptions: RelocationAssumptions;
+  onChange: (a: RelocationAssumptions) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function setField(key: keyof RelocationAssumptions, raw: string) {
+    const parsed = num(raw);
+    onChange({ ...assumptions, [key]: ASSUMPTION_FIELDS.find((f) => f.key === key)?.isPercent ? parsed / 100 : parsed });
+  }
+
+  return (
+    <div className="mt-5 border border-border-3 bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2.5 bg-card-2 px-5.5 py-3.5 text-left"
+      >
+        <span className="font-mono text-[11px] text-ink-3">{open ? "−" : "+"}</span>
+        <span className="font-sans text-[13.5px] font-semibold">Relocation cost assumptions</span>
+        <span className="font-mono text-[11.5px] text-ink-2">
+          flights over {Math.round(assumptions.flight_threshold_km)} km · ${Math.round(assumptions.per_diem_per_person_per_day + assumptions.hotel_per_person_per_day)}/day per traveller
+        </span>
+      </button>
+      {open && (
+        <div className="grid grid-cols-1 gap-4 p-5.5 sm:grid-cols-3 lg:grid-cols-4">
+          {ASSUMPTION_FIELDS.map((f) => {
+            const raw = f.isPercent ? assumptions[f.key] * 100 : assumptions[f.key];
+            return (
+              <label key={f.key} className="block">
+                <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[#3d3a34]">{f.label}</div>
+                <div className="flex items-center border border-border-2 bg-card-2">
+                  {f.prefix && <span className="pl-2 font-mono text-[12px] text-ink-3">{f.prefix}</span>}
+                  <input
+                    type="number"
+                    step={f.step}
+                    min={0}
+                    value={raw}
+                    onChange={(e) => setField(f.key, e.target.value)}
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-right font-mono text-[13px] font-medium text-ink outline-none"
+                  />
+                  {f.suffix && <span className="pr-2 font-mono text-[12px] text-ink-3">{f.suffix}</span>}
+                </div>
+                <div className="mt-1 font-mono text-[10.5px] text-ink-3">{f.note}</div>
+              </label>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
