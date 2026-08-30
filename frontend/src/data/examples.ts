@@ -74,9 +74,16 @@ export const EXAMPLES: Example[] = [
   },
 ];
 
-export const HOME_BASES = [
-  { id: "lax", label: "Los Angeles, CA" },
-  { id: "nyc", label: "New York, NY" },
-  { id: "atl", label: "Atlanta, GA" },
-  { id: "ldn", label: "London, UK" },
+export interface HomeBase {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+}
+
+export const HOME_BASES: HomeBase[] = [
+  { id: "lax", label: "Los Angeles, CA", lat: 34.052, lng: -118.244 },
+  { id: "nyc", label: "New York, NY", lat: 40.713, lng: -74.006 },
+  { id: "atl", label: "Atlanta, GA", lat: 33.749, lng: -84.388 },
+  { id: "ldn", label: "London, UK", lat: 51.507, lng: -0.128 },
 ];

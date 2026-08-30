@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, computeBenefit, getSeedJurisdictions } from "../lib/api";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
 import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
+import { MapView } from "./MapView";
 
 interface Row {
   rule: JurisdictionRule;
@@ -34,6 +35,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
+  const [tab, setTab] = useState<"memo" | "map">("memo");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Fetched once — the seed jurisdiction list doesn't depend on the budget.
@@ -86,7 +88,11 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
-      <div className="flex items-center gap-5 pt-4">
+      <div className="flex flex-wrap items-center gap-5 pt-4">
+        <div className="flex gap-0.5">
+          <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
+          <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
+        </div>
         <div className="font-sans text-[12.5px] text-ink-2">
           {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
         </div>
@@ -113,7 +119,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
         </div>
       )}
 
-      {state.status === "ready" && (
+      {state.status === "ready" && tab === "memo" && (
         <ReadyResults
           rows={state.rows}
           liveBudget={liveBudget}
@@ -127,6 +133,8 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           setShowUnverified={setShowUnverified}
         />
       )}
+
+      {state.status === "ready" && tab === "map" && <MapView rows={state.rows} homeBaseLabel={liveBudget.home_base} />}
     </div>
   );
 }
@@ -256,6 +264,20 @@ function ReadyResults({
         transport until Google Maps distance is wired in (see caps_applied notes above where that applies).
       </div>
     </div>
+  );
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2.5 font-mono text-[11.5px] font-medium tracking-wide ${
+        active ? "border border-ink bg-ink text-paper" : "border border-border-2 bg-card text-ink-2"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

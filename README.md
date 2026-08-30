@@ -55,9 +55,12 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [ ] Google Maps distance client (`backend/app/maps_client.py`) — needs
       `GOOGLE_MAPS_API_KEY` in `backend/.env`; not yet obtained (billing/free-credit
       setup still pending on the GCP project as of this writing)
+- [x] Map tab (`frontend/src/screens/MapView.tsx`) — deliberately lightweight:
+      plain SVG, no D3/topojson/CDN fetch, no country boundaries (see its file
+      docstring for why). Real jurisdiction centroids, schematic projection.
 - [ ] Breakeven sparkline, constraint-based greying (needs a schema decision —
       JurisdictionRule has no field for "does this jurisdiction satisfy X
-      constraint", see comment in Results.tsx), map tab, PDF upload, export
+      constraint", see comment in Results.tsx), PDF upload, export
 - [ ] Deployment to Cloud Run / a public URL
 
 See BUILD_BRIEF.md section 8 for the intended build order.
