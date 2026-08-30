@@ -24,6 +24,25 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new ApiError(detail || res.statusText, res.status);
+  }
+  return res.json();
+}
+
+/**
+ * Hand-curated real jurisdictions (backend/app/seed_jurisdictions.py) — a
+ * manual stand-in for live extraction until Layer 1 (Gemini + Parallel) has
+ * GCP auth. See that file's docstring: every figure is sourced from a real
+ * search, not fabricated, just not automated yet.
+ */
+export function getSeedJurisdictions(): Promise<JurisdictionRule[]> {
+  return getJson<JurisdictionRule[]>("/jurisdictions/seed");
+}
+
 /** Layer 2, over the wire. Works today with zero credentials — see backend/app/main.py. */
 export function computeBenefit(
   budget: BudgetVector,

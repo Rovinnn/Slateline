@@ -2,24 +2,31 @@ import { useState } from "react";
 import { makeBlankBudget } from "./data/blankBudget";
 import { EXAMPLES, type Example } from "./data/examples";
 import { ManualForm } from "./screens/ManualForm";
+import { Results } from "./screens/Results";
 import type { BudgetVector } from "./types";
 
-type Screen = "home" | "form";
+type Screen = "home" | "form" | "results";
 
 /**
- * Home + manual entry form — BUILD_BRIEF.md section 8 build order: examples
- * path first ("a judge opening the live URL has no budget file"), then
- * manual form, then results screen, then sliders. PDF upload, the results
- * memo, sensitivity sliders and the map tab are the next slices, once
- * Layer 1 (extraction) and Layer 2 are reachable over the API together.
+ * BUILD_BRIEF.md section 8 build order: examples path first ("a judge
+ * opening the live URL has no budget file"), then manual form, then results
+ * screen — all three now wired end to end against the real backend
+ * (compute_benefit + the hand-curated seed jurisdictions). Sensitivity
+ * sliders, the map tab and PDF upload are next, once Layer 1 (Gemini) and
+ * Google Maps have credentials.
  */
 function App() {
   const [screen, setScreen] = useState<Screen>("home");
-  const [selected, setSelected] = useState<BudgetVector | null>(null);
+  const [budget, setBudget] = useState<BudgetVector | null>(null);
 
   function reset() {
     setScreen("home");
-    setSelected(null);
+    setBudget(null);
+  }
+
+  function runComparison(b: BudgetVector) {
+    setBudget(b);
+    setScreen("results");
   }
 
   return (
@@ -39,21 +46,17 @@ function App() {
         )}
       </header>
 
-      {screen === "form" ? (
-        <ManualForm initial={makeBlankBudget()} onBack={() => setScreen("home")} />
-      ) : (
-        <HomeScreen selected={selected} onSelectExample={setSelected} onOpenForm={() => setScreen("form")} />
-      )}
+      {screen === "form" && <ManualForm initial={makeBlankBudget()} onBack={() => setScreen("home")} onSubmit={runComparison} />}
+      {screen === "results" && budget && <Results budget={budget} onEditInputs={() => setScreen("form")} />}
+      {screen === "home" && <HomeScreen onSelectExample={runComparison} onOpenForm={() => setScreen("form")} />}
     </div>
   );
 }
 
 function HomeScreen({
-  selected,
   onSelectExample,
   onOpenForm,
 }: {
-  selected: BudgetVector | null;
   onSelectExample: (b: BudgetVector) => void;
   onOpenForm: () => void;
 }) {
@@ -124,15 +127,6 @@ function HomeScreen({
             <div className="mt-3 font-mono text-[11px] text-ink-3">NOTHING UPLOADED YET</div>
           </section>
         </div>
-
-        {selected && (
-          <section className="mt-7 border border-border-3 bg-card p-5">
-            <div className="mb-2 font-mono text-[11px] font-medium tracking-wide text-ink-3">
-              SELECTED — BUDGETVECTOR (results memo not wired yet)
-            </div>
-            <pre className="overflow-x-auto font-mono text-[12px] text-ink-2">{JSON.stringify(selected, null, 2)}</pre>
-          </section>
-        )}
       </main>
     </>
   );

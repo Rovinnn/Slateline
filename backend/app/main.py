@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .calculator import compute_benefit
 from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
+from .seed_jurisdictions import SEED_JURISDICTIONS
 from .verification import verify_rule
 
 app = FastAPI(title="Incentive Verifier API")
@@ -61,3 +62,13 @@ def search_jurisdictions(jurisdiction: str):
             "PARALLEL_API_KEY and GOOGLE_MAPS_API_KEY. See app/extraction/agent.py."
         ),
     )
+
+
+@app.get("/jurisdictions/seed", response_model=list[JurisdictionRule])
+def list_seed_jurisdictions() -> list[JurisdictionRule]:
+    """Hand-curated real jurisdictions (see app/seed_jurisdictions.py) — a
+    manual stand-in for /jurisdictions/search until Layer 1 extraction is
+    live. Confidence is recomputed here, same as /compute does for a
+    caller-supplied rule.
+    """
+    return [verify_rule(rule) for rule in SEED_JURISDICTIONS]

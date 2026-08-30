@@ -24,14 +24,19 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
       cap, tier boundaries, uplifts, per-project cap, relocation cost, sensitivity sweep
 - [x] Layer 3 (rule-based verification / confidence assessment) implemented
 - [x] `/health` and `/compute` API endpoints wired and testable with zero credentials
-- [x] Frontend scaffolded (Vite + React + TS + Tailwind), Home screen ("try an
-      example") and manual budget entry form built and verified in a browser
-      (form drives a real `BudgetVector`, incl. sum reconciliation, constraint
-      toggles, home base select)
+- [x] Frontend: Home ("try an example"), manual budget entry form, and a real
+      results screen (hero recommendation, runners-up, "can't verify" section)
+      all wired end to end against the live backend and verified in a browser
+      — see `frontend/src/screens/Results.tsx`
 - [x] `GOOGLE_CLOUD_PROJECT` and `PARALLEL_API_KEY` set in `backend/.env` (gitignored).
       Parallel Search verified live — both raw HTTP and the actual `parallel-web`
-      SDK call `agent.py` uses returned real results (see git log for the session
-      this was verified in)
+      SDK call `agent.py` uses returned real results
+- [x] `backend/app/seed_jurisdictions.py` — 4 real jurisdictions (Georgia, New
+      Mexico, Louisiana, Texas) hand-curated from those live Parallel searches,
+      standing in for Layer 1 until Vertex AI auth is done. Served via
+      `GET /jurisdictions/seed`, golden-file tested in
+      `backend/tests/test_seed_jurisdictions.py`. Delete or fold into real
+      Layer 1 output once extraction.agent works for these jurisdictions.
 - [ ] **Gemini via Vertex AI — auth not yet done, this is the next real blocker.**
       `agent.py`'s extraction call needs GCP application-default credentials, which
       requires an interactive login only a human can complete:
@@ -47,7 +52,7 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [ ] Google Maps distance client (`backend/app/maps_client.py`) — needs
       `GOOGLE_MAPS_API_KEY` in `backend/.env`; not yet obtained (billing/free-credit
       setup still pending on the GCP project as of this writing)
-- [ ] Results memo, sensitivity sliders, map tab, PDF upload
+- [ ] Sensitivity sliders, breakeven sparkline, map tab, PDF upload, export
 - [ ] Deployment to Cloud Run / a public URL
 
 See BUILD_BRIEF.md section 8 for the intended build order.

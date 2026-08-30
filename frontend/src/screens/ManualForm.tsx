@@ -29,15 +29,16 @@ function formatMoney(n: number): string {
 export function ManualForm({
   initial,
   onBack,
+  onSubmit,
 }: {
   initial: BudgetVector;
   onBack: () => void;
+  onSubmit: (budget: BudgetVector) => void;
 }) {
   const [budget, setBudget] = useState<BudgetVector>(initial);
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(MONEY_FIELDS.map((f) => [f.key, formatMoney(initial[f.key])])),
   );
-  const [submitted, setSubmitted] = useState<BudgetVector | null>(null);
 
   function setMoneyField(key: MoneyField["key"], raw: string) {
     setDrafts((d) => ({ ...d, [key]: raw }));
@@ -80,7 +81,7 @@ export function ManualForm({
           </button>
           <button
             type="button"
-            onClick={() => setSubmitted(budget)}
+            onClick={() => onSubmit(budget)}
             className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-colors hover:bg-[#091318]"
           >
             RUN COMPARISON
@@ -226,15 +227,6 @@ export function ManualForm({
           </section>
         </div>
       </div>
-
-      {submitted && (
-        <section className="mt-7 border border-border-3 bg-card p-5">
-          <div className="mb-2 font-mono text-[11px] font-medium tracking-wide text-ink-3">
-            SUBMITTED — BUDGETVECTOR (results memo not wired yet)
-          </div>
-          <pre className="overflow-x-auto font-mono text-[12px] text-ink-2">{JSON.stringify(submitted, null, 2)}</pre>
-        </section>
-      )}
     </div>
   );
 }
