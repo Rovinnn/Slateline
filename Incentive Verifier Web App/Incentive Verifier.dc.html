@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #F7F5F1; color: #131F25; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  a { color: #008687; text-decoration: none; border-bottom: 1px solid #B2CECD; }
+  a:hover { color: #005354; border-bottom-color: #008687; }
+  @keyframes iv-spin { to { transform: rotate(360deg); } }
+  @keyframes iv-mark-spin { to { transform: rotate(360deg); } }
+  .iv-mark { position: relative; border-radius: 50%; animation: iv-mark-spin 14s linear infinite; }
+  .iv-mark span { position: absolute; border-radius: 50%; mix-blend-mode: multiply; }
+  @keyframes iv-flash { 0% { background: #EDF2EE; } 100% { background: #FFFFFF; } }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: ew-resize; }
+  input[type=range]::-webkit-slider-runnable-track { height: 3px; background: #D4D1C9; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; margin-top: -6px; border-radius: 50%; background: #131F25; border: 2px solid #F7F5F1; box-shadow: 0 0 0 1px #131F25; }
+  input[type=range]::-moz-range-track { height: 3px; background: #D4D1C9; }
+  input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #131F25; border: 2px solid #F7F5F1; }
+  summary { list-style: none; cursor: pointer; }
+  summary::-webkit-details-marker { display: none; }
+  input[type=text], input[type=number], select { font-family: 'IBM Plex Mono', monospace; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;font-family:'Public Sans',sans-serif;font-size:14px;color:#131F25;background:#F7F5F1">
+
+  <div style="position:sticky;top:0;z-index:30;display:flex;align-items:baseline;gap:18px;padding:13px 28px;background:#F7F5F1;border-bottom:1px solid #D8DFE3">
+    <div class="iv-mark" style="width:16px;height:16px;flex:none">
+      <span style="width:11px;height:11px;left:0;top:0;background:#008687"></span>
+      <span style="width:11px;height:11px;left:5px;top:0;background:#AA6A00"></span>
+      <span style="width:11px;height:11px;left:2.5px;top:5px;background:#AE4538"></span>
+    </div>
+    <div style="font:700 15px/1 'Public Sans',sans-serif;letter-spacing:-0.01em">Incentive Verifier</div>
+    <div style="font:400 12.5px/1 'Public Sans',sans-serif;color:#4E5A60">Jurisdiction comparison, net of relocation</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+      <div style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em;color:#879196">RULES CURRENT TO 2026-08-28</div>
+      <sc-if value="{{ showReset }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ reset }}" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em;padding:7px 11px;background:#F7F5F1;border:1px solid #C3C1B9;color:#131F25;cursor:pointer" style-hover="border-color:#131F25">START OVER</button>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:1320px;margin:0 auto;padding:44px 28px 64px">
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:34px">
+        <div class="iv-mark" style="width:46px;height:46px;flex:none">
+          <span style="width:32px;height:32px;left:0;top:0;background:#008687"></span>
+          <span style="width:32px;height:32px;left:14px;top:0;background:#AA6A00"></span>
+          <span style="width:32px;height:32px;left:7px;top:14px;background:#AE4538"></span>
+        </div>
+        <div>
+          <h1 style="margin:0 0 6px;font:600 28px/1.15 'Public Sans',sans-serif;letter-spacing:-0.02em">Compare shooting locations on net benefit.</h1>
+          <p style="margin:0;font:400 14px/1.5 'Public Sans',sans-serif;color:#4E5A60">Every number sourced, dated, and adjusted for relocation cost.</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:stretch">
+
+        <div style="display:flex;flex-direction:column;background:#FFFFFF;border:1px solid #D8DFE3;padding:20px">
+          <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#879196">01</span>
+            <span style="font:600 15px/1 'Public Sans',sans-serif">Try an example</span>
+          </div>
+          <p style="margin:0 0 16px;font:400 13px/1.45 'Public Sans',sans-serif;color:#4E5A60">One click loads a full comparison.</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ examples }}" as="ex" hint-placeholder-count="3">
+              <button onClick="{{ ex.load }}" style="display:block;width:100%;text-align:left;padding:13px 14px;background:#FBF9F5;border:1px solid #D8DFE3;cursor:pointer;font-family:'Public Sans',sans-serif" style-hover="border-color:#131F25;background:#FFFFFF">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+                  <span style="font:600 13.5px/1.2 'Public Sans',sans-serif;color:#131F25">{{ ex.name }}</span>
+                  <span style="font:600 13px/1.2 'IBM Plex Mono',monospace;color:#131F25">{{ ex.budget }}</span>
+                </div>
+                <div style="margin-top:5px;font:400 11.5px/1.3 'IBM Plex Mono',monospace;color:#4E5A60">{{ ex.meta }}</div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;background:#FFFFFF;border:1px solid #D8DFE3;padding:20px">
+          <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#879196">02</span>
+            <span style="font:600 15px/1 'Public Sans',sans-serif">Enter budget manually</span>
+          </div>
+          <p style="margin:0 0 16px;font:400 13px/1.45 'Public Sans',sans-serif;color:#4E5A60">Everything derived is shown.</p>
+          <div style="display:flex;flex-direction:column;gap:7px;padding:14px;background:#FBF9F5;border:1px solid #EAE8E1;margin-bottom:16px">
+            <sc-for list="{{ fieldPreview }}" as="f" hint-placeholder-count="6">
+              <div style="display:flex;justify-content:space-between;gap:12px;font:400 11.5px/1.3 'IBM Plex Mono',monospace;color:#4E5A60">
+                <span>{{ f.label }}</span>
+                <span style="color:#919A9F">{{ f.unit }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ openBlank }}" style="margin-top:auto;width:100%;padding:11px;background:#131F25;border:1px solid #131F25;color:#F7F5F1;cursor:pointer;font:500 11.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em" style-hover="background:#091318">OPEN BLANK FORM</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;background:#FFFFFF;border:1px solid #D8DFE3;padding:20px">
+          <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;color:#879196">03</span>
+            <span style="font:600 15px/1 'Public Sans',sans-serif">Upload budget PDF</span>
+          </div>
+          <p style="margin:0 0 16px;font:400 13px/1.45 'Public Sans',sans-serif;color:#4E5A60">Figures land pre-filled, for you to correct.</p>
+          <div onClick="{{ pickFile }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="{{ dropStyle }}">
+            <div style="font:500 12px/1.4 'IBM Plex Mono',monospace;letter-spacing:0.04em;color:#57534C">DROP PDF HERE</div>
+            <div style="font:400 12px/1.4 'Public Sans',sans-serif;color:#879196">or click to browse · max 25 MB</div>
+          </div>
+          <div style="margin-top:12px;display:flex;justify-content:space-between;gap:10px;font:400 11px/1.4 'IBM Plex Mono',monospace;color:#919A9F">
+            <span>NOTHING UPLOADED YET</span>
+            <button onClick="{{ failPath }}" style="background:none;border:none;padding:0;font:400 11px/1.4 'IBM Plex Mono',monospace;color:#919A9F;cursor:pointer;text-decoration:underline" style-hover="color:#AE4538">run failure path</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isUploading }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:560px;margin:0 auto;padding:130px 28px">
+      <div style="background:#FFFFFF;border:1px solid #D8DFE3;padding:28px">
+        <div style="display:flex;align-items:center;gap:13px;margin-bottom:20px">
+          <div style="width:18px;height:18px;border:2px solid #D8DFE3;border-top-color:#131F25;border-radius:50%;animation:iv-spin .8s linear infinite"></div>
+          <div style="font:600 14px/1 'Public Sans',sans-serif">Reading {{ fileName }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ uploadSteps }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;gap:10px;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4E5A60">
+              <span style="color:#879196;width:14px">{{ s.mark }}</span>
+              <span>{{ s.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isUploadError }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:560px;margin:0 auto;padding:130px 28px">
+      <div style="background:#FFFFFF;border:1px solid #D8DFE3;border-top:3px solid #AE4538;padding:28px">
+        <div style="font:600 15px/1.3 'Public Sans',sans-serif;color:#AE4538;margin-bottom:8px">Could not read {{ fileName }}</div>
+        <p style="margin:0 0 6px;font:400 13.5px/1.55 'Public Sans',sans-serif;color:#57534C">The file has no extractable text layer — it looks like a scan. Nothing was inferred and no figures were carried forward.</p>
+        <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#879196;margin-bottom:20px">parser: topsheet-v4 · pages read 0/1 · confidence n/a</div>
+        <div style="display:flex;gap:10px">
+          <button onClick="{{ pickFile }}" style="padding:10px 14px;background:#131F25;border:1px solid #131F25;color:#F7F5F1;cursor:pointer;font:500 11.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em">TRY ANOTHER FILE</button>
+          <button onClick="{{ openBlank }}" style="padding:10px 14px;background:#FFFFFF;border:1px solid #C3C1B9;color:#131F25;cursor:pointer;font:500 11.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em" style-hover="border-color:#131F25">ENTER MANUALLY</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isForm }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1180px;margin:0 auto;padding:34px 28px 72px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:22px">
+        <div>
+          <h1 style="margin:0 0 6px;font:600 22px/1.2 'Public Sans',sans-serif;letter-spacing:-0.01em">Budget and production parameters</h1>
+          <p style="margin:0;font:400 13.5px/1.5 'Public Sans',sans-serif;color:#4E5A60">{{ formNote }}</p>
+        </div>
+        <button onClick="{{ toResults }}" style="flex:none;padding:12px 20px;background:#131F25;border:1px solid #131F25;color:#F7F5F1;cursor:pointer;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:0.06em" style-hover="background:#091318">RUN COMPARISON</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start">
+        <div style="background:#FFFFFF;border:1px solid #D8DFE3;padding:22px">
+          <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:16px">BUDGET LINES</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 20px">
+            <sc-for list="{{ fields }}" as="f" hint-placeholder-count="9">
+              <label style="display:block">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px">
+                  <span style="font:500 12.5px/1.2 'Public Sans',sans-serif;color:#3D3A34">{{ f.label }}</span>
+                  <span style="font:400 10.5px/1.2 'IBM Plex Mono',monospace;color:#919A9F">{{ f.unit }}</span>
+                </div>
+                <div style="display:flex;align-items:center;border:1px solid #D4D1C9;background:#FBF9F5">
+                  <span style="padding:0 8px;font:400 12.5px/1 'IBM Plex Mono',monospace;color:#879196">{{ f.prefix }}</span>
+                  <input type="text" value="{{ f.value }}" onChange="{{ f.onChange }}" style="flex:1;min-width:0;padding:9px 10px 9px 0;border:none;outline:none;background:transparent;font:500 13.5px/1 'IBM Plex Mono',monospace;color:#131F25;text-align:right" />
+                </div>
+                <sc-if value="{{ f.note }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:4px;font:400 10.5px/1.3 'IBM Plex Mono',monospace;color:#606B70">{{ f.note }}</div>
+                </sc-if>
+              </label>
+            </sc-for>
+          </div>
+          <div style="margin-top:18px;padding-top:14px;border-top:1px solid #EAE8E1;display:flex;justify-content:space-between;gap:14px">
+            <div style="font:400 12px/1.4 'IBM Plex Mono',monospace;color:#4E5A60">CATEGORY SUM</div>
+            <div style="font:500 12px/1.4 'IBM Plex Mono',monospace;color:{{ sumColor }}">{{ sumNote }}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div style="background:#FFFFFF;border:1px solid #D8DFE3;padding:22px">
+            <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:14px">HOME BASE</div>
+            <select value="{{ homeBaseId }}" onChange="{{ setHomeBase }}" style="width:100%;padding:9px 10px;border:1px solid #D4D1C9;background:#FBF9F5;font:500 13px/1.2 'IBM Plex Mono',monospace;color:#131F25;outline:none">
+              <sc-for list="{{ homeBases }}" as="h" hint-placeholder-count="4">
+                <option value="{{ h.id }}">{{ h.label }}</option>
+              </sc-for>
+            </select>
+            <div style="margin-top:8px;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">{{ homeBaseNote }}</div>
+          </div>
+
+          <div style="background:#FFFFFF;border:1px solid #D8DFE3;padding:22px">
+            <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:6px">CONSTRAINTS · OPTIONAL</div>
+            <p style="margin:0 0 14px;font:400 12.5px/1.45 'Public Sans',sans-serif;color:#4E5A60">Constraints never delete a jurisdiction. They grey it out and state why.</p>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <sc-for list="{{ constraintList }}" as="c" hint-placeholder-count="3">
+                <button onClick="{{ c.toggle }}" style="{{ c.rowStyle }}">
+                  <span style="{{ c.boxStyle }}">{{ c.mark }}</span>
+                  <span style="font:400 12.5px/1.35 'Public Sans',sans-serif;text-align:left">{{ c.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ inResults }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1320px;margin:0 auto;padding:0 28px 80px">
+
+      <div style="display:flex;align-items:center;gap:22px;padding:16px 0 0">
+        <div style="display:flex;gap:2px">
+          <button onClick="{{ showMemo }}" style="{{ tabMemoStyle }}">MEMO</button>
+          <button onClick="{{ showMap }}" style="{{ tabMapStyle }}">MAP</button>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">
+          <span>{{ scenarioLabel }}</span>
+          <span>{{ computeNote }}</span>
+          <button onClick="{{ backToForm }}" style="background:none;border:none;padding:0;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#008687;cursor:pointer;text-decoration:underline">edit inputs</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ isMemo }}" hint-placeholder-val="{{ true }}">
+        <div style="padding-top:22px">
+
+          <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:10px">RECOMMENDATION · RANKED BY NET BENEFIT</div>
+
+          <div style="{{ heroStyle }}">
+            <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:34px;padding:26px 28px">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:2px">
+                  <h2 style="margin:0;font:600 27px/1.15 'Public Sans',sans-serif;letter-spacing:-0.02em">{{ hero.name }}</h2>
+                  <span style="{{ hero.pillStyle }}">{{ hero.status }}</span>
+                </div>
+                <div style="font:400 12.5px/1.4 'IBM Plex Mono',monospace;color:#4E5A60;margin-bottom:20px">{{ hero.hubLine }}</div>
+
+                <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:4px">NET BENEFIT</div>
+                <div style="font:600 54px/1 'IBM Plex Mono',monospace;letter-spacing:-0.03em;margin-bottom:10px">{{ hero.netLabel }}</div>
+                <div style="font:400 14px/1.5 'IBM Plex Mono',monospace;color:#3D3A34;padding-bottom:16px;border-bottom:1px solid #EAE8E1">{{ hero.arithmetic }}</div>
+
+                <div style="display:flex;flex-direction:column;gap:6px;padding:14px 0 18px;border-bottom:1px solid #EAE8E1">
+                  <sc-for list="{{ hero.relocLines }}" as="r" hint-placeholder-count="3">
+                    <div style="display:flex;justify-content:space-between;gap:16px;font:400 12px/1.4 'IBM Plex Mono',monospace;color:#4E5A60">
+                      <span>{{ r.label }}</span>
+                      <span style="color:#3D3A34">{{ r.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="display:flex;gap:18px;align-items:center;padding-top:16px">
+                  <svg viewBox="0 0 260 52" width="260" height="52" style="flex:none;overflow:visible">
+                    <line x1="0" y1="51" x2="260" y2="51" stroke="#D8DFE3" stroke-width="1"></line>
+                    <polyline points="{{ spark.b }}" fill="none" stroke="#919A9F" stroke-width="1.4"></polyline>
+                    <polyline points="{{ spark.a }}" fill="none" stroke="#008687" stroke-width="1.8"></polyline>
+                    <line x1="{{ spark.cx }}" y1="0" x2="{{ spark.cx }}" y2="51" stroke="#AE4538" stroke-width="1" stroke-dasharray="2 3"></line>
+                    <circle cx="{{ spark.mx }}" cy="{{ spark.my }}" r="3.2" fill="#008687"></circle>
+                  </svg>
+                  <div>
+                    <div style="font:500 13px/1.45 'Public Sans',sans-serif;color:#131F25;text-wrap:pretty">{{ breakeven }}</div>
+                    <div style="margin-top:3px;font:400 11px/1.4 'IBM Plex Mono',monospace;color:#879196">{{ breakevenNote }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="border-left:1px solid #EAE8E1;padding-left:28px">
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <sc-for list="{{ hero.facts }}" as="f" hint-placeholder-count="4">
+                    <div>
+                      <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.07em;color:#879196;margin-bottom:4px">{{ f.k }}</div>
+                      <div style="font:400 13px/1.45 'Public Sans',sans-serif;color:#131F25;text-wrap:pretty">{{ f.v }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="margin-top:18px;padding-top:14px;border-top:1px solid #EAE8E1;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#606B70">
+                  <a href="{{ hero.sourceUrl }}" target="_blank" rel="noopener">{{ hero.sourceHost }}</a>
+                  <span>· retrieved {{ hero.retrieved }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;background:#FFFFFF;border:1px solid #CDCAC3;box-shadow:0 1px 0 #ECEAE5">
+            <div style="display:flex;align-items:baseline;gap:14px;padding:15px 22px;border-bottom:1px solid #EAE8E1;background:#FBF9F5">
+              <div style="font:600 13.5px/1 'Public Sans',sans-serif">Sensitivity</div>
+              <div style="font:400 12.5px/1.4 'Public Sans',sans-serif;color:#4E5A60">Drag to recompute. Ranking reorders live; nothing is cached.</div>
+              <div style="margin-left:auto;font:400 11px/1.4 'IBM Plex Mono',monospace;color:#879196">{{ computeNote }}</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:0">
+              <div style="padding:20px 22px;display:flex;flex-direction:column;gap:22px;border-right:1px solid #EAE8E1">
+                <sc-for list="{{ sliders }}" as="s" hint-placeholder-count="2">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:2px">
+                      <span style="font:500 12.5px/1.2 'Public Sans',sans-serif;color:#3D3A34">{{ s.label }}</span>
+                      <span style="font:600 15px/1.2 'IBM Plex Mono',monospace;color:#131F25">{{ s.value }}</span>
+                    </div>
+                    <input type="range" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.raw }}" onChange="{{ s.onChange }}" onInput="{{ s.onChange }}" />
+                    <div style="display:flex;justify-content:space-between;gap:12px;font:400 10.5px/1.3 'IBM Plex Mono',monospace;color:#919A9F">
+                      <span>{{ s.lo }}</span>
+                      <span style="color:#606B70">{{ s.hint }}</span>
+                      <span>{{ s.hi }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="padding:20px 22px">
+                <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196;margin-bottom:12px">CONSTRAINTS</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                  <sc-for list="{{ constraintList }}" as="c" hint-placeholder-count="3">
+                    <button onClick="{{ c.toggle }}" title="{{ c.tip }}" style="{{ c.chipStyle }}">{{ c.chip }}</button>
+                  </sc-for>
+                </div>
+                <div style="margin-top:12px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#606B70">{{ constraintNote }}</div>
+              </div>
+            </div>
+
+            <details onToggle="{{ onAssumpToggle }}" style="border-top:1px solid #EAE8E1;background:#FBF9F5">
+              <summary style="display:flex;align-items:center;gap:10px;padding:13px 22px;font:500 12.5px/1 'Public Sans',sans-serif;color:#3D3A34">
+                <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#879196">{{ assumpMark }}</span>
+                <span>Relocation cost assumptions</span>
+                <span style="font:400 11.5px/1 'IBM Plex Mono',monospace;color:#606B70">{{ assumpSummary }}</span>
+              </summary>
+              <div style="padding:4px 22px 20px;display:grid;grid-template-columns:repeat(5,1fr);gap:16px">
+                <sc-for list="{{ assumpFields }}" as="a" hint-placeholder-count="5">
+                  <label style="display:block">
+                    <div style="font:500 11.5px/1.3 'Public Sans',sans-serif;color:#3D3A34;margin-bottom:5px">{{ a.label }}</div>
+                    <div style="display:flex;align-items:center;border:1px solid #D4D1C9;background:#FFFFFF">
+                      <span style="padding:0 7px;font:400 12px/1 'IBM Plex Mono',monospace;color:#879196">{{ a.prefix }}</span>
+                      <input type="text" value="{{ a.value }}" onChange="{{ a.onChange }}" style="flex:1;min-width:0;padding:8px 9px 8px 0;border:none;outline:none;background:transparent;font:500 13px/1 'IBM Plex Mono',monospace;text-align:right;color:#131F25" />
+                    </div>
+                    <div style="margin-top:4px;font:400 10.5px/1.35 'IBM Plex Mono',monospace;color:#879196">{{ a.note }}</div>
+                  </label>
+                </sc-for>
+              </div>
+            </details>
+          </div>
+
+          <div style="display:flex;align-items:baseline;gap:14px;margin:28px 0 10px">
+            <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196">RUNNERS-UP</div>
+            <button onClick="{{ toggleAll }}" style="background:none;border:none;padding:0;font:400 11.5px/1 'IBM Plex Mono',monospace;color:#008687;cursor:pointer;text-decoration:underline">{{ showAllLabel }}</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ runnerUps }}" as="j" hint-placeholder-count="3">
+              <div ref="{{ j.ref }}" title="{{ j.tip }}" style="{{ j.cardStyle }}">
+                <div style="display:grid;grid-template-columns:34px 1.5fr 1fr 1fr 1.1fr;gap:18px;align-items:start;padding:16px 20px">
+                  <div style="font:500 13px/1.3 'IBM Plex Mono',monospace;color:#879196">{{ j.rank }}</div>
+                  <div>
+                    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                      <span style="font:600 16px/1.2 'Public Sans',sans-serif;letter-spacing:-0.01em">{{ j.name }}</span>
+                      <span style="{{ j.pillStyle }}">{{ j.status }}</span>
+                    </div>
+                    <div style="margin-top:4px;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">{{ j.hubLine }}</div>
+                    <sc-if value="{{ j.excluded }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:6px;font:500 11.5px/1.4 'IBM Plex Mono',monospace;color:#AE4538">{{ j.reason }}</div>
+                    </sc-if>
+                  </div>
+                  <div>
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.07em;color:#879196;margin-bottom:4px">RATE</div>
+                    <div style="font:500 13px/1.35 'IBM Plex Mono',monospace">{{ j.rate }}</div>
+                    <div style="margin-top:6px;font:400 12px/1.45 'Public Sans',sans-serif;color:#4E5A60;text-wrap:pretty">{{ j.caps }}</div>
+                  </div>
+                  <div>
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.07em;color:#879196;margin-bottom:4px">FROM HOME BASE</div>
+                    <div style="font:500 13px/1.35 'IBM Plex Mono',monospace">{{ j.km }}</div>
+                    <div style="margin-top:2px;font:400 12px/1.4 'IBM Plex Mono',monospace;color:#4E5A60">{{ j.travel }}</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font:500 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:0.07em;color:#879196;margin-bottom:4px">NET BENEFIT</div>
+                    <div style="font:600 22px/1.1 'IBM Plex Mono',monospace;letter-spacing:-0.02em;color:{{ j.netColor }}">{{ j.netLabel }}</div>
+                    <div style="margin-top:4px;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">{{ j.delta }}</div>
+                    <div style="margin-top:8px;height:3px;background:#ECEAE5"><div style="{{ j.barStyle }}"></div></div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:baseline;padding:9px 20px;border-top:1px solid #EFEDE7;background:#FBF9F5;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">
+                  <a href="{{ j.sourceUrl }}" target="_blank" rel="noopener">{{ j.sourceHost }}</a>
+                  <span>· retrieved {{ j.retrieved }}</span>
+                  <span style="margin-left:auto">{{ j.grossLine }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:26px;background:#FFFFFF;border:1px solid #D8DFE3">
+            <button onClick="{{ toggleUnverified }}" style="display:flex;width:100%;align-items:center;gap:12px;padding:14px 20px;background:#FBF9F5;border:none;cursor:pointer;text-align:left">
+              <span style="font:400 11px/1 'IBM Plex Mono',monospace;color:#879196">{{ unverifiedMark }}</span>
+              <span style="font:600 13.5px/1 'Public Sans',sans-serif;color:#131F25">Can't verify — {{ unverifiedCount }} excluded from the ranking</span>
+              <span style="font:400 12.5px/1.4 'Public Sans',sans-serif;color:#4E5A60">Discretionary or unpublished terms. Not scored, not hidden.</span>
+            </button>
+            <sc-if value="{{ showUnverified }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:1px solid #EAE8E1">
+                <sc-for list="{{ unverified }}" as="u" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:1.1fr 2fr 1.2fr;gap:20px;padding:14px 20px;border-bottom:1px solid #EFEDE7">
+                    <div>
+                      <div style="font:600 13.5px/1.25 'Public Sans',sans-serif">{{ u.name }}</div>
+                      <div style="margin-top:3px;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">{{ u.program }}</div>
+                    </div>
+                    <div style="font:400 13px/1.5 'Public Sans',sans-serif;color:#57534C;text-wrap:pretty">{{ u.reason }}</div>
+                    <div style="display:flex;gap:7px;align-items:baseline;font:400 11.5px/1.4 'IBM Plex Mono',monospace;color:#606B70">
+                      <a href="{{ u.sourceUrl }}" target="_blank" rel="noopener">{{ u.sourceHost }}</a>
+                      <span>· retrieved {{ u.retrieved }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="margin-top:22px;font:400 11.5px/1.6 'IBM Plex Mono',monospace;color:#879196;max-width:820px;text-wrap:pretty">Figures are estimates for comparison, not tax advice. Credit values assume the qualified-spend fractions shown on each card and no carry-forward. Confirm allocation availability with the film office before locking a location.</div>
+
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+        <div style="padding-top:22px">
+          <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:12px">
+            <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#879196">GEOGRAPHY · SUPPORTING VIEW</div>
+            <div style="font:400 12.5px/1.4 'Public Sans',sans-serif;color:#4E5A60">Ranking is unchanged by this view. Distances drive the relocation line on the memo.</div>
+          </div>
+          <div style="height:620px;background:#FFFFFF;border:1px solid #CDCAC3">
+            <x-import component-from-global-scope="incentive-map" from="./map-view.js" data-payload="{{ mapPayload }}" hint-size="100%,100%"></x-import>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:26px;flex-wrap:wrap;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#606B70">
+            <span>boundaries: world-atlas 2.0.2 (Natural Earth, public domain)</span>
+            <span>distances: haversine, hub-to-hub</span>
+            <span>home base: {{ homeBaseLabel }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+class Component extends DCLogic {
+  JUR = [
+    { id: 'ga', name: 'Georgia', hub: 'Atlanta', lat: 33.749, lon: -84.388, intl: false,
+      rate: '20% + 10% uplift', base: 0.30, uplift: 0,
+      caps: 'No annual cap. $500k minimum spend. Per-person salary counted to $500k. Credit is transferable.',
+      status: 'open', coef: { cast: 0.55, atlNon: 0.80, res: 1, nonres: 1, nonLabor: 0.95, post: 0.80 },
+      projectCap: null, allocation: null,
+      has: { coastline: true, soundstage: true, spring: false },
+      fail: { spring: 'Purpose-built stage inventory booked out Mar–May 2027' },
+      sourceHost: 'georgia.org/georgia-film-tax-credit', sourceUrl: 'https://www.georgia.org/industries/film-entertainment', retrieved: '2026-08-24' },
+
+    { id: 'nm', name: 'New Mexico', hub: 'Albuquerque', lat: 35.084, lon: -106.651, intl: false,
+      rate: '25% + 5% uplift', base: 0.25, uplift: 0.05,
+      caps: 'Rolling annual cap; $130M budgeted, $34.5M unreserved. Nonresident BTL wages largely excluded.',
+      status: 'capping', coef: { cast: 0.45, atlNon: 0.70, res: 1, nonres: 0.35, nonLabor: 0.90, post: 0.75 },
+      projectCap: null, allocation: 34500000,
+      has: { coastline: false, soundstage: false, spring: true },
+      fail: { coastline: 'Landlocked — no ocean coastline', soundstage: 'No stage above 18,000 sq ft available in window' },
+      sourceHost: 'nmfilm.com/incentives', sourceUrl: 'https://nmfilm.com/film-incentives/', retrieved: '2026-08-26' },
+
+    { id: 'la', name: 'Louisiana', hub: 'New Orleans', lat: 29.951, lon: -90.072, intl: false,
+      rate: '25% + 15% resident payroll', base: 0.25, uplift: 0.15,
+      caps: '$150M annual program cap, $20M per project. Uplift applies only to Louisiana resident payroll.',
+      status: 'open', coef: { cast: 0.50, atlNon: 0.75, res: 1, nonres: 0.80, nonLabor: 0.90, post: 0.70 },
+      projectCap: 20000000, allocation: 118000000,
+      has: { coastline: true, soundstage: true, spring: true },
+      fail: {},
+      sourceHost: 'louisianaentertainment.gov', sourceUrl: 'https://www.louisianaentertainment.gov/film', retrieved: '2026-08-25' },
+
+    { id: 'nj', name: 'New Jersey', hub: 'Newark', lat: 40.736, lon: -74.172, intl: false,
+      rate: '30% + 4% diversity', base: 0.30, uplift: 0.04,
+      caps: '$100M annual film cap; studio-partner allocations reserved first. Nonresident wages restricted.',
+      status: 'review', coef: { cast: 0.50, atlNon: 0.75, res: 1, nonres: 0.60, nonLabor: 0.90, post: 0.80 },
+      projectCap: null, allocation: 41000000,
+      has: { coastline: true, soundstage: true, spring: false },
+      fail: { spring: 'Stage capacity committed to returning series through June 2027' },
+      sourceHost: 'nj.gov/state/njfilm', sourceUrl: 'https://nj.gov/state/njfilm/', retrieved: '2026-08-21' },
+
+    { id: 'il', name: 'Illinois', hub: 'Chicago', lat: 41.878, lon: -87.630, intl: false,
+      rate: '30% + 15% underserved wages', base: 0.30, uplift: 0.06,
+      caps: 'No annual cap. Only two nonresident acting roles qualify; nonresident BTL wages excluded.',
+      status: 'open', coef: { cast: 0.30, atlNon: 0.70, res: 1, nonres: 0.25, nonLabor: 0.95, post: 0.85 },
+      projectCap: null, allocation: null,
+      has: { coastline: false, soundstage: true, spring: true },
+      fail: { coastline: 'Freshwater lakefront only; no ocean coastline' },
+      sourceHost: 'dceo.illinois.gov/film', sourceUrl: 'https://dceo.illinois.gov/whyillinois/illinoisfilmoffice.html', retrieved: '2026-08-22' },
+
+    { id: 'bc', name: 'British Columbia', hub: 'Vancouver', lat: 49.283, lon: -123.121, intl: true,
+      rate: '28% BC labour only', base: 0.28, uplift: 0,
+      caps: 'Labour-based: only BC-resident labour qualifies. No cap. Goods, rentals and travel excluded.',
+      status: 'open', coef: { cast: 0.05, atlNon: 0.35, res: 1, nonres: 0, nonLabor: 0, post: 0.45 },
+      projectCap: null, allocation: null,
+      has: { coastline: true, soundstage: true, spring: false },
+      fail: { spring: 'Stage and crew availability confirmed only from Aug 2027' },
+      sourceHost: 'gov.bc.ca/film-incentive-bc', sourceUrl: 'https://www2.gov.bc.ca/gov/content/taxes/income-taxes/corporate/credits/film-television', retrieved: '2026-08-27' },
+
+    { id: 'ie', name: 'Ireland', hub: 'Dublin', lat: 53.350, lon: -6.260, intl: true,
+      rate: '32% + 8% regional', base: 0.32, uplift: 0.08,
+      caps: 'Section 481 capped at €125M eligible spend per project. Regional uplift requires qualifying county.',
+      status: 'open', coef: { cast: 0.50, atlNon: 0.70, res: 1, nonres: 0.50, nonLabor: 0.85, post: 0.70 },
+      projectCap: 125000000, allocation: null,
+      has: { coastline: true, soundstage: false, spring: true },
+      fail: { soundstage: 'Largest available stage 16,000 sq ft in requested window' },
+      sourceHost: 'revenue.ie/section-481', sourceUrl: 'https://www.revenue.ie/en/companies-and-charities/reliefs-and-exemptions/film-relief/index.aspx', retrieved: '2026-08-23' },
+
+    { id: 'uk', name: 'United Kingdom', hub: 'London', lat: 51.507, lon: -0.128, intl: true,
+      rate: '25.5% of 80% core spend', base: 0.204, uplift: 0,
+      caps: 'AVEC: relief computed on 80% of core UK expenditure, so effective rate is 20.4%. No cap.',
+      status: 'open', coef: { cast: 0.50, atlNon: 0.70, res: 1, nonres: 0.60, nonLabor: 0.80, post: 0.70 },
+      projectCap: null, allocation: null,
+      has: { coastline: true, soundstage: true, spring: false },
+      fail: { spring: 'Stage inventory at capacity until Sept 2027' },
+      sourceHost: 'bfi.org.uk/certification', sourceUrl: 'https://www.bfi.org.uk/apply-british-certification-tax-relief', retrieved: '2026-08-20' }
+  ];
+
+  UNVERIFIED = [
+    { name: 'Texas', program: 'TMIIIP grant', reason: 'A grant, not a credit: awards are made at the office\u2019s discretion from a biennial appropriation. No FY27 allocation has been published, so no benefit can be sourced in advance.', sourceHost: 'gov.texas.gov/film', sourceUrl: 'https://gov.texas.gov/film', retrieved: '2026-08-19' },
+    { name: 'Oklahoma', program: 'Filmed in Oklahoma Act', reason: 'Rebate approval is discretionary and the current queue is closed pending a legislative audit. Published rate range is 20\u201338% with no rule for which applies.', sourceHost: 'okfilmmusic.org', sourceUrl: 'https://www.okfilmmusic.org/', retrieved: '2026-08-19' },
+    { name: 'Nevada', program: 'Transferable film credit', reason: 'Expansion of the program is unresolved in the legislature; the current-year allocation is not published, so availability cannot be confirmed.', sourceHost: 'nevadafilm.com', sourceUrl: 'https://nevadafilm.com/', retrieved: '2026-08-18' },
+    { name: 'Malta', program: 'Cash rebate', reason: 'Final rebate percentage is set per project by committee after a cultural test. There is no rate we can quote before application.', sourceHost: 'filmcommission.gov.mt', sourceUrl: 'https://filmcommission.gov.mt/', retrieved: '2026-08-18' }
+  ];
+
+  HOMES = [
+    { id: 'lax', label: 'Los Angeles, CA', name: 'Los Angeles', lat: 34.052, lon: -118.244 },
+    { id: 'nyc', label: 'New York, NY', name: 'New York', lat: 40.713, lon: -74.006 },
+    { id: 'atl', label: 'Atlanta, GA', name: 'Atlanta', lat: 33.749, lon: -84.388 },
+    { id: 'ldn', label: 'London, UK', name: 'London', lat: 51.507, lon: -0.128 }
+  ];
+
+  CONSTRAINTS = [
+    { key: 'coastline', label: 'Needs ocean coastline', chip: 'OCEAN COASTLINE' },
+    { key: 'soundstage', label: 'Needs a soundstage above 20,000 sq ft', chip: 'LARGE SOUNDSTAGE' },
+    { key: 'spring', label: 'Cast available spring 2027 only', chip: 'SPRING 2027 ONLY' }
+  ];
+
+  EXAMPLES = [
+    { id: 'indie', name: 'Indie Drama', budget: '$2.0M', meta: '22 days · 45 crew · 55% resident',
+      inputs: { total: 2000000, cast: 250000, atlNon: 200000, btlLabor: 750000, btlNonLabor: 550000, post: 250000, days: 22, crew: 45, resident: 55, home: 'lax' }, constraints: { coastline: true, soundstage: false, spring: false } },
+    { id: 'series', name: 'Streaming Series', budget: '$18.0M', meta: '62 days · 140 crew · 40% resident',
+      inputs: { total: 18000000, cast: 6400000, atlNon: 3400000, btlLabor: 4600000, btlNonLabor: 2400000, post: 1200000, days: 62, crew: 140, resident: 40, home: 'lax' }, constraints: { coastline: false, soundstage: true, spring: false } },
+    { id: 'studio', name: 'Studio Film', budget: '$60.0M', meta: '78 days · 260 crew · 35% resident',
+      inputs: { total: 60000000, cast: 18000000, atlNon: 9000000, btlLabor: 16000000, btlNonLabor: 11000000, post: 6000000, days: 78, crew: 260, resident: 35, home: 'lax' }, constraints: { coastline: true, soundstage: true, spring: false } }
+  ];
+
+  FIELDS = [
+    { key: 'total', label: 'Total budget', money: true },
+    { key: 'cast', label: 'ATL — cast', money: true },
+    { key: 'atlNon', label: 'ATL — non-cast', money: true },
+    { key: 'btlLabor', label: 'BTL — labor', money: true },
+    { key: 'btlNonLabor', label: 'BTL — non-labor', money: true },
+    { key: 'post', label: 'Post / VFX', money: true },
+    { key: 'days', label: 'Shoot days', money: false, unit: 'days' },
+    { key: 'crew', label: 'Crew headcount', money: false, unit: 'people' },
+    { key: 'resident', label: 'Resident labor', money: false, unit: '% of BTL labor', prefix: '%' }
+  ];
+
+  PREFILL_NOTES = {
+    total: 'read from page 1 · topsheet total',
+    cast: 'read from page 1 · acct 1200',
+    atlNon: 'read from page 1 · accts 1100–1900',
+    btlLabor: 'read from page 1 · accts 2000–3900',
+    btlNonLabor: 'read from page 1 · accts 4000–5900',
+    post: 'read from page 1 · accts 6000–6900',
+    days: 'read from page 1 · schedule note',
+    crew: 'inferred from labor accounts · check this',
+    resident: 'not found in PDF · default applied'
+  };
+
+  state = {
+    screen: 'home', tab: 'memo', drag: false, fileName: '', uploadStep: 0,
+    fromUpload: false, showAll: false, showUnverified: false, assumpOpen: false,
+    inputs: { total: 18000000, cast: 6400000, atlNon: 3400000, btlLabor: 4600000, btlNonLabor: 2400000, post: 1200000, days: 62, crew: 140, resident: 40, home: 'lax' },
+    constraints: { coastline: false, soundstage: false, spring: false },
+    assump: { thr: 400, air: 180, perKm: 0.11, diem: 155, ground: 1850 },
+    scenario: '', atlBase: 9800000
+  };
+
+  runs = 0; lastMs = 0; cards = {};
+
+  // ---------- helpers ----------
+  km(a, b) {
+    const R = 6371, r = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+  full(v) { return (v < 0 ? '\u2212$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US'); }
+  mm(v) {
+    const a = Math.abs(v);
+    if (a >= 1000000) return (v < 0 ? '\u2212$' : '$') + (a / 1e6).toFixed(a >= 10000000 ? 1 : 2) + 'M';
+    if (a >= 1000) return (v < 0 ? '\u2212$' : '$') + (a / 1000).toFixed(0) + 'k';
+    return this.full(v);
+  }
+  num(s) { const n = parseFloat(String(s).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; }
+  comma(v) { return Math.round(v).toLocaleString('en-US'); }
+
+  travel(km, intl) {
+    if (km < this.state.assump.thr) return (km / 85).toFixed(1) + ' h drive';
+    const h = 1.6 + km / 780 + (intl ? 1.4 : 0.9);
+    return h.toFixed(1) + ' h door to door';
+  }
+
+  // ---------- engine ----------
+  calc(inputs, over) {
+    const i = Object.assign({}, inputs, over || {});
+    const a = this.state.assump;
+    const r = Math.max(0, Math.min(1, i.resident / 100));
+    const home = this.HOMES.find(h => h.id === i.home) || this.HOMES[0];
+    const active = this.CONSTRAINTS.filter(c => this.state.constraints[c.key]);
+    const atlParty = Math.max(4, Math.min(24, Math.round(i.crew * 0.08)));
+    const travelers = Math.round(i.crew * (1 - r)) + atlParty;
+
+    return this.JUR.map(j => {
+      const c = j.coef;
+      const resLabor = i.btlLabor * r, nonResLabor = i.btlLabor * (1 - r);
+      const qualified = i.cast * c.cast + i.atlNon * c.atlNon + resLabor * c.res + nonResLabor * c.nonres + i.btlNonLabor * c.nonLabor + i.post * c.post;
+      let gross = j.base * qualified + j.uplift * resLabor * c.res;
+      let capNote = null;
+      if (j.projectCap && gross > j.projectCap) { gross = j.projectCap; capNote = 'per-project cap'; }
+      if (j.allocation && gross > j.allocation) { gross = j.allocation; capNote = 'unreserved allocation'; }
+
+      const km = this.km(home, j);
+      const flights = km >= a.thr ? (a.air + a.perKm * km) * (j.intl ? 1.35 : 1) * travelers : 0;
+      const perDiem = a.diem * travelers * i.days;
+      const ground = a.ground * i.days;
+      const reloc = flights + perDiem + ground;
+
+      const failed = active.filter(x => !j.has[x.key]);
+      return {
+        j, km, qualified, gross, capNote, reloc, flights, perDiem, ground, travelers,
+        net: gross - reloc,
+        excluded: failed.length > 0,
+        reason: failed.map(f => j.fail[f.key] || ('Fails: ' + f.label)).join(' · ')
+      };
+    });
+  }
+
+  rank(over) {
+    const rows = this.calc(this.state.inputs, over);
+    rows.sort((x, y) => (x.excluded - y.excluded) || (y.net - x.net));
+    return rows;
+  }
+
+  breakevenScan(rows) {
+    const cur = this.state.inputs;
+    const atlNow = cur.cast + cur.atlNon;
+    const share = atlNow > 0 ? cur.cast / atlNow : 0.65;
+    const leader = rows.find(r => !r.excluded);
+    if (!leader) return null;
+    const hi = Math.max(this.state.atlBase * 2.5, 4000000), steps = 64;
+    const series = [];
+    let cross = null;
+    for (let s = 0; s <= steps; s++) {
+      const atl = (hi / steps) * s;
+      const rs = this.calc(cur, { cast: atl * share, atlNon: atl * (1 - share) })
+        .filter(x => !x.excluded).sort((p, q) => q.net - p.net);
+      if (!rs.length) continue;
+      const top = rs[0];
+      const mine = rs.find(x => x.j.id === leader.j.id) || rs[0];
+      const rival = rs.find(x => x.j.id !== leader.j.id);
+      series.push({ atl, mine: mine.net, rival: rival ? rival.net : mine.net, top: top.j.id });
+      const prev = series.length > 1 ? series[series.length - 2] : null;
+      if (cross === null && prev && (prev.top === leader.j.id) !== (top.j.id === leader.j.id)) {
+        cross = { atl, above: top.j.id !== leader.j.id };
+      }
+    }
+    if (cross && series.length) {
+      const far = cross.above ? series[series.length - 1] : series[0];
+      const w = this.JUR.find(j => j.id === far.top);
+      cross.winner = w ? w.name : null;
+    }
+    return { series, cross, atlNow, leader, hi };
+  }
+
+  // ---------- FLIP reorder ----------
+  getSnapshotBeforeUpdate() {
+    const m = {};
+    Object.keys(this.cards).forEach(k => { const el = this.cards[k]; if (el) m[k] = el.getBoundingClientRect().top; });
+    return m;
+  }
+  componentDidUpdate(pp, ps, snap) {
+    if (!snap) return;
+    Object.keys(this.cards).forEach(k => {
+      const el = this.cards[k];
+      if (!el || snap[k] == null) return;
+      const d = snap[k] - el.getBoundingClientRect().top;
+      if (Math.abs(d) < 1.5) return;
+      el.style.transition = 'none';
+      el.style.transform = 'translateY(' + d + 'px)';
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 420ms cubic-bezier(.22,.7,.2,1)';
+        el.style.transform = '';
+      });
+    });
+  }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+
+  // ---------- actions ----------
+  set(patch) { this.setState(patch); }
+  setInput(k, v) { this.setState(s => ({ inputs: Object.assign({}, s.inputs, { [k]: v }) })); }
+  setAssump(k, v) { this.setState(s => ({ assump: Object.assign({}, s.assump, { [k]: v }) })); }
+
+  loadExample(ex) {
+    this.setState({
+      screen: 'results', tab: 'memo', inputs: Object.assign({}, ex.inputs),
+      constraints: Object.assign({}, ex.constraints), fromUpload: false, showAll: false,
+      scenario: ex.name, atlBase: ex.inputs.cast + ex.inputs.atlNon
+    });
+  }
+
+  runUpload(fail, name) {
+    this.setState({ screen: 'uploading', fileName: name, uploadStep: 0, drag: false });
+    const tick = n => {
+      this.timer = setTimeout(() => {
+        if (n > 3) {
+          if (fail) return this.setState({ screen: 'uploadError' });
+          const pre = { total: 17940000, cast: 6380000, atlNon: 3410000, btlLabor: 4585000, btlNonLabor: 2385000, post: 1180000, days: 62, crew: 138, resident: 40, home: 'lax' };
+          return this.setState({ screen: 'form', fromUpload: true, inputs: pre, scenario: 'From ' + name, atlBase: pre.cast + pre.atlNon });
+        }
+        this.setState({ uploadStep: n });
+        tick(n + 1);
+      }, n === 0 ? 500 : 550);
+    };
+    tick(1);
+  }
+
+  renderVals() {
+    const t0 = performance.now();
+    const st = this.state;
+    const rows = this.rank();
+    const be = this.breakevenScan(rows);
+    this.runs++;
+    this.lastMs = performance.now() - t0;
+
+    const pill = status => {
+      const map = {
+        open: ['Funding open', '#008687', '#D9F1F0'],
+        capping: ['Capping out', '#AA6A00', '#F9E8D6'],
+        review: ['Program under review', '#AE4538', '#FFE4DF']
+      }[status];
+      return { label: map[0], style: { font: "500 10.5px/1 'IBM Plex Mono',monospace", letterSpacing: '.06em', textTransform: 'uppercase', color: map[1], background: map[2], border: '1px solid ' + map[1] + '33', padding: '4px 7px', whiteSpace: 'nowrap' } };
+    };
+
+    const home = this.HOMES.find(h => h.id === st.inputs.home) || this.HOMES[0];
+    const best = rows.find(r => !r.excluded) || rows[0];
+    const maxNet = Math.max.apply(null, rows.map(r => Math.max(r.net, 1)));
+
+    const decorate = (r, idx) => {
+      const p = pill(r.j.status);
+      const netColor = r.excluded ? '#919A9F' : (r.net > 0 ? '#131F25' : '#AE4538');
+      return {
+        id: r.j.id, rank: String(idx + 1).padStart(2, '0'), name: r.j.name,
+        hubLine: r.j.hub + ' hub · qualified spend ' + this.mm(r.qualified) + (r.capNote ? ' · limited by ' + r.capNote : ''),
+        status: p.label, pillStyle: p.style,
+        rate: r.j.rate, caps: r.j.caps,
+        km: this.comma(r.km) + ' km', travel: this.travel(r.km, r.j.intl),
+        net: r.net, netLabel: this.mm(r.net), netColor,
+        delta: r.excluded ? 'not ranked' : (r === best ? 'top of ranking' : this.mm(r.net - best.net) + ' vs top'),
+        barStyle: { width: Math.max(2, (Math.max(r.net, 0) / maxNet) * 100) + '%', height: '3px', background: r.excluded ? '#D3CFC6' : '#008687' },
+        grossLine: 'gross ' + this.full(r.gross) + ' \u2212 relocation ' + this.full(r.reloc),
+        sourceHost: r.j.sourceHost, sourceUrl: r.j.sourceUrl, retrieved: r.j.retrieved,
+        excluded: r.excluded, reason: r.reason ? 'Excluded — ' + r.reason : '',
+        tip: r.excluded ? r.reason : r.j.name + ' — ' + r.j.rate + ' · net ' + this.mm(r.net),
+        cardStyle: {
+          background: r.excluded ? '#FAF8F4' : '#FFFFFF',
+          border: '1px solid ' + (r.excluded ? '#E7E4DE' : '#CDCAC3'),
+          opacity: r.excluded ? 0.62 : 1,
+          transition: 'opacity 260ms ease, border-color 200ms ease'
+        },
+        ref: el => { this.cards[r.j.id] = el; }
+      };
+    };
+
+    const ranked = rows.map(decorate);
+    const heroRow = rows[0];
+    const hero = Object.assign({}, ranked[0], {
+      arithmetic: this.full(heroRow.gross) + ' gross credit \u2212 ' + this.full(heroRow.reloc) + ' relocation = ' + this.full(heroRow.net) + ' net',
+      relocLines: [
+        { label: 'Air · ' + heroRow.travelers + ' travellers' + (heroRow.flights ? ' @ ' + this.full((this.state.assump.air + this.state.assump.perKm * heroRow.km) * (heroRow.j.intl ? 1.35 : 1)) : ' (under flight threshold)'), value: this.full(heroRow.flights) },
+        { label: 'Per diem + lodging · ' + heroRow.travelers + ' \u00d7 ' + st.inputs.days + ' days @ ' + this.full(st.assump.diem), value: this.full(heroRow.perDiem) },
+        { label: 'Ground transport · ' + st.inputs.days + ' days @ ' + this.full(st.assump.ground), value: this.full(heroRow.ground) }
+      ],
+      facts: [
+        { k: 'HEADLINE RATE', v: heroRow.j.rate },
+        { k: 'CAPS AND LIMITS', v: heroRow.j.caps },
+        { k: 'FROM ' + home.name.toUpperCase(), v: this.comma(heroRow.km) + ' km · ' + this.travel(heroRow.km, heroRow.j.intl) },
+        { k: 'QUALIFIED SPEND USED', v: this.full(heroRow.qualified) + ' of ' + this.full(st.inputs.total) + ' total budget' }
+      ]
+    });
+
+    // sparkline
+    let spark = { a: '', b: '', cx: 0, mx: 0, my: 0 };
+    let breakeven = 'Not enough qualifying jurisdictions to test a crossover.';
+    let breakevenNote = '';
+    if (be && be.series.length) {
+      const W = 260, H = 51;
+      const vals = be.series.flatMap(p => [p.mine, p.rival]);
+      const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+      const x = v => (v / be.hi) * W;
+      const y = v => H - ((v - lo) / Math.max(1, hi - lo)) * (H - 4) - 2;
+      spark.a = be.series.map(p => x(p.atl).toFixed(1) + ',' + y(p.mine).toFixed(1)).join(' ');
+      spark.b = be.series.map(p => x(p.atl).toFixed(1) + ',' + y(p.rival).toFixed(1)).join(' ');
+      spark.mx = x(be.atlNow).toFixed(1);
+      const nearest = be.series.reduce((acc, p) => Math.abs(p.atl - be.atlNow) < Math.abs(acc.atl - be.atlNow) ? p : acc, be.series[0]);
+      spark.my = y(nearest.mine).toFixed(1);
+      spark.cx = be.cross ? x(be.cross.atl).toFixed(1) : W;
+      breakeven = be.cross
+        ? (be.cross.above
+            ? be.leader.j.name + ' leads until ATL spend exceeds ' + this.mm(be.cross.atl) + ' — you\u2019re at ' + this.mm(be.atlNow) + '.'
+            : be.leader.j.name + ' leads while ATL spend stays above ' + this.mm(be.cross.atl) + ' — you\u2019re at ' + this.mm(be.atlNow) + '.')
+        : be.leader.j.name + ' leads across the whole range tested, up to ' + this.mm(be.hi) + ' of ATL spend.';
+      breakevenNote = be.cross
+        ? (be.cross.above ? 'Above' : 'Below') + ' that, ' + (be.cross.winner || 'the runner-up') + ' takes the lead. Other lines held constant.'
+        : 'Crossover tested in ' + be.series.length + ' steps at current resident-labor share.';
+    }
+
+    const atlNow = st.inputs.cast + st.inputs.atlNon;
+    const atlShare = atlNow > 0 ? st.inputs.cast / atlNow : 0.65;
+    const atlMax = Math.max(st.atlBase * 2.5, 4000000);
+
+    const sliders = [
+      {
+        label: 'ATL spend (cast + non-cast)', value: this.mm(atlNow), raw: atlNow,
+        min: 0, max: Math.round(atlMax), step: Math.max(10000, Math.round(atlMax / 400)),
+        lo: '$0', hi: this.mm(atlMax), hint: Math.round(atlShare * 100) + '% cast · total budget follows to ' + this.mm(st.inputs.total),
+        onChange: e => {
+          const v = this.num(e.target.value);
+          this.setState(s => {
+            const i = s.inputs;
+            return { inputs: Object.assign({}, i, { cast: v * atlShare, atlNon: v * (1 - atlShare), total: v + i.btlLabor + i.btlNonLabor + i.post }) };
+          });
+        }
+      },
+      {
+        label: 'Resident labor share of BTL', value: Math.round(st.inputs.resident) + '%', raw: st.inputs.resident,
+        min: 0, max: 85, step: 1, lo: '0%', hi: '85%',
+        hint: Math.round(st.inputs.crew * (1 - st.inputs.resident / 100)) + ' crew relocating',
+        onChange: e => this.setInput('resident', this.num(e.target.value))
+      }
+    ];
+
+    const activeC = this.CONSTRAINTS.filter(c => st.constraints[c.key]);
+    const constraintList = this.CONSTRAINTS.map(c => {
+      const on = !!st.constraints[c.key];
+      const failing = this.JUR.filter(j => !j.has[c.key]).map(j => j.name);
+      return {
+        key: c.key, label: c.label, chip: c.chip, mark: on ? '\u25A0' : '',
+        tip: (on ? 'Active. ' : 'Off. ') + 'Fails in: ' + failing.join(', '),
+        toggle: () => this.setState(s => ({ constraints: Object.assign({}, s.constraints, { [c.key]: !s.constraints[c.key] }) })),
+        chipStyle: {
+          font: "500 11px/1 'IBM Plex Mono',monospace", letterSpacing: '.06em', padding: '8px 11px', cursor: 'pointer',
+          background: on ? '#131F25' : '#FFFFFF', color: on ? '#F7F5F1' : '#57534C',
+          border: '1px solid ' + (on ? '#131F25' : '#D4D1C9'), transition: 'background 160ms ease, color 160ms ease'
+        },
+        rowStyle: { display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', cursor: 'pointer', background: on ? '#FBF9F5' : '#FFFFFF', border: '1px solid ' + (on ? '#131F25' : '#D4D1C9'), color: '#131F25', fontFamily: "'Public Sans',sans-serif" },
+        boxStyle: { flex: 'none', width: '14px', height: '14px', border: '1px solid ' + (on ? '#131F25' : '#BFBAB1'), background: on ? '#FFFFFF' : '#FFFFFF', color: '#131F25', font: "9px/12px 'IBM Plex Mono',monospace", textAlign: 'center' }
+      };
+    });
+
+    const excludedCount = rows.filter(r => r.excluded).length;
+    const sum = st.inputs.cast + st.inputs.atlNon + st.inputs.btlLabor + st.inputs.btlNonLabor + st.inputs.post;
+    const diff = st.inputs.total - sum;
+
+    const fields = this.FIELDS.map(f => ({
+      label: f.label,
+      unit: f.money ? 'USD' : f.unit,
+      prefix: f.money ? '$' : (f.prefix || ''),
+      value: f.money ? this.comma(st.inputs[f.key]) : String(Math.round(st.inputs[f.key])),
+      note: st.fromUpload ? this.PREFILL_NOTES[f.key] : '',
+      onChange: e => this.setInput(f.key, this.num(e.target.value))
+    }));
+
+    const A = st.assump;
+    const assumpFields = [
+      { label: 'Flight threshold', prefix: 'km', value: this.comma(A.thr), note: 'below this, ground travel only', onChange: e => this.setAssump('thr', this.num(e.target.value)) },
+      { label: 'Airfare base', prefix: '$', value: this.comma(A.air), note: 'per traveller, round trip', onChange: e => this.setAssump('air', this.num(e.target.value)) },
+      { label: 'Airfare per km', prefix: '$', value: A.perKm.toFixed(2), note: 'added to base, \u00d71.35 intl', onChange: e => this.setAssump('perKm', this.num(e.target.value)) },
+      { label: 'Per diem + lodging', prefix: '$', value: this.comma(A.diem), note: 'per traveller, per shoot day', onChange: e => this.setAssump('diem', this.num(e.target.value)) },
+      { label: 'Ground transport', prefix: '$', value: this.comma(A.ground), note: 'per shoot day, all units', onChange: e => this.setAssump('ground', this.num(e.target.value)) }
+    ];
+
+    const tab = (on) => ({
+      font: "500 11.5px/1 'IBM Plex Mono',monospace", letterSpacing: '.08em', padding: '10px 16px', cursor: 'pointer',
+      background: on ? '#131F25' : '#FFFFFF', color: on ? '#F7F5F1' : '#4E5A60', border: '1px solid ' + (on ? '#131F25' : '#D4D1C9')
+    });
+
+    const steps = ['queued', 'text layer extracted', 'topsheet accounts matched', 'figures mapped to fields'];
+
+    return {
+      isHome: st.screen === 'home', isForm: st.screen === 'form', isUploading: st.screen === 'uploading',
+      isUploadError: st.screen === 'uploadError', inResults: st.screen === 'results',
+      isMemo: st.tab === 'memo', isMap: st.tab === 'map',
+      showReset: st.screen !== 'home',
+      showMemo: () => this.set({ tab: 'memo' }), showMap: () => this.set({ tab: 'map' }),
+      tabMemoStyle: tab(st.tab === 'memo'), tabMapStyle: tab(st.tab === 'map'),
+
+      examples: this.EXAMPLES.map(ex => ({ name: ex.name, budget: ex.budget, meta: ex.meta, load: () => this.loadExample(ex) })),
+      fieldPreview: [
+        { label: 'total budget', unit: 'USD' }, { label: 'ATL cast / non-cast', unit: 'USD' },
+        { label: 'BTL labor / non-labor', unit: 'USD' }, { label: 'post + VFX', unit: 'USD' },
+        { label: 'shoot days / crew', unit: 'count' }, { label: 'resident labor share', unit: '%' }
+      ],
+      openBlank: () => this.setState({ screen: 'form', fromUpload: false, scenario: 'Manual entry' }),
+      pickFile: () => this.runUpload(false, 'Bluewater_101_Budget_v7.pdf'),
+      failPath: (e) => { e.stopPropagation(); this.runUpload(true, 'topsheet_scan.pdf'); },
+      onDragOver: e => { e.preventDefault(); if (!st.drag) this.set({ drag: true }); },
+      onDragLeave: () => this.set({ drag: false }),
+      onDrop: e => {
+        e.preventDefault();
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        const name = f ? f.name : 'Bluewater_101_Budget_v7.pdf';
+        this.runUpload(!/\.pdf$/i.test(name), name);
+      },
+      dropStyle: {
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+        height: '148px', cursor: 'pointer', textAlign: 'center',
+        border: '1px dashed ' + (st.drag ? '#008687' : '#C3C1B9'),
+        background: st.drag ? '#F1F5F2' : '#FBF9F5', transition: 'background 150ms ease, border-color 150ms ease'
+      },
+
+      fileName: st.fileName,
+      uploadSteps: steps.map((label, n) => ({ label, mark: st.uploadStep > n ? '\u2713' : (st.uploadStep === n ? '\u2192' : '\u00b7') })),
+
+      fields, homeBases: this.HOMES, homeBaseId: st.inputs.home,
+      homeBaseLabel: home.label,
+      homeBaseNote: 'Distances and travel time are measured hub to hub from ' + home.name + '.',
+      setHomeBase: e => this.setInput('home', e.target.value),
+      formNote: st.fromUpload
+        ? 'Figures below were read from ' + st.fileName + '. Each carries its source line — correct anything before continuing.'
+        : 'Enter what you have. Blank lines are treated as zero and flagged in the sum check.',
+      sumNote: Math.abs(diff) < 1
+        ? this.full(sum) + ' · reconciles to total'
+        : this.full(sum) + ' · ' + this.mm(Math.abs(diff)) + (diff > 0 ? ' unallocated' : ' over total'),
+      sumColor: Math.abs(diff) < 1 ? '#008687' : '#AA6A00',
+      toResults: () => this.setState({ screen: 'results', tab: 'memo', atlBase: st.inputs.cast + st.inputs.atlNon }),
+      backToForm: () => this.set({ screen: 'form' }),
+      reset: () => this.setState({ screen: 'home', fromUpload: false, showAll: false, showUnverified: false }),
+
+      hero, spark, breakeven, breakevenNote,
+      heroStyle: { background: '#FFFFFF', border: '1px solid #BDBAB2', borderTop: '3px solid #131F25', boxShadow: '0 1px 0 #ECEAE5' },
+      runnerUps: ranked.slice(1, st.showAll ? 99 : 4),
+      showAllLabel: st.showAll ? 'show top 3 only' : 'show all ' + (ranked.length - 1) + ' compared',
+      toggleAll: () => this.set({ showAll: !st.showAll }),
+
+      sliders, constraintList,
+      constraintNote: activeC.length
+        ? excludedCount + ' of ' + rows.length + ' jurisdictions greyed out. Hover a chip for the list.'
+        : 'No constraints applied. All ' + rows.length + ' verified jurisdictions are ranked.',
+      computeNote: 'recompute #' + this.runs + ' · ' + rows.length + ' jurisdictions · ' + this.lastMs.toFixed(2) + ' ms',
+      scenarioLabel: (st.scenario || 'Manual entry') + ' · ' + this.mm(st.inputs.total) + ' budget · ' + st.inputs.days + ' days · ' + st.inputs.crew + ' crew',
+
+      assumpFields, assumpMark: st.assumpOpen ? '\u2212' : '+',
+      assumpSummary: 'flights over ' + this.comma(A.thr) + ' km · ' + this.full(A.diem) + '/day per traveller · ' + this.full(A.ground) + '/day ground',
+      onAssumpToggle: e => this.set({ assumpOpen: e.target.open }),
+
+      unverified: this.UNVERIFIED, unverifiedCount: this.UNVERIFIED.length,
+      showUnverified: st.showUnverified, unverifiedMark: st.showUnverified ? '\u2212' : '+',
+      toggleUnverified: () => this.set({ showUnverified: !st.showUnverified }),
+
+      mapPayload: JSON.stringify({
+        homeBase: { name: home.name, lat: home.lat, lon: home.lon },
+        points: rows.map((r, i) => ({
+          id: r.j.id, name: r.j.name, hub: r.j.hub, lat: r.j.lat, lon: r.j.lon,
+          net: r.net, netLabel: this.mm(r.net), km: r.km, rank: i + 1,
+          excluded: r.excluded, reason: r.reason
+        }))
+      })
+    };
+  }
+}
+
+</script>
+</body>
+</html>

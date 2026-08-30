@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/*
+  Palette and type scale lifted from the design canvas
+  (../Incentive Verifier Web App/Incentive Verifier.dc.html) — the visual
+  spec for this app. Muted, no gradients, due-diligence-report tone per
+  BUILD_BRIEF.md section 7.
+*/
+@theme {
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #131f25;
+  --color-ink-2: #4e5a60;
+  --color-ink-3: #879196;
+  --color-ink-4: #606b70;
+  --color-paper: #f7f5f1;
+  --color-card: #ffffff;
+  --color-card-2: #fbf9f5;
+  --color-border: #d8dfe3;
+  --color-border-2: #d4d1c9;
+  --color-border-3: #cdcac3;
+  --color-teal: #008687;
+  --color-teal-bg: #d9f1f0;
+  --color-amber: #aa6a00;
+  --color-amber-bg: #f9e8d6;
+  --color-red: #ae4538;
+  --color-red-bg: #ffe4df;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
