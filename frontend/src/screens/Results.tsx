@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, computeBenefit, getSeedJurisdictions } from "../lib/api";
 import { hostOf, money, moneyShort } from "../lib/format";
 import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus } from "../types";
@@ -24,42 +24,69 @@ const POOL_STATUS_CLASS: Record<PoolStatus, string> = {
   unknown: "border-border-2 bg-card-2 text-ink-3",
 };
 
-export function Results({ budget, onEditInputs }: { budget: BudgetVector; onEditInputs: () => void }) {
+const RECOMPUTE_DEBOUNCE_MS = 200;
+
+export function Results({ budget: initialBudget, onEditInputs }: { budget: BudgetVector; onEditInputs: () => void }) {
+  const [rules, setRules] = useState<JurisdictionRule[] | null>(null);
+  const [liveBudget, setLiveBudget] = useState<BudgetVector>(initialBudget);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Fetched once — the seed jurisdiction list doesn't depend on the budget.
   useEffect(() => {
     let cancelled = false;
-    setState({ status: "loading" });
-
-    (async () => {
-      try {
-        const rules = await getSeedJurisdictions();
-        const rows = await Promise.all(
-          rules.map(async (rule) => ({ rule, benefit: await computeBenefit(budget, rule) })),
-        );
-        if (!cancelled) setState({ status: "ready", rows });
-      } catch (err) {
+    getSeedJurisdictions()
+      .then((r) => !cancelled && setRules(r))
+      .catch((err) => {
         if (cancelled) return;
         const message =
-          err instanceof ApiError
-            ? `${err.message} (HTTP ${err.status})`
-            : "Could not reach the backend. Is it running at the configured VITE_API_BASE_URL?";
+          err instanceof ApiError ? `${err.message} (HTTP ${err.status})` : "Could not reach the backend.";
         setState({ status: "error", message });
-      }
-    })();
-
+      });
     return () => {
       cancelled = true;
     };
-  }, [budget]);
+  }, []);
+
+  // Layer 2 is a pure function with no I/O of its own, so recomputing on every
+  // slider tick still means "no model call" per BUILD_BRIEF.md section 7 — it
+  // just goes through the real backend (single source of truth for the
+  // arithmetic) rather than a second, TypeScript copy of compute_benefit that
+  // could drift from it.
+  useEffect(() => {
+    if (!rules) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const rows = await Promise.all(
+            rules.map(async (rule) => ({ rule, benefit: await computeBenefit(liveBudget, rule) })),
+          );
+          if (!cancelled) setState({ status: "ready", rows });
+        } catch (err) {
+          if (cancelled) return;
+          const message =
+            err instanceof ApiError ? `${err.message} (HTTP ${err.status})` : "Could not reach the backend.";
+          setState({ status: "error", message });
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, RECOMPUTE_DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [rules, liveBudget]);
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
       <div className="flex items-center gap-5 pt-4">
         <div className="font-sans text-[12.5px] text-ink-2">
-          {moneyShort(budget.total)} budget · {budget.shoot_days} days · {budget.crew_headcount} crew
+          {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
         </div>
         <button
           type="button"
@@ -85,20 +112,42 @@ export function Results({ budget, onEditInputs }: { budget: BudgetVector; onEdit
       )}
 
       {state.status === "ready" && (
-        <ReadyResults rows={state.rows} showAll={showAll} setShowAll={setShowAll} showUnverified={showUnverified} setShowUnverified={setShowUnverified} />
+        <ReadyResults
+          rows={state.rows}
+          liveBudget={liveBudget}
+          initialBudget={initialBudget}
+          onBudgetChange={setLiveBudget}
+          showAll={showAll}
+          setShowAll={setShowAll}
+          showUnverified={showUnverified}
+          setShowUnverified={setShowUnverified}
+        />
       )}
     </div>
   );
 }
 
+// Note: budget.constraints (e.g. "coastline") isn't used to grey out
+// jurisdictions here yet. BUILD_BRIEF.md section 7 wants that, but
+// JurisdictionRule (section 5) has no field saying whether a jurisdiction
+// satisfies a given constraint — that needs a schema decision (e.g. a new
+// `capabilities: dict` on JurisdictionRule, filled by Layer 1) before it can
+// be built honestly rather than guessed.
+
 function ReadyResults({
   rows,
+  liveBudget,
+  initialBudget,
+  onBudgetChange,
   showAll,
   setShowAll,
   showUnverified,
   setShowUnverified,
 }: {
   rows: Row[];
+  liveBudget: BudgetVector;
+  initialBudget: BudgetVector;
+  onBudgetChange: (b: BudgetVector) => void;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
   showUnverified: boolean;
@@ -126,6 +175,8 @@ function ReadyResults({
       </div>
 
       <HeroCard row={hero} />
+
+      <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
 
       {rest.length > 0 && (
         <>
@@ -193,6 +244,96 @@ function ReadyResults({
         Figures are estimates for comparison, not tax advice. Non-machine-checkable uplifts are listed but not
         added to the credit — confirm them with the film office. Relocation cost excludes flights/ground
         transport until Google Maps distance is wired in (see caps_applied notes above where that applies).
+      </div>
+    </div>
+  );
+}
+
+function num(raw: string): number {
+  const n = parseFloat(raw);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+/**
+ * BUILD_BRIEF.md section 7: "Sensitivity sliders for ATL spend and
+ * resident-labor %... recompute on every change." The debounced /compute
+ * round-trip in Results() above is what actually recomputes; this just
+ * turns slider drags into BudgetVector edits.
+ */
+function SensitivityPanel({
+  liveBudget,
+  initialBudget,
+  onChange,
+}: {
+  liveBudget: BudgetVector;
+  initialBudget: BudgetVector;
+  onChange: (b: BudgetVector) => void;
+}) {
+  const atlBase = initialBudget.atl_cast + initialBudget.atl_noncast;
+  const atlMax = Math.max(atlBase * 2.5, 4_000_000);
+  const atlNow = liveBudget.atl_cast + liveBudget.atl_noncast;
+  const atlShare = atlNow > 0 ? liveBudget.atl_cast / atlNow : 0.65;
+
+  function setAtlSpend(v: number) {
+    onChange({
+      ...liveBudget,
+      atl_cast: v * atlShare,
+      atl_noncast: v * (1 - atlShare),
+      total: v + liveBudget.btl_labor + liveBudget.btl_nonlabor + liveBudget.post_vfx,
+    });
+  }
+
+  function setResidentPct(pct: number) {
+    onChange({ ...liveBudget, resident_labor_pct: Math.max(0, Math.min(100, pct)) / 100 });
+  }
+
+  return (
+    <div className="mt-5 border border-border-3 bg-card">
+      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+        <div className="font-sans text-[13.5px] font-semibold">Sensitivity</div>
+        <div className="font-sans text-[12.5px] text-ink-2">Drag to recompute. Ranking reorders live.</div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 p-5.5 sm:grid-cols-2">
+        <div>
+          <div className="mb-0.5 flex items-baseline justify-between gap-3">
+            <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">ATL spend (cast + non-cast)</span>
+            <span className="font-mono text-[15px] font-semibold">{moneyShort(atlNow)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={Math.round(atlMax)}
+            step={Math.max(10_000, Math.round(atlMax / 400))}
+            value={Math.round(atlNow)}
+            onChange={(e) => setAtlSpend(num(e.target.value))}
+            className="w-full accent-ink"
+          />
+          <div className="flex justify-between font-mono text-[10.5px] text-ink-3">
+            <span>$0</span>
+            <span>{moneyShort(atlMax)}</span>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-0.5 flex items-baseline justify-between gap-3">
+            <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Resident labor share of BTL</span>
+            <span className="font-mono text-[15px] font-semibold">{Math.round(liveBudget.resident_labor_pct * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(liveBudget.resident_labor_pct * 100)}
+            onChange={(e) => setResidentPct(num(e.target.value))}
+            className="w-full accent-ink"
+          />
+          <div className="flex justify-between font-mono text-[10.5px] text-ink-3">
+            <span>0%</span>
+            <span>100%</span>
+          </div>
+        </div>
       </div>
     </div>
   );

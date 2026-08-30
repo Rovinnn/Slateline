@@ -25,9 +25,12 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [x] Layer 3 (rule-based verification / confidence assessment) implemented
 - [x] `/health` and `/compute` API endpoints wired and testable with zero credentials
 - [x] Frontend: Home ("try an example"), manual budget entry form, and a real
-      results screen (hero recommendation, runners-up, "can't verify" section)
-      all wired end to end against the live backend and verified in a browser
-      — see `frontend/src/screens/Results.tsx`
+      results screen (hero recommendation, sensitivity sliders, runners-up,
+      "can't verify" section) all wired end to end against the live backend
+      and verified in a browser — see `frontend/src/screens/Results.tsx`.
+      Sliders debounce and recompute via the real `/compute` endpoint (not a
+      duplicated TS copy of the math — see the comment above `Results()`'s
+      recompute effect for why that matters)
 - [x] `GOOGLE_CLOUD_PROJECT` and `PARALLEL_API_KEY` set in `backend/.env` (gitignored).
       Parallel Search verified live — both raw HTTP and the actual `parallel-web`
       SDK call `agent.py` uses returned real results
@@ -52,7 +55,10 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [ ] Google Maps distance client (`backend/app/maps_client.py`) — needs
       `GOOGLE_MAPS_API_KEY` in `backend/.env`; not yet obtained (billing/free-credit
       setup still pending on the GCP project as of this writing)
-- [ ] Sensitivity sliders, breakeven sparkline, map tab, PDF upload, export
+- [ ] Breakeven sparkline, constraint-based greying (needs a schema decision —
+      JurisdictionRule has no field for "does this jurisdiction satisfy X
+      constraint", see comment in Results.tsx), relocation-assumptions editing,
+      map tab, PDF upload, export
 - [ ] Deployment to Cloud Run / a public URL
 
 See BUILD_BRIEF.md section 8 for the intended build order.
