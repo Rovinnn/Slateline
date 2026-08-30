@@ -25,15 +25,32 @@ Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX
 - [x] Layer 3 (rule-based verification / confidence assessment) implemented
 - [x] `/health` and `/compute` API endpoints wired and testable with zero credentials
 - [x] Frontend scaffolded (Vite + React + TS + Tailwind), Home screen ("try an
-      example") built and verified in a browser
-- [ ] Layer 1 (Gemini + Parallel extraction agent) — structural skeleton only in
-      `backend/app/extraction/agent.py`, not yet run against real credentials
-- [ ] Google Maps distance client — structural skeleton only in `backend/app/maps_client.py`
-- [ ] Manual budget entry form, results memo, sensitivity sliders, map tab, PDF upload
+      example") and manual budget entry form built and verified in a browser
+      (form drives a real `BudgetVector`, incl. sum reconciliation, constraint
+      toggles, home base select)
+- [x] `GOOGLE_CLOUD_PROJECT` and `PARALLEL_API_KEY` set in `backend/.env` (gitignored).
+      Parallel Search verified live — both raw HTTP and the actual `parallel-web`
+      SDK call `agent.py` uses returned real results (see git log for the session
+      this was verified in)
+- [ ] **Gemini via Vertex AI — auth not yet done, this is the next real blocker.**
+      `agent.py`'s extraction call needs GCP application-default credentials, which
+      requires an interactive login only a human can complete:
+      1. Install the gcloud CLI (`winget install Google.CloudSDK` on Windows, or
+         https://cloud.google.com/sdk/docs/install)
+      2. `gcloud auth application-default login` — opens a browser, sign in with
+         the Google account tied to project `zeta-structure-437412-v7`
+      3. `gcloud config set project zeta-structure-437412-v7`
+      4. Then `backend/app/extraction/agent.py` should work — but its exact SDK
+         call shapes (`google-genai` client construction, function-calling config,
+         response parsing) are still unverified against a live call; expect to
+         debug those once auth is in place.
+- [ ] Google Maps distance client (`backend/app/maps_client.py`) — needs
+      `GOOGLE_MAPS_API_KEY` in `backend/.env`; not yet obtained (billing/free-credit
+      setup still pending on the GCP project as of this writing)
+- [ ] Results memo, sensitivity sliders, map tab, PDF upload
 - [ ] Deployment to Cloud Run / a public URL
 
-See BUILD_BRIEF.md section 8 for the intended build order — the two model/search-
-dependent pieces above are next once credentials are available.
+See BUILD_BRIEF.md section 8 for the intended build order.
 
 ## Backend
 

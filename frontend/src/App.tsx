@@ -1,16 +1,26 @@
 import { useState } from "react";
+import { makeBlankBudget } from "./data/blankBudget";
 import { EXAMPLES, type Example } from "./data/examples";
+import { ManualForm } from "./screens/ManualForm";
 import type { BudgetVector } from "./types";
 
+type Screen = "home" | "form";
+
 /**
- * Home screen only, for now — BUILD_BRIEF.md section 7/8 calls for the
- * examples path first ("a judge opening the live URL has no budget file").
- * Manual entry, PDF upload, the results memo, sensitivity sliders and the
- * map tab are the next slices, in that order, once Layer 1 (extraction) and
- * Layer 2 are reachable over the API.
+ * Home + manual entry form — BUILD_BRIEF.md section 8 build order: examples
+ * path first ("a judge opening the live URL has no budget file"), then
+ * manual form, then results screen, then sliders. PDF upload, the results
+ * memo, sensitivity sliders and the map tab are the next slices, once
+ * Layer 1 (extraction) and Layer 2 are reachable over the API together.
  */
 function App() {
+  const [screen, setScreen] = useState<Screen>("home");
   const [selected, setSelected] = useState<BudgetVector | null>(null);
+
+  function reset() {
+    setScreen("home");
+    setSelected(null);
+  }
 
   return (
     <div className="min-h-screen bg-paper font-sans text-[14px] text-ink">
@@ -18,8 +28,37 @@ function App() {
         <Mark size={16} />
         <div className="font-sans text-[15px] font-bold tracking-tight">Incentive Verifier</div>
         <div className="font-sans text-[12.5px] text-ink-2">Jurisdiction comparison, net of relocation</div>
+        {screen !== "home" && (
+          <button
+            type="button"
+            onClick={reset}
+            className="ml-auto border border-border-2 bg-paper px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink"
+          >
+            START OVER
+          </button>
+        )}
       </header>
 
+      {screen === "form" ? (
+        <ManualForm initial={makeBlankBudget()} onBack={() => setScreen("home")} />
+      ) : (
+        <HomeScreen selected={selected} onSelectExample={setSelected} onOpenForm={() => setScreen("form")} />
+      )}
+    </div>
+  );
+}
+
+function HomeScreen({
+  selected,
+  onSelectExample,
+  onOpenForm,
+}: {
+  selected: BudgetVector | null;
+  onSelectExample: (b: BudgetVector) => void;
+  onOpenForm: () => void;
+}) {
+  return (
+    <>
       <main className="mx-auto max-w-[1320px] px-7 pb-16 pt-11">
         <div className="mb-9 flex items-center gap-[18px]">
           <Mark size={46} />
@@ -41,7 +80,7 @@ function App() {
             </p>
             <div className="flex flex-col gap-2.5">
               {EXAMPLES.map((ex) => (
-                <ExampleButton key={ex.id} example={ex} onSelect={() => setSelected(ex.budget)} />
+                <ExampleButton key={ex.id} example={ex} onSelect={() => onSelectExample(ex.budget)} />
               ))}
             </div>
           </section>
@@ -63,9 +102,8 @@ function App() {
             </div>
             <button
               type="button"
-              disabled
-              title="Next up — manual entry form"
-              className="mt-auto w-full cursor-not-allowed bg-ink/40 px-0 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-paper"
+              onClick={onOpenForm}
+              className="mt-auto w-full bg-ink px-0 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-paper transition-colors hover:bg-[#091318]"
             >
               OPEN BLANK FORM
             </button>
@@ -96,7 +134,7 @@ function App() {
           </section>
         )}
       </main>
-    </div>
+    </>
   );
 }
 
