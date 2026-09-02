@@ -58,6 +58,8 @@ export interface JurisdictionRule {
   sources: SourceRef[];
   confidence: Confidence;
   conflicts: string[];
+  /** Keys matching BudgetVector.constraints; value is why this jurisdiction fails that constraint. */
+  constraint_gaps: Record<string, string>;
 }
 
 export interface BudgetVector {

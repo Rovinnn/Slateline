@@ -1,10 +1,9 @@
 """Relocation distance via Google Maps Platform. Requires GOOGLE_MAPS_API_KEY.
 
-STATUS: stub — not verified against a real call yet. Build order step 1
-("one Maps distance call") and step 5 ("relocation cost via Maps") both
-depend on this. Fill in / verify once GOOGLE_MAPS_API_KEY is available;
-consider switching to the Routes API if Distance Matrix pricing/quota
-doesn't fit (both return distance + duration, shape differs slightly).
+STATUS: verified live. Build order step 1's "one Maps distance call" passes —
+Los Angeles -> Atlanta returns 3,498 km / 31.6 h via scripts/check_credentials.py.
+Note that routes.googleapis.com is not offered on this project, so the Routes
+API is not an available fallback; Distance Matrix is the path.
 """
 
 from __future__ import annotations

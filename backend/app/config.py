@@ -8,7 +8,15 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
+
+from dotenv import load_dotenv
+
+# Local dev convenience: backend/.env is gitignored and read once at import.
+# Real environment variables always win over the file, and in production
+# (Cloud Run) there is no .env at all — see get_secret's Secret Manager path.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 
 @lru_cache

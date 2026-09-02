@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ApiError, computeBenefit, getSeedJurisdictions } from "../lib/api";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { CONSTRAINTS } from "../data/constraints";
+import { ApiError, computeBenefit, getDistance, getSeedJurisdictions, searchJurisdiction, type DistanceInfo } from "../lib/api";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
@@ -38,7 +39,9 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [showUnverified, setShowUnverified] = useState(false);
   const [tab, setTab] = useState<"memo" | "map">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
+  const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const fetchedDistancesRef = useRef<Set<string>>(new Set());
 
   // Fetched once — the seed jurisdiction list doesn't depend on the budget.
   useEffect(() => {
@@ -56,6 +59,45 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     };
   }, []);
 
+  // One Maps call per (home_base, jurisdiction) pair, cached here for the
+  // life of the Results screen — home_base itself can't change without
+  // remounting this screen (only `onEditInputs` changes it, which goes back
+  // to the form). Deliberately NOT folded into /compute: that endpoint is
+  // hit on every sensitivity-slider debounce tick, and a Maps round trip on
+  // every drag tick would be real added latency and quota cost for a number
+  // that never changes while dragging. fetchedDistancesRef (not `distances`
+  // itself) gates what's already requested, so this doesn't loop on its own
+  // setDistances update.
+  useEffect(() => {
+    if (!rules) return;
+    const homeBase = initialBudget.home_base;
+    const toFetch = rules.filter((r) => !fetchedDistancesRef.current.has(r.jurisdiction));
+    if (toFetch.length === 0) return;
+    for (const r of toFetch) fetchedDistancesRef.current.add(r.jurisdiction);
+    let cancelled = false;
+    Promise.all(
+      toFetch.map(async (rule) => {
+        try {
+          return [rule.jurisdiction, await getDistance(homeBase, rule.centroid_lat, rule.centroid_lng)] as const;
+        } catch {
+          // Maps outage or an unroutable home_base string — leave this one
+          // jurisdiction without a distance rather than failing the screen.
+          return [rule.jurisdiction, null] as const;
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setDistances((prev) => {
+        const next = { ...prev };
+        for (const [name, info] of results) next[name] = info;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rules, initialBudget.home_base]);
+
   // Layer 2 is a pure function with no I/O of its own, so recomputing on every
   // slider tick still means "no model call" per BUILD_BRIEF.md section 7 — it
   // just goes through the real backend (single source of truth for the
@@ -69,7 +111,17 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       (async () => {
         try {
           const rows = await Promise.all(
-            rules.map(async (rule) => ({ rule, benefit: await computeBenefit(liveBudget, rule, { assumptions }) })),
+            rules.map(async (rule) => {
+              const dist = distances[rule.jurisdiction];
+              return {
+                rule,
+                benefit: await computeBenefit(liveBudget, rule, {
+                  assumptions,
+                  distance_km: dist?.distance_km,
+                  travel_time_hours: dist?.travel_time_hours,
+                }),
+              };
+            }),
           );
           if (!cancelled) setState({ status: "ready", rows });
         } catch (err) {
@@ -86,7 +138,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [rules, liveBudget, assumptions]);
+  }, [rules, liveBudget, assumptions, distances]);
 
   // Scans ATL spend to find where the top pick stops leading — a second,
   // coarser sweep than the main recompute above, so it rides the same
@@ -103,7 +155,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     const atlBase = initialBudget.atl_cast + initialBudget.atl_noncast;
     let cancelled = false;
     setBreakeven("loading");
-    scanBreakeven(rules, hero.rule.jurisdiction, liveBudget, atlBase, assumptions)
+    scanBreakeven(rules, hero.rule.jurisdiction, liveBudget, atlBase, assumptions, distances)
       .then((result) => !cancelled && setBreakeven(result))
       .catch(() => !cancelled && setBreakeven("error"));
     return () => {
@@ -111,7 +163,18 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     };
     // Deliberately keyed on `state` (not liveBudget/assumptions directly) so
     // this rides the main recompute's debounce instead of double-firing.
-  }, [state, rules]);
+  }, [state, rules, distances]);
+
+  function addRule(rule: JurisdictionRule) {
+    setRules((prev) => {
+      const base = prev ?? [];
+      const i = base.findIndex((r) => r.jurisdiction.toLowerCase() === rule.jurisdiction.toLowerCase());
+      if (i === -1) return [...base, rule];
+      const next = [...base];
+      next[i] = rule;
+      return next;
+    });
+  }
 
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
@@ -123,6 +186,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
         <div className="font-sans text-[12.5px] text-ink-2">
           {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
         </div>
+        {rules && <JurisdictionSearch existing={rules.map((r) => r.jurisdiction)} onFound={addRule} />}
         <button
           type="button"
           onClick={onEditInputs}
@@ -167,12 +231,73 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   );
 }
 
-// Note: budget.constraints (e.g. "coastline") isn't used to grey out
-// jurisdictions here yet. BUILD_BRIEF.md section 7 wants that, but
-// JurisdictionRule (section 5) has no field saying whether a jurisdiction
-// satisfies a given constraint — that needs a schema decision (e.g. a new
-// `capabilities: dict` on JurisdictionRule, filled by Layer 1) before it can
-// be built honestly rather than guessed.
+/**
+ * Layer 1, live: calls /jurisdictions/search (Parallel + Gemini extraction,
+ * see backend/app/extraction/agent.py), then folds the result into `rules`
+ * via onFound so it flows through the same compute/distance pipeline as the
+ * seed jurisdictions — no separate rendering path for a searched-up rule.
+ */
+function JurisdictionSearch({ existing, onFound }: { existing: string[]; onFound: (rule: JurisdictionRule) => void }) {
+  const [value, setValue] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const name = value.trim();
+    if (!name || pending) return;
+    if (existing.some((n) => n.toLowerCase() === name.toLowerCase())) {
+      setError(`${name} is already in the comparison.`);
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      onFound(await searchJurisdiction(name));
+      setValue("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not reach the backend.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="flex items-center gap-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="search another jurisdiction…"
+        disabled={pending}
+        className="w-[210px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
+      />
+      <button
+        type="submit"
+        disabled={pending || !value.trim()}
+        className="font-mono text-[11.5px] text-teal underline decoration-1 underline-offset-2 disabled:opacity-40 disabled:no-underline"
+      >
+        {pending ? "searching…" : "search"}
+      </button>
+      {error && <span className="font-mono text-[11px] text-red">{error}</span>}
+    </form>
+  );
+}
+
+/**
+ * The reason `constraints` currently enabled on the budget disqualify this
+ * rule, if any — backend/app/constraints.py fills rule.constraint_gaps for
+ * every constraint key it can determine without guessing (not every key is
+ * covered; see that module for which ones and why). Constraints never
+ * remove a jurisdiction from the list, only grey it out with this reason.
+ */
+function failingConstraint(rule: JurisdictionRule, activeConstraints: string[]): string | null {
+  for (const key of activeConstraints) {
+    const reason = rule.constraint_gaps[key];
+    if (reason) return reason;
+  }
+  return null;
+}
 
 function ReadyResults({
   rows,
@@ -220,9 +345,14 @@ function ReadyResults({
         RECOMMENDATION · RANKED BY NET BENEFIT
       </div>
 
-      <HeroCard row={hero} breakeven={breakeven} />
+      <HeroCard row={hero} breakeven={breakeven} failing={failingConstraint(hero.rule, liveBudget.constraints)} />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
+
+      <ConstraintsPanel
+        constraints={liveBudget.constraints}
+        onChange={(constraints) => onBudgetChange({ ...liveBudget, constraints })}
+      />
 
       <RelocationAssumptionsPanel assumptions={assumptions} onChange={onAssumptionsChange} />
 
@@ -240,7 +370,13 @@ function ReadyResults({
           </div>
           <div className="flex flex-col gap-2.5">
             {runnerUps.map((row, i) => (
-              <RunnerUpCard key={row.rule.jurisdiction} row={row} rank={i + 2} best={hero.benefit.net_benefit} />
+              <RunnerUpCard
+                key={row.rule.jurisdiction}
+                row={row}
+                rank={i + 2}
+                best={hero.benefit.net_benefit}
+                failing={failingConstraint(row.rule, liveBudget.constraints)}
+              />
             ))}
           </div>
         </>
@@ -290,8 +426,9 @@ function ReadyResults({
 
       <div className="mt-6 max-w-[820px] font-mono text-[11.5px] leading-relaxed text-ink-3">
         Figures are estimates for comparison, not tax advice. Non-machine-checkable uplifts are listed but not
-        added to the credit — confirm them with the film office. Relocation cost excludes flights/ground
-        transport until Google Maps distance is wired in (see caps_applied notes above where that applies).
+        added to the credit — confirm them with the film office. Relocation cost includes flights/ground
+        transport when a Google Maps distance is available for that jurisdiction (see the note on a hero card
+        if it isn't).
       </div>
     </div>
   );
@@ -396,6 +533,48 @@ function SensitivityPanel({
             <span>100%</span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * BUILD_BRIEF.md section 7 lists this among the results screen's "live
+ * controls", alongside sensitivity — a second entry point besides the
+ * initial form (ManualForm.tsx also has these toggles for the first run),
+ * so a constraint can be added or dropped after seeing results without
+ * going back to re-enter the whole budget.
+ */
+function ConstraintsPanel({ constraints, onChange }: { constraints: string[]; onChange: (c: string[]) => void }) {
+  function toggle(key: string) {
+    onChange(constraints.includes(key) ? constraints.filter((c) => c !== key) : [...constraints, key]);
+  }
+
+  return (
+    <div className="mt-5 border border-border-3 bg-card">
+      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+        <div className="font-sans text-[13.5px] font-semibold">Constraints</div>
+        <div className="font-sans text-[12.5px] text-ink-2">Enabling one greys out jurisdictions that can't meet it — never removes them.</div>
+      </div>
+      <div className="flex flex-wrap gap-2.5 p-5.5">
+        {CONSTRAINTS.map((c) => {
+          const on = constraints.includes(c.key);
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => toggle(c.key)}
+              className={`flex items-center gap-2 border px-3 py-2 font-sans text-[12.5px] transition-colors ${
+                on ? "border-ink bg-card-2" : "border-border-2 bg-card"
+              }`}
+            >
+              <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[#bfbab1]"}`}>
+                {on ? "■" : ""}
+              </span>
+              {c.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -533,11 +712,22 @@ function BreakevenLine({ breakeven }: { breakeven: BreakevenResult }) {
   );
 }
 
-function HeroCard({ row, breakeven }: { row: Row; breakeven: BreakevenResult | "loading" | "error" | null }) {
+function HeroCard({
+  row,
+  breakeven,
+  failing,
+}: {
+  row: Row;
+  breakeven: BreakevenResult | "loading" | "error" | null;
+  failing?: string | null;
+}) {
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
-    <div className="border border-[#bdbab2] border-t-[3px] border-t-ink bg-card">
+    <div
+      title={failing ?? undefined}
+      className={`border border-[#bdbab2] border-t-[3px] border-t-ink bg-card ${failing ? "opacity-55" : ""}`}
+    >
       <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.25fr_1fr]">
         <div>
           <div className="mb-0.5 flex flex-wrap items-baseline gap-3">
@@ -547,6 +737,12 @@ function HeroCard({ row, breakeven }: { row: Row; breakeven: BreakevenResult | "
             </span>
           </div>
           <div className="mb-5 font-mono text-[12.5px] text-ink-2">{rule.program_name}</div>
+
+          {failing && (
+            <div className="mb-4 border border-amber/30 bg-amber-bg px-3 py-2 font-mono text-[11.5px] leading-relaxed text-amber">
+              Doesn't meet a constraint: {failing}
+            </div>
+          )}
 
           <div className="mb-1 font-mono text-[11px] font-medium tracking-wide text-ink-3">NET BENEFIT</div>
           <div className="mb-2.5 font-mono text-[48px] font-semibold leading-none tracking-tight">
@@ -608,11 +804,11 @@ function Fact({ k, v }: { k: string; v: string }) {
   );
 }
 
-function RunnerUpCard({ row, rank, best }: { row: Row; rank: number; best: number }) {
+function RunnerUpCard({ row, rank, best, failing }: { row: Row; rank: number; best: number; failing?: string | null }) {
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
-    <div className="border border-border-3 bg-card">
+    <div title={failing ?? undefined} className={`border border-border-3 bg-card ${failing ? "opacity-55" : ""}`}>
       <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[34px_1.6fr_1fr_1fr]">
         <div className="font-mono text-[13px] text-ink-3">{String(rank).padStart(2, "0")}</div>
         <div>
@@ -623,6 +819,7 @@ function RunnerUpCard({ row, rank, best }: { row: Row; rank: number; best: numbe
             </span>
           </div>
           <div className="mt-1 font-mono text-[11.5px] text-ink-4">{(rule.base_rate * 100).toFixed(1)}% base rate</div>
+          {failing && <div className="mt-1 font-mono text-[11px] leading-relaxed text-amber">Doesn't meet: {failing}</div>}
         </div>
         <div>
           <div className="mb-1 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">QUALIFIED SPEND</div>

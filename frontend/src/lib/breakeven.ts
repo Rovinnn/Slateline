@@ -1,4 +1,4 @@
-import { computeBenefitBatch } from "./api";
+import { computeBenefitBatch, type DistanceInfo } from "./api";
 import type { BudgetVector, JurisdictionRule, RelocationAssumptions } from "../types";
 
 export interface BreakevenPoint {
@@ -45,6 +45,7 @@ export async function scanBreakeven(
   liveBudget: BudgetVector,
   atlBase: number,
   assumptions: RelocationAssumptions,
+  distances: Record<string, DistanceInfo | null> = {},
 ): Promise<BreakevenResult> {
   const hi = Math.max(atlBase * 2.5, 4_000_000);
   const atlNow = liveBudget.atl_cast + liveBudget.atl_noncast;
@@ -59,10 +60,17 @@ export async function scanBreakeven(
   }));
 
   const perRule = await Promise.all(
-    rules.map(async (rule) => ({
-      name: rule.jurisdiction,
-      results: await computeBenefitBatch(sweptBudgets, rule, { assumptions }),
-    })),
+    rules.map(async (rule) => {
+      const dist = distances[rule.jurisdiction];
+      return {
+        name: rule.jurisdiction,
+        results: await computeBenefitBatch(sweptBudgets, rule, {
+          assumptions,
+          distance_km: dist?.distance_km,
+          travel_time_hours: dist?.travel_time_hours,
+        }),
+      };
+    }),
   );
 
   const series: BreakevenPoint[] = atlValues.map((atl, i) => {

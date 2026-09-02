@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { makeBlankBudget } from "./data/blankBudget";
 import { EXAMPLES, type Example } from "./data/examples";
 import { ManualForm } from "./screens/ManualForm";
@@ -6,6 +6,10 @@ import { Results } from "./screens/Results";
 import type { BudgetVector } from "./types";
 
 type Screen = "home" | "form" | "results";
+interface NavState {
+  screen: Screen;
+  budget: BudgetVector | null;
+}
 
 /**
  * BUILD_BRIEF.md section 8 build order: examples path first ("a judge
@@ -19,14 +23,41 @@ function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [budget, setBudget] = useState<BudgetVector | null>(null);
 
+  // No router in this app, so without our own history entries the browser's
+  // Back button has nothing to step through and exits straight to whatever
+  // page opened the tab. Push one entry per screen change and let popstate
+  // (fired by the Back/Forward buttons, and by history.back() below) drive
+  // screen/budget, instead of only ever pushing state forward.
+  useEffect(() => {
+    window.history.replaceState({ screen: "home", budget: null } as NavState, "");
+    function onPopState(e: PopStateEvent) {
+      const state = e.state as NavState | null;
+      setScreen(state?.screen ?? "home");
+      setBudget(state?.budget ?? null);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function navigate(nextScreen: Screen, nextBudget: BudgetVector | null) {
+    setScreen(nextScreen);
+    setBudget(nextBudget);
+    window.history.pushState({ screen: nextScreen, budget: nextBudget } as NavState, "");
+  }
+
   function reset() {
-    setScreen("home");
-    setBudget(null);
+    navigate("home", null);
   }
 
   function runComparison(b: BudgetVector) {
-    setBudget(b);
-    setScreen("results");
+    navigate("results", b);
+  }
+
+  // Carries the current budget along so the form opens pre-filled with the
+  // values from this run — "edit inputs" from Results used to always hand
+  // the form a blank budget, wiping what was just entered.
+  function openForm() {
+    navigate("form", budget);
   }
 
   return (
@@ -46,9 +77,11 @@ function App() {
         )}
       </header>
 
-      {screen === "form" && <ManualForm initial={makeBlankBudget()} onBack={() => setScreen("home")} onSubmit={runComparison} />}
-      {screen === "results" && budget && <Results budget={budget} onEditInputs={() => setScreen("form")} />}
-      {screen === "home" && <HomeScreen onSelectExample={runComparison} onOpenForm={() => setScreen("form")} />}
+      {screen === "form" && (
+        <ManualForm initial={budget ?? makeBlankBudget()} onBack={() => window.history.back()} onSubmit={runComparison} />
+      )}
+      {screen === "results" && budget && <Results budget={budget} onEditInputs={openForm} />}
+      {screen === "home" && <HomeScreen onSelectExample={runComparison} onOpenForm={openForm} />}
     </div>
   );
 }

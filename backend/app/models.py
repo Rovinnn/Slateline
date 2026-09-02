@@ -58,6 +58,11 @@ class JurisdictionRule:
     sources: list[SourceRef]
     confidence: Confidence
     conflicts: list[str]      # human-readable notes on disagreeing sources
+    # Keys matching BudgetVector.constraints; value is why THIS jurisdiction
+    # fails that constraint. Absent key = satisfies it, or unknown — never a
+    # guess. Filled by constraints.constraint_gaps_for(), not by Layer 1: see
+    # that module's docstring for why this isn't extracted like base_rate is.
+    constraint_gaps: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
