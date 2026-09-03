@@ -19,7 +19,6 @@ from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
 from .maps_client import DistanceResult, get_distance
 from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
-from .seed_jurisdictions import SEED_JURISDICTIONS
 from .verification import verify_rule
 
 
@@ -104,10 +103,9 @@ def compute_batch(
 @app.post("/jurisdictions/search", response_model=JurisdictionRule)
 def search_jurisdictions(jurisdiction: str) -> JurisdictionRule:
     """Layer 1, live: Parallel search + a forced-function-call Gemini extraction
-    (see app/extraction/agent.py), then Layer 3 verification — same path the
-    seed jurisdictions go through in list_seed_jurisdictions below. Any
-    failure here is an external service (Parallel or Vertex), not a client
-    error, so it surfaces as 502 with the underlying message rather than 500.
+    (see app/extraction/agent.py), then Layer 3 verification. Any failure here
+    is an external service (Parallel or Vertex), not a client error, so it
+    surfaces as 502 with the underlying message rather than 500.
     """
     try:
         rule = extract_jurisdiction_rule(jurisdiction)
@@ -132,13 +130,3 @@ def distance(origin: str, destination_lat: float, destination_lng: float) -> Dis
         return get_distance(origin, destination_lat, destination_lng)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Maps distance lookup failed: {exc}") from exc
-
-
-@app.get("/jurisdictions/seed", response_model=list[JurisdictionRule])
-def list_seed_jurisdictions() -> list[JurisdictionRule]:
-    """Hand-curated real jurisdictions (see app/seed_jurisdictions.py) — a
-    manual stand-in for /jurisdictions/search until Layer 1 extraction is
-    live. Confidence is recomputed here, same as /compute does for a
-    caller-supplied rule.
-    """
-    return [_verify_and_annotate(rule) for rule in SEED_JURISDICTIONS]

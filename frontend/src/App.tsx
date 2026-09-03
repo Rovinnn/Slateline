@@ -14,10 +14,10 @@ interface NavState {
 /**
  * BUILD_BRIEF.md section 8 build order: examples path first ("a judge
  * opening the live URL has no budget file"), then manual form, then results
- * screen — all three now wired end to end against the real backend
- * (compute_benefit + the hand-curated seed jurisdictions). Sensitivity
- * sliders, the map tab and PDF upload are next, once Layer 1 (Gemini) and
- * Google Maps have credentials.
+ * screen — all three now wired end to end against the real backend, and
+ * Results itself runs the real Layer 1 pipeline (Parallel search + Gemini
+ * extraction) live for every jurisdiction, not canned data. PDF upload is
+ * next.
  */
 function App() {
   const [screen, setScreen] = useState<Screen>("home");

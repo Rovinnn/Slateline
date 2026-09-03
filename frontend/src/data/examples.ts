@@ -74,6 +74,11 @@ export const EXAMPLES: Example[] = [
   },
 ];
 
+/** Jurisdictions searched live (Parallel + Gemini, backend/app/extraction/agent.py)
+ * when the Results screen first loads — every run hits the real pipeline,
+ * there's no static/canned jurisdiction data left in the app. */
+export const DEFAULT_JURISDICTIONS = ["Georgia", "New Mexico", "Louisiana", "Texas"];
+
 export interface HomeBase {
   id: string;
   label: string;

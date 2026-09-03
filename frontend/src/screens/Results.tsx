@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CONSTRAINTS } from "../data/constraints";
-import { ApiError, computeBenefit, getDistance, getSeedJurisdictions, searchJurisdiction, type DistanceInfo } from "../lib/api";
+import { DEFAULT_JURISDICTIONS } from "../data/examples";
+import { ApiError, computeBenefit, getDistance, searchJurisdiction, type DistanceInfo } from "../lib/api";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
@@ -43,17 +44,31 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedDistancesRef = useRef<Set<string>>(new Set());
 
-  // Fetched once — the seed jurisdiction list doesn't depend on the budget.
+  // Fetched once on mount — DEFAULT_JURISDICTIONS is just a list of names to
+  // look up, not data. Each one runs the real Layer 1 pipeline (Parallel
+  // search + Gemini extraction, see backend/app/extraction/agent.py), same
+  // path as JurisdictionSearch below, in parallel. allSettled (not all): one
+  // jurisdiction's search failing (a transient Parallel/Vertex error) leaves
+  // it out rather than blanking the whole screen — only surface the error
+  // state if every one of them failed.
   useEffect(() => {
     let cancelled = false;
-    getSeedJurisdictions()
-      .then((r) => !cancelled && setRules(r))
-      .catch((err) => {
-        if (cancelled) return;
+    Promise.allSettled(DEFAULT_JURISDICTIONS.map((name) => searchJurisdiction(name))).then((results) => {
+      if (cancelled) return;
+      const rules = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      if (rules.length === 0) {
+        const firstError = results.find(
+          (r): r is PromiseRejectedResult => r.status === "rejected",
+        )?.reason;
         const message =
-          err instanceof ApiError ? `${err.message} (HTTP ${err.status})` : "Could not reach the backend.";
+          firstError instanceof ApiError
+            ? `${firstError.message} (HTTP ${firstError.status})`
+            : "Could not reach the backend.";
         setState({ status: "error", message });
-      });
+        return;
+      }
+      setRules(rules);
+    });
     return () => {
       cancelled = true;
     };
@@ -330,7 +345,7 @@ function ReadyResults({
   if (computable.length === 0) {
     return (
       <div className="mt-6 border border-border-3 bg-card p-6 font-sans text-[13.5px] text-ink-2">
-        None of the {rows.length} jurisdictions in the seed set could be computed for this budget — see "Can't
+        None of the {rows.length} jurisdictions searched could be computed for this budget — see "Can't
         verify" below.
       </div>
     );

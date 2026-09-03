@@ -65,27 +65,9 @@ def test_compute_batch_scans_multiple_budgets_in_one_call():
     assert credits == sorted(credits)  # monotonically increasing with atl_cast
 
 
-def test_seed_endpoint_returns_four_jurisdictions_with_recomputed_confidence():
-    resp = client.get("/jurisdictions/seed")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert len(body) == 4
-    assert {j["jurisdiction"] for j in body} == {"Georgia", "New Mexico", "Louisiana", "Texas"}
-
-
-def test_seed_endpoint_annotates_constraint_gaps():
-    body = client.get("/jurisdictions/seed").json()
-    by_name = {j["jurisdiction"]: j for j in body}
-    # Georgia and Louisiana have Gulf/Atlantic coastline; New Mexico is landlocked.
-    assert "coastline" not in by_name["Georgia"]["constraint_gaps"]
-    assert "coastline" not in by_name["Louisiana"]["constraint_gaps"]
-    assert "coastline" in by_name["New Mexico"]["constraint_gaps"]
-
-
 def test_search_endpoint_calls_extraction_and_reverifies_confidence(monkeypatch):
     # Rule comes back from Layer 1 with a stale confidence label; the endpoint
-    # must recompute it via verify_rule rather than trust what extraction set,
-    # same as list_seed_jurisdictions does.
+    # must recompute it via verify_rule rather than trust what extraction set.
     unverified = make_rule(jurisdiction="Extractland", sources=[], confidence="primary_source")
     monkeypatch.setattr(main, "extract_jurisdiction_rule", lambda jurisdiction: unverified)
 
