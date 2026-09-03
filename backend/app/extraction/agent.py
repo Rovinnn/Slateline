@@ -4,15 +4,26 @@ quoting — it never computes a benefit (enforced by forced function calling
 below: the model must call `record_jurisdiction_rule`, it cannot just answer
 in prose).
 
-STATUS: run live against a real jurisdiction (Oklahoma). Two bugs surfaced and
-are fixed: (1) the model left several dataclass-required fields (centroid_lat/
-lng, pool_status) off its function call entirely, since RECORD_JURISDICTION_RULE_SCHEMA's
+STATUS: run live against several real jurisdictions. Bugs surfaced and fixed:
+(1) the model left several dataclass-required fields (centroid_lat/lng,
+pool_status) off its function call entirely, since RECORD_JURISDICTION_RULE_SCHEMA's
 `required` list didn't force them — now it does, since a centroid and a
 pool_status of "unknown" are things the model can always state without
 guessing a figure; (2) `sources`/`tiers`/`uplifts` were left as plain dicts
 from the function-call args instead of being converted to SourceRef/Tier/
 Uplift, which would have broken the first attribute access downstream
-(verify_rule's assess_confidence reads `s.retrieved`/`s.is_primary`).
+(verify_rule's assess_confidence reads `s.retrieved`/`s.is_primary`);
+(3) the model returned `jurisdiction` as a 2-letter postal abbreviation
+("NM", "GA") rather than a full name, inconsistently even within one
+session — silently broke constraints.py's COASTAL_STATES lookup (a real
+coastal state showed as failing "needs ocean coastline" because "GA" isn't
+in a set of full names), so extraction now canonicalizes it; (4) `sources[].retrieved`
+was read from the model's own stated date, which it has no real way to
+know precisely — a live run came back with a source "retrieved" two years
+in the past for a page fetched that same day, which risks silently
+mislabeling fresh data as `stale` in verify_rule. `retrieved` is a fact
+about when *this pipeline* fetched the page, not a document fact, so it's
+no longer asked of the model at all — always stamped by code.
 
 Hard constraint reminder (BUILD_BRIEF.md section 2): Google Cloud AI tools
 and Parallel's AI features only. No LangChain, no other agent framework.
@@ -125,9 +136,12 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
                 "type": "array",
                 "items": {
                     "type": "object",
+                    # No "retrieved" field: that's when *this pipeline* fetched the
+                    # page, a fact the model has no way to know, not something to
+                    # extract from the page — see the module docstring's bug (4).
+                    # extract_jurisdiction_rule() stamps it with date.today().
                     "properties": {
                         "url": {"type": "string"},
-                        "retrieved": {"type": "string", "description": "ISO date"},
                         "published": {"type": ["string", "null"], "description": "ISO date"},
                         "excerpt": {"type": "string"},
                         "is_primary": {"type": "boolean"},
@@ -198,6 +212,40 @@ def _extract_with_forced_function_call(jurisdiction: str, search_results: list[W
     )
 
 
+# USPS 2-letter codes -> full name. The model isn't asked to use one form or
+# the other (BUILD_BRIEF.md doesn't specify it, and constraining every field's
+# exact string format isn't worth the schema complexity), so it's returned
+# either way, inconsistently — canonicalize rather than get every consumer
+# (constraints.py's COASTAL_STATES, the frontend's dedup-by-name) to handle
+# both forms. Only US states/DC: this app's jurisdictions can also be
+# countries or provinces ("Ireland", "British Columbia"), and none of those
+# collide with a 2-letter code, so non-US names simply pass through unchanged.
+US_STATE_ABBREVIATIONS: dict[str, str] = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
+    "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
+    "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
+    "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
+    "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
+    "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+    "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
+    "DC": "District of Columbia",
+}
+
+
+def canonicalize_jurisdiction(name: str) -> str:
+    """Expands a 2-letter US state/DC postal code to its full name; anything
+    else (a full name already, or a non-US jurisdiction) passes through
+    unchanged.
+    """
+    stripped = name.strip()
+    if len(stripped) == 2:
+        return US_STATE_ABBREVIATIONS.get(stripped.upper(), stripped)
+    return stripped
+
+
 def _parse_date(value: str | None) -> date | None:
     # Gemini is told to quote figures exactly, and for a recurring deadline
     # (e.g. "the 10th of every month") the exact quote isn't an ISO date —
@@ -220,6 +268,7 @@ def extract_jurisdiction_rule(jurisdiction: str) -> JurisdictionRule:
     search_results = _search(jurisdiction)
     raw = dict(_extract_with_forced_function_call(jurisdiction, search_results))
 
+    raw["jurisdiction"] = canonicalize_jurisdiction(raw["jurisdiction"])
     raw["application_deadline"] = _parse_date(raw.get("application_deadline"))
     raw["sunset_date"] = _parse_date(raw.get("sunset_date"))
 
@@ -227,10 +276,11 @@ def extract_jurisdiction_rule(jurisdiction: str) -> JurisdictionRule:
     # fields are typed as the actual dataclasses, and code downstream (e.g.
     # verify_rule's assess_confidence, calculator's tier/uplift handling)
     # accesses them as attributes, not dict keys.
+    today = date.today()
     raw["sources"] = [
         SourceRef(
             url=s.get("url", ""),
-            retrieved=_parse_date(s.get("retrieved")) or date.today(),
+            retrieved=today,  # code's own clock, not the model's — see module docstring bug (4)
             published=_parse_date(s.get("published")),
             excerpt=s.get("excerpt", ""),
             is_primary=bool(s.get("is_primary", False)),
