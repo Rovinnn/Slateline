@@ -235,14 +235,42 @@ US_STATE_ABBREVIATIONS: dict[str, str] = {
 }
 
 
+# Forms observed in live runs, all for the same four states: "GA", "TX",
+# "USA-NM", "Louisiana". The model is consistent within a response and
+# inconsistent across them, so every shape below has to collapse to the
+# canonical full name.
+_US_PREFIXES = ("usa-", "us-", "usa ", "us ")
+_US_SUFFIXES = (", usa", ", us", ", united states", " (usa)", " (us)")
+
+
 def canonicalize_jurisdiction(name: str) -> str:
-    """Expands a 2-letter US state/DC postal code to its full name; anything
-    else (a full name already, or a non-US jurisdiction) passes through
-    unchanged.
+    """Collapses the ways the model names a US state — "GA", "USA-NM",
+    "New Mexico, USA" — to the full state name. Non-US jurisdictions
+    ("Ireland", "British Columbia") pass through unchanged.
     """
     stripped = name.strip()
+    lowered = stripped.lower()
+
+    for prefix in _US_PREFIXES:
+        if lowered.startswith(prefix):
+            stripped = stripped[len(prefix) :].strip()
+            lowered = stripped.lower()
+            break
+    for suffix in _US_SUFFIXES:
+        if lowered.endswith(suffix):
+            stripped = stripped[: -len(suffix)].strip()
+            lowered = stripped.lower()
+            break
+
     if len(stripped) == 2:
         return US_STATE_ABBREVIATIONS.get(stripped.upper(), stripped)
+
+    # A full name that survived prefix/suffix stripping, but possibly cased
+    # oddly ("NEW MEXICO"). Match case-insensitively against the known set so
+    # COASTAL_STATES and the frontend's dedup both see one spelling.
+    for full_name in US_STATE_ABBREVIATIONS.values():
+        if lowered == full_name.lower():
+            return full_name
     return stripped
 
 

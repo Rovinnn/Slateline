@@ -33,3 +33,35 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
 }
+
+/*
+  PDF export (BUILD_BRIEF.md section 7) is the browser's own print-to-PDF
+  rather than a bundled PDF library: it produces selectable text, real
+  links, and correct pagination for free. Results.tsx forces the collapsed
+  panels open before calling window.print() so "assumptions used" and the
+  "can't verify" list actually appear in the export; everything interactive
+  is hidden with Tailwind's `print:hidden`.
+*/
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  /* Keep the muted palette and status pills instead of printing as blank boxes. */
+  *,
+  *::before,
+  *::after {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  /* Don't split a jurisdiction's card or its footnote across two pages. */
+  .print-block {
+    break-inside: avoid;
+  }
+}

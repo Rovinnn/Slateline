@@ -70,7 +70,7 @@ function App() {
           <button
             type="button"
             onClick={reset}
-            className="ml-auto border border-border-2 bg-paper px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink"
+            className="ml-auto border border-border-2 bg-paper px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink print:hidden"
           >
             START OVER
           </button>

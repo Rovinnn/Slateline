@@ -32,6 +32,32 @@ def test_canonicalize_jurisdiction_leaves_non_us_two_letter_names_alone():
     assert canonicalize_jurisdiction("UK") == "UK"
 
 
+def test_canonicalize_jurisdiction_strips_country_prefixes():
+    # "USA-NM" is a form a live run actually returned — the 2-letter fix
+    # alone missed it, and it still broke the COASTAL_STATES lookup.
+    assert canonicalize_jurisdiction("USA-NM") == "New Mexico"
+    assert canonicalize_jurisdiction("US-GA") == "Georgia"
+    assert canonicalize_jurisdiction("USA Texas") == "Texas"
+
+
+def test_canonicalize_jurisdiction_strips_country_suffixes():
+    assert canonicalize_jurisdiction("New Mexico, USA") == "New Mexico"
+    assert canonicalize_jurisdiction("Georgia, United States") == "Georgia"
+
+
+def test_canonicalize_jurisdiction_normalizes_casing_of_full_names():
+    assert canonicalize_jurisdiction("NEW MEXICO") == "New Mexico"
+    assert canonicalize_jurisdiction("louisiana") == "Louisiana"
+
+
+def test_canonicalize_jurisdiction_does_not_mangle_non_us_jurisdictions():
+    # "Georgia" the country vs Georgia the state is genuinely ambiguous, but
+    # these must not be touched by the US prefix/suffix stripping at all.
+    assert canonicalize_jurisdiction("Ireland") == "Ireland"
+    assert canonicalize_jurisdiction("British Columbia") == "British Columbia"
+    assert canonicalize_jurisdiction("United Kingdom") == "United Kingdom"
+
+
 def _canned_raw_response(jurisdiction: str, retrieved: str) -> dict:
     return {
         "jurisdiction": jurisdiction,

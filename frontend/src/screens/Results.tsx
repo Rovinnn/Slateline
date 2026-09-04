@@ -41,6 +41,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [tab, setTab] = useState<"memo" | "map">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
+  const [printing, setPrinting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedDistancesRef = useRef<Set<string>>(new Set());
 
@@ -180,6 +181,22 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     // this rides the main recompute's debounce instead of double-firing.
   }, [state, rules, distances]);
 
+  // Expanding and printing can't happen in one handler: the panels have to be
+  // committed and painted first, so this flips state, prints a beat later, and
+  // collapses again on `afterprint`. Resetting on a timer instead raced the
+  // render — the assumptions panel closed before the print snapshot was taken,
+  // dropping it from the exported PDF.
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(false);
+    window.addEventListener("afterprint", done);
+    const timer = setTimeout(() => window.print(), 60);
+    return () => {
+      window.removeEventListener("afterprint", done);
+      clearTimeout(timer);
+    };
+  }, [printing]);
+
   function addRule(rule: JurisdictionRule) {
     setRules((prev) => {
       const base = prev ?? [];
@@ -194,21 +211,36 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
       <div className="flex flex-wrap items-center gap-5 pt-4">
-        <div className="flex gap-0.5">
+        <div className="flex gap-0.5 print:hidden">
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
           <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
         </div>
         <div className="font-sans text-[12.5px] text-ink-2">
           {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
         </div>
-        {rules && <JurisdictionSearch existing={rules.map((r) => r.jurisdiction)} onFound={addRule} />}
-        <button
-          type="button"
-          onClick={onEditInputs}
-          className="ml-auto font-mono text-[11.5px] text-teal underline decoration-1 underline-offset-2"
-        >
-          edit inputs
-        </button>
+        {rules && (
+          <div className="print:hidden">
+            <JurisdictionSearch existing={rules.map((r) => r.jurisdiction)} onFound={addRule} />
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-4 print:hidden">
+          <button
+            type="button"
+            onClick={() => setPrinting(true)}
+            disabled={state.status !== "ready" || printing}
+            title="Opens your browser's print dialog — choose 'Save as PDF'"
+            className="border border-border-2 bg-card px-3 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink disabled:opacity-40"
+          >
+            {printing ? "PREPARING…" : "EXPORT PDF"}
+          </button>
+          <button
+            type="button"
+            onClick={onEditInputs}
+            className="font-mono text-[11.5px] text-teal underline decoration-1 underline-offset-2"
+          >
+            edit inputs
+          </button>
+        </div>
       </div>
 
       {state.status === "loading" && (
@@ -234,6 +266,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           assumptions={assumptions}
           onAssumptionsChange={setAssumptions}
           breakeven={breakeven}
+          printing={printing}
           showAll={showAll}
           setShowAll={setShowAll}
           showUnverified={showUnverified}
@@ -322,6 +355,7 @@ function ReadyResults({
   assumptions,
   onAssumptionsChange,
   breakeven,
+  printing,
   showAll,
   setShowAll,
   showUnverified,
@@ -334,6 +368,7 @@ function ReadyResults({
   assumptions: RelocationAssumptions;
   onAssumptionsChange: (a: RelocationAssumptions) => void;
   breakeven: BreakevenResult | "loading" | "error" | null;
+  printing: boolean;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
   showUnverified: boolean;
@@ -341,6 +376,11 @@ function ReadyResults({
 }) {
   const computable = rows.filter((r) => r.benefit.computable).sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
   const unverified = rows.filter((r) => !r.benefit.computable);
+  // An export has to stand on its own: every jurisdiction compared, every
+  // assumption used, and the can't-verify list — not just whatever happened
+  // to be expanded on screen when the button was pressed.
+  const expandAll = printing || showAll;
+  const expandUnverified = printing || showUnverified;
 
   if (computable.length === 0) {
     return (
@@ -352,7 +392,7 @@ function ReadyResults({
   }
 
   const [hero, ...rest] = computable;
-  const runnerUps = showAll ? rest : rest.slice(0, 3);
+  const runnerUps = expandAll ? rest : rest.slice(0, 3);
 
   return (
     <div className="pt-5">
@@ -369,7 +409,7 @@ function ReadyResults({
         onChange={(constraints) => onBudgetChange({ ...liveBudget, constraints })}
       />
 
-      <RelocationAssumptionsPanel assumptions={assumptions} onChange={onAssumptionsChange} />
+      <RelocationAssumptionsPanel assumptions={assumptions} onChange={onAssumptionsChange} forceOpen={printing} />
 
       {rest.length > 0 && (
         <>
@@ -378,7 +418,7 @@ function ReadyResults({
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
-              className="font-mono text-[11.5px] text-teal underline decoration-1 underline-offset-2"
+              className="font-mono text-[11.5px] text-teal underline decoration-1 underline-offset-2 print:hidden"
             >
               {showAll ? "show top 3 only" : `show all ${rest.length} compared`}
             </button>
@@ -404,13 +444,13 @@ function ReadyResults({
             onClick={() => setShowUnverified(!showUnverified)}
             className="flex w-full items-center gap-3 bg-card-2 px-5 py-3.5 text-left"
           >
-            <span className="font-mono text-[11px] text-ink-3">{showUnverified ? "−" : "+"}</span>
+            <span className="font-mono text-[11px] text-ink-3">{expandUnverified ? "−" : "+"}</span>
             <span className="font-sans text-[13.5px] font-semibold">
               Can't verify — {unverified.length} excluded from the ranking
             </span>
             <span className="font-sans text-[12.5px] text-ink-2">Discretionary or unverifiable programs. Not scored, not hidden.</span>
           </button>
-          {showUnverified && (
+          {expandUnverified && (
             <div className="border-t border-[#eae8e1]">
               {unverified.map(({ rule, benefit }) => {
                 const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
@@ -521,7 +561,7 @@ function SensitivityPanel({
             step={Math.max(10_000, Math.round(atlMax / 400))}
             value={Math.round(atlNow)}
             onChange={(e) => setAtlSpend(num(e.target.value))}
-            className="w-full accent-ink"
+            className="w-full accent-ink print:hidden"
           />
           <div className="flex justify-between font-mono text-[10.5px] text-ink-3">
             <span>$0</span>
@@ -541,7 +581,7 @@ function SensitivityPanel({
             step={1}
             value={Math.round(liveBudget.resident_labor_pct * 100)}
             onChange={(e) => setResidentPct(num(e.target.value))}
-            className="w-full accent-ink"
+            className="w-full accent-ink print:hidden"
           />
           <div className="flex justify-between font-mono text-[10.5px] text-ink-3">
             <span>0%</span>
@@ -620,11 +660,17 @@ const ASSUMPTION_FIELDS: AssumptionField[] = [
 function RelocationAssumptionsPanel({
   assumptions,
   onChange,
+  forceOpen = false,
 }: {
   assumptions: RelocationAssumptions;
   onChange: (a: RelocationAssumptions) => void;
+  /** An export must show the assumptions behind its relocation figures, even
+   *  if the reader had this panel collapsed on screen. */
+  forceOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const open = forceOpen || userOpen;
+  const setOpen = setUserOpen;
 
   function setField(key: keyof RelocationAssumptions, raw: string) {
     const parsed = num(raw);
@@ -741,7 +787,7 @@ function HeroCard({
   return (
     <div
       title={failing ?? undefined}
-      className={`border border-[#bdbab2] border-t-[3px] border-t-ink bg-card ${failing ? "opacity-55" : ""}`}
+      className={`print-block border border-[#bdbab2] border-t-[3px] border-t-ink bg-card ${failing ? "opacity-55" : ""}`}
     >
       <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.25fr_1fr]">
         <div>
@@ -795,6 +841,10 @@ function HeroCard({
             <Fact k="MINIMUM SPEND" v={rule.minimum_spend != null ? money(rule.minimum_spend) : "none"} />
             <Fact k="QUALIFIED SPEND USED" v={money(benefit.qualifying_spend)} />
             <Fact k="CONFIDENCE" v={rule.confidence.replace("_", " ")} />
+            {/* BUILD_BRIEF.md section 7 requires film office contacts in the
+                export; "not listed" is the honest answer when extraction
+                didn't find one, rather than hiding the row. */}
+            <Fact k="FILM OFFICE" v={rule.film_office_contact ?? "not listed in sources"} />
           </div>
           {src && (
             <div className="mt-4.5 flex flex-wrap items-baseline gap-1.5 border-t border-[#eae8e1] pt-3.5 font-mono text-[11.5px] text-ink-4">
@@ -823,7 +873,7 @@ function RunnerUpCard({ row, rank, best, failing }: { row: Row; rank: number; be
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
-    <div title={failing ?? undefined} className={`border border-border-3 bg-card ${failing ? "opacity-55" : ""}`}>
+    <div title={failing ?? undefined} className={`print-block border border-border-3 bg-card ${failing ? "opacity-55" : ""}`}>
       <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[34px_1.6fr_1fr_1fr]">
         <div className="font-mono text-[13px] text-ink-3">{String(rank).padStart(2, "0")}</div>
         <div>
