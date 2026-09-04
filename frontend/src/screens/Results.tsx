@@ -6,6 +6,8 @@ import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
 import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
+import { ComparisonTable } from "./ComparisonTable";
+import { FundingAvailability, SourceEvidence } from "./Evidence";
 import { MapView } from "./MapView";
 
 interface Row {
@@ -38,7 +40,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
-  const [tab, setTab] = useState<"memo" | "map">("memo");
+  const [tab, setTab] = useState<"memo" | "compare" | "map">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
   const [printing, setPrinting] = useState(false);
@@ -213,6 +215,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       <div className="flex flex-wrap items-center gap-5 pt-4">
         <div className="flex gap-0.5 print:hidden">
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
+          <TabButton active={tab === "compare"} onClick={() => setTab("compare")}>COMPARE</TabButton>
           <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
         </div>
         <div className="font-sans text-[12.5px] text-ink-2">
@@ -271,6 +274,13 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           setShowAll={setShowAll}
           showUnverified={showUnverified}
           setShowUnverified={setShowUnverified}
+        />
+      )}
+
+      {state.status === "ready" && tab === "compare" && (
+        <ComparisonTable
+          rows={state.rows}
+          failingFor={(rule) => failingConstraint(rule, liveBudget.constraints)}
         />
       )}
 
@@ -400,7 +410,12 @@ function ReadyResults({
         RECOMMENDATION · RANKED BY NET BENEFIT
       </div>
 
-      <HeroCard row={hero} breakeven={breakeven} failing={failingConstraint(hero.rule, liveBudget.constraints)} />
+      <HeroCard
+        row={hero}
+        breakeven={breakeven}
+        failing={failingConstraint(hero.rule, liveBudget.constraints)}
+        runnerUp={rest[0]}
+      />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
 
@@ -777,13 +792,15 @@ function HeroCard({
   row,
   breakeven,
   failing,
+  runnerUp,
 }: {
   row: Row;
   breakeven: BreakevenResult | "loading" | "error" | null;
   failing?: string | null;
+  /** Next-best computable jurisdiction, for the money-left-on-the-table line. */
+  runnerUp?: Row;
 }) {
   const { rule, benefit } = row;
-  const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
     <div
       title={failing ?? undefined}
@@ -806,11 +823,21 @@ function HeroCard({
           )}
 
           <div className="mb-1 font-mono text-[11px] font-medium tracking-wide text-ink-3">NET BENEFIT</div>
-          <div className="mb-2.5 font-mono text-[48px] font-semibold leading-none tracking-tight">
+          <div className="mb-1.5 font-mono text-[48px] font-semibold leading-none tracking-tight">
             {moneyShort(benefit.net_benefit)}
           </div>
+          {runnerUp && (
+            <div className="mb-2.5 font-sans text-[14px] font-medium text-ink">
+              {moneyShort(benefit.net_benefit - runnerUp.benefit.net_benefit)} more than{" "}
+              {runnerUp.rule.jurisdiction}, the next best option.
+            </div>
+          )}
           <div className="border-b border-[#eae8e1] pb-4 font-mono text-[14px] text-[#3d3a34]">
             {money(benefit.gross_credit)} gross credit − {money(benefit.relocation_cost)} relocation = {money(benefit.net_benefit)}
+          </div>
+
+          <div className="border-b border-[#eae8e1] py-4">
+            <FundingAvailability rule={rule} />
           </div>
 
           {benefit.caps_applied.length > 0 && (
@@ -846,14 +873,10 @@ function HeroCard({
                 didn't find one, rather than hiding the row. */}
             <Fact k="FILM OFFICE" v={rule.film_office_contact ?? "not listed in sources"} />
           </div>
-          {src && (
-            <div className="mt-4.5 flex flex-wrap items-baseline gap-1.5 border-t border-[#eae8e1] pt-3.5 font-mono text-[11.5px] text-ink-4">
-              <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
-                {hostOf(src.url)}
-              </a>
-              <span>· retrieved {src.retrieved}</span>
-            </div>
-          )}
+          <div className="mt-4.5 border-t border-[#eae8e1] pt-3.5">
+            <div className="mb-2 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>
+            <SourceEvidence rule={rule} />
+          </div>
         </div>
       </div>
     </div>
