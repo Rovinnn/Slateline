@@ -93,6 +93,9 @@ def test_every_schema_required_field_is_one_the_model_can_answer_without_guessin
         "centroid_lat",
         "centroid_lng",
         "pool_status",
+        # Like pool_status, its enum carries "unknown", so requiring it forces
+        # the model to consider payout mechanism without forcing a guess.
+        "credit_type",
     }
     assert set(PARAMS["required"]) <= allowed_required, (
         "A figure the model might not find in its sources became required — "

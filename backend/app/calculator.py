@@ -98,6 +98,49 @@ def _evaluate_uplift_condition(condition: str, budget: BudgetVector) -> Optional
     return pct <= threshold  # "<="
 
 
+# Transferable credits are sold to a taxpayer with in-state liability, at a
+# broker discount. Market clearing is roughly 88-95 cents on the dollar, with
+# 88-91 typical after broker fees for a clean audited credit. This is market
+# data, not a statutory fact, so it's an editable assumption rather than
+# something the model is asked to state.
+DEFAULT_TRANSFER_DISCOUNT = 0.90
+
+
+def _monetize(
+    gross_credit: float, credit_type: str, transfer_discount: float
+) -> tuple[float, Optional[str]]:
+    """Face value -> what the production can actually bank.
+
+    The distinction the tool got wrong until now: a $400k refundable credit
+    and a $400k transferable one are not the same asset, and ranking them as
+    equal systematically favours transferable states.
+    """
+    if gross_credit <= 0:
+        return gross_credit, None
+
+    if credit_type in ("refundable", "rebate"):
+        return gross_credit, "paid at face value — no broker discount"
+
+    if credit_type == "transferable":
+        realizable = gross_credit * transfer_discount
+        return realizable, (
+            f"transferable credit — sold at about {transfer_discount:.0%} of face, "
+            f"costing ${gross_credit - realizable:,.0f}"
+        )
+
+    if credit_type == "non_refundable":
+        # Deliberately not zeroed: it's worth face value to a production with
+        # in-state liability and close to nothing to one without, and which
+        # applies is a fact about the production company, not the statute.
+        # Flag it rather than guess.
+        return gross_credit, (
+            "non-refundable — only worth this much against in-state tax liability; "
+            "an out-of-state production may realise far less"
+        )
+
+    return gross_credit, "payout mechanism not stated in sources — shown at face value"
+
+
 def compute_benefit(
     budget: BudgetVector,
     rule: JurisdictionRule,
@@ -105,6 +148,7 @@ def compute_benefit(
     travel_time_hours: Optional[float] = None,
     assumptions: Optional[RelocationAssumptions] = None,
     cast_count: Optional[int] = None,
+    transfer_discount: float = DEFAULT_TRANSFER_DISCOUNT,
 ) -> BenefitBreakdown:
     """Pure function. No I/O, no model calls, fully deterministic.
 
@@ -124,6 +168,8 @@ def compute_benefit(
             travel_time_hours=travel_time_hours,
             relocation_cost=0.0,
             relocation_components={},
+            realizable_credit=0.0,
+            monetization_note=None,
             net_benefit=0.0,
             computable=False,
             non_computable_reason="Discretionary/jury-allocated program; benefit is not modelable.",
@@ -139,14 +185,43 @@ def compute_benefit(
     resident_btl = budget.btl_labor * budget.resident_labor_pct
     nonresident_btl = budget.btl_labor * (1 - budget.resident_labor_pct)
 
-    qualifying_spend = (
+    # Split labor from non-labor: payroll burden attaches to wages only, never
+    # to rentals, materials or post services.
+    qualifying_labor = (
         (atl_cast_capped if q.get("atl_cast") else 0.0)
         + (budget.atl_noncast if q.get("atl_noncast") else 0.0)
         + (resident_btl if q.get("btl_labor_resident") else 0.0)
         + (nonresident_btl if q.get("btl_labor_nonresident") else 0.0)
-        + (budget.btl_nonlabor if q.get("btl_nonlabor") else 0.0)
+    )
+    qualifying_non_labor = (
+        (budget.btl_nonlabor if q.get("btl_nonlabor") else 0.0)
         + (budget.post_vfx if q.get("post_vfx") else 0.0)
     )
+
+    # Fringes are computed on the labor that already qualifies — burden on
+    # excluded wages can't itself qualify.
+    fringes = qualifying_labor * max(0.0, budget.fringe_rate)
+    if rule.fringes_qualify is True:
+        qualifying_spend = qualifying_labor + qualifying_non_labor + fringes
+        caps_applied.append(
+            f"fringes qualify — ${fringes:,.0f} of payroll burden included "
+            f"at {budget.fringe_rate:.0%} of qualifying wages"
+        )
+    else:
+        qualifying_spend = qualifying_labor + qualifying_non_labor
+        if fringes > 0:
+            if rule.fringes_qualify is False:
+                caps_applied.append(
+                    f"fringes excluded — ${fringes:,.0f} of payroll burden doesn't qualify here"
+                )
+            else:
+                # Unknown is treated as excluded — the conservative direction —
+                # but doing that silently would understate the credit with no
+                # explanation. Say so instead.
+                caps_applied.append(
+                    f"unquantified: sources don't state whether fringes qualify — "
+                    f"${fringes:,.0f} of payroll burden left out; confirm with the film office"
+                )
 
     if rule.minimum_spend is not None and qualifying_spend < rule.minimum_spend:
         # Cliff, not a proportional reduction — getting this wrong invalidates the tool.
@@ -196,6 +271,8 @@ def compute_benefit(
     )
     relocation_cost = transport + lodging + assumptions.equipment_shipping_base
 
+    realizable_credit, monetization_note = _monetize(gross_credit, rule.credit_type, transfer_discount)
+
     return BenefitBreakdown(
         jurisdiction=rule.jurisdiction,
         qualifying_spend=qualifying_spend,
@@ -209,7 +286,11 @@ def compute_benefit(
             "lodging": lodging,
             "equipment_shipping": assumptions.equipment_shipping_base,
         },
-        net_benefit=gross_credit - relocation_cost,
+        realizable_credit=realizable_credit,
+        monetization_note=monetization_note,
+        # Nets the realizable figure, not face value: that's the money that
+        # actually reaches the production.
+        net_benefit=realizable_credit - relocation_cost,
         computable=True,
         non_computable_reason=None,
     )

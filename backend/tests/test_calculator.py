@@ -63,7 +63,7 @@ def test_wage_cap_reduces_qualifying_spend_when_it_bites():
 
 def test_wage_cap_not_applied_when_under_cap():
     rule = make_rule(per_person_wage_cap=100_000, minimum_spend=None, base_rate=0.25)
-    budget = make_budget(atl_cast=200_000, atl_noncast=0, btl_labor=0, btl_nonlabor=0, post_vfx=0, crew_headcount=45)
+    budget = make_budget(atl_cast=200_000, atl_noncast=0, btl_labor=0, btl_nonlabor=0, post_vfx=0, crew_headcount=45, fringe_rate=0)
     result = compute_benefit(budget, rule)
     assert result.qualifying_spend == pytest.approx(200_000)
     assert result.gross_credit == pytest.approx(50_000)
@@ -108,7 +108,7 @@ def test_discretionary_program_is_not_computable():
 
 def test_machine_checkable_uplift_applied_when_condition_met():
     rule = make_rule(minimum_spend=None, uplifts=[Uplift(condition="local hire > 50%", bonus_rate=0.05, machine_checkable=True)])
-    budget = make_budget(resident_labor_pct=0.6)
+    budget = make_budget(resident_labor_pct=0.6, fringe_rate=0)
     result = compute_benefit(budget, rule)
     assert result.qualifying_spend == pytest.approx(2_000_000)
     assert result.gross_credit == pytest.approx(600_000)  # 500_000 base + 100_000 uplift
@@ -117,7 +117,7 @@ def test_machine_checkable_uplift_applied_when_condition_met():
 
 def test_machine_checkable_uplift_not_applied_when_condition_unmet():
     rule = make_rule(minimum_spend=None, uplifts=[Uplift(condition="local hire > 50%", bonus_rate=0.05, machine_checkable=True)])
-    budget = make_budget(resident_labor_pct=0.4)
+    budget = make_budget(resident_labor_pct=0.4, fringe_rate=0)
     result = compute_benefit(budget, rule)
     assert result.gross_credit == pytest.approx(500_000)
     assert result.caps_applied == []
@@ -128,7 +128,7 @@ def test_non_machine_checkable_uplift_logged_but_not_applied():
         Uplift(condition="local hire > 50%", bonus_rate=0.05, machine_checkable=True),
         Uplift(condition="shot outside metro area", bonus_rate=0.03, machine_checkable=False),
     ])
-    budget = make_budget(resident_labor_pct=0.55)
+    budget = make_budget(resident_labor_pct=0.55, fringe_rate=0)
     result = compute_benefit(budget, rule)
     assert result.gross_credit == pytest.approx(600_000)  # only the machine-checkable uplift applied
     assert len(result.caps_applied) == 1
@@ -138,7 +138,7 @@ def test_non_machine_checkable_uplift_logged_but_not_applied():
 
 def test_machine_checkable_uplift_with_unrecognized_condition_is_logged_not_guessed():
     rule = make_rule(minimum_spend=None, uplifts=[Uplift(condition="shot outside metro area", bonus_rate=0.03, machine_checkable=True)])
-    budget = make_budget()
+    budget = make_budget(fringe_rate=0)
     result = compute_benefit(budget, rule)
     assert result.gross_credit == pytest.approx(500_000)
     assert len(result.caps_applied) == 1

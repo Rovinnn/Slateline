@@ -11,6 +11,14 @@ from typing import Literal, Optional
 Confidence = Literal["primary_source", "official_secondary", "conflicting", "stale", "unverified"]
 PoolStatus = Literal["open", "capping_out", "closed", "unknown"]
 
+# How a jurisdiction actually pays out, which decides what a credit is worth in
+# cash. A refundable credit is paid at face value; a transferable one has to be
+# sold to a taxpayer with liability, at a broker discount; a non-refundable one
+# is worth nothing unless the production has in-state tax liability to offset,
+# which an out-of-state production usually doesn't. Treating all three as face
+# value — as this did until now — systematically flatters transferable states.
+CreditType = Literal["refundable", "transferable", "rebate", "non_refundable", "unknown"]
+
 
 @dataclass
 class SourceRef:
@@ -63,6 +71,14 @@ class JurisdictionRule:
     # guess. Filled by constraints.constraint_gaps_for(), not by Layer 1: see
     # that module's docstring for why this isn't extracted like base_rate is.
     constraint_gaps: dict[str, str] = field(default_factory=dict)
+    # How the credit actually pays out — decides what it's worth in cash.
+    credit_type: CreditType = "unknown"
+    # Payroll burden (employer taxes, union pension/health, workers' comp) runs
+    # 22-35% on top of wages and is a real part of what a production spends.
+    # Whether it counts as qualified spend varies by statute — California
+    # excludes federal fringes, Kentucky allows them — so it can't be assumed
+    # either way. None means the sources didn't say.
+    fringes_qualify: Optional[bool] = None
 
 
 @dataclass
@@ -77,6 +93,10 @@ class BudgetVector:
     crew_headcount: int
     resident_labor_pct: float      # 0.0-1.0, user estimate
     home_base: str                 # city, for relocation distance
+    # Employer-side payroll burden as a fraction of gross wages. 0.28 is a
+    # typical blended union feature rate; non-union sits lower. Applied only to
+    # labor lines, never to rentals or materials.
+    fringe_rate: float = 0.28
     constraints: list[str] = field(default_factory=list)  # "coastline", "large_soundstage", "spring_only"
 
 
@@ -101,6 +121,12 @@ class BenefitBreakdown:
     travel_time_hours: Optional[float]
     relocation_cost: float
     relocation_components: dict    # itemised, for display
+    # gross_credit is the credit's face value. realizable_credit is what it's
+    # worth in cash after monetisation — identical for a refundable credit,
+    # discounted for a transferable one. net_benefit nets the realizable
+    # figure, because that's the money the production actually sees.
+    realizable_credit: float
+    monetization_note: Optional[str]
     net_benefit: float
     computable: bool
     non_computable_reason: Optional[str]

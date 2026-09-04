@@ -34,6 +34,7 @@ function makeBudget(atl: number): BudgetVector {
     resident_labor_pct: 0.5,
     home_base: "Los Angeles, CA",
     constraints: [],
+    fringe_rate: 0.28,
   };
 }
 
@@ -47,6 +48,8 @@ function breakdown(net: number, computable = true): BenefitBreakdown {
     travel_time_hours: null,
     relocation_cost: 0,
     relocation_components: {},
+    realizable_credit: net,
+    monetization_note: null,
     net_benefit: net,
     computable,
     non_computable_reason: null,

@@ -5,6 +5,8 @@
 
 export type Confidence = "primary_source" | "official_secondary" | "conflicting" | "stale" | "unverified";
 export type PoolStatus = "open" | "capping_out" | "closed" | "unknown";
+/** How a jurisdiction pays out — decides what the credit is worth in cash. */
+export type CreditType = "refundable" | "transferable" | "rebate" | "non_refundable" | "unknown";
 
 export interface SourceRef {
   url: string;
@@ -60,6 +62,9 @@ export interface JurisdictionRule {
   conflicts: string[];
   /** Keys matching BudgetVector.constraints; value is why this jurisdiction fails that constraint. */
   constraint_gaps: Record<string, string>;
+  credit_type: CreditType;
+  /** Whether employer-side payroll burden counts as qualified spend. Null = sources didn't say. */
+  fringes_qualify: boolean | null;
 }
 
 export interface BudgetVector {
@@ -74,6 +79,8 @@ export interface BudgetVector {
   resident_labor_pct: number; // 0.0-1.0
   home_base: string;
   constraints: string[];
+  /** Employer payroll burden as a fraction of wages; 0.28 is a typical union feature. */
+  fringe_rate: number;
 }
 
 export interface RelocationAssumptions {
@@ -105,6 +112,10 @@ export interface BenefitBreakdown {
   travel_time_hours: number | null;
   relocation_cost: number;
   relocation_components: Record<string, number>;
+  /** What the credit is worth in cash after monetisation — face value for a
+   *  refundable credit, discounted for a transferable one. */
+  realizable_credit: number;
+  monetization_note: string | null;
   net_benefit: number;
   computable: boolean;
   non_computable_reason: string | null;

@@ -72,6 +72,7 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
             "centroid_lat",
             "centroid_lng",
             "pool_status",
+            "credit_type",
         ],
         "properties": {
             "jurisdiction": {"type": "string"},
@@ -125,6 +126,27 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
             "annual_pool_total": {"type": ["number", "null"]},
             "annual_pool_remaining": {"type": ["number", "null"]},
             "pool_status": {"type": "string", "enum": ["open", "capping_out", "closed", "unknown"]},
+            # What the credit is worth in cash turns on how it pays out, and
+            # statutes state this plainly. "unknown" keeps "not stated"
+            # representable, same as pool_status.
+            "credit_type": {
+                "type": "string",
+                "enum": ["refundable", "transferable", "rebate", "non_refundable", "unknown"],
+                "description": (
+                    "How the credit pays out: refundable (state pays face value), transferable "
+                    "(must be sold to a taxpayer, at a discount), rebate (cash grant), "
+                    "non_refundable (only offsets in-state liability), or unknown."
+                ),
+            },
+            # Payroll burden is 22-35% of wages and whether it qualifies varies
+            # by statute. Null when the sources don't say — never assumed.
+            "fringes_qualify": {
+                "type": ["boolean", "null"],
+                "description": (
+                    "Whether employer-side fringes (payroll taxes, union pension/health, workers' "
+                    "comp) count as qualified spend. Null if the sources don't state it."
+                ),
+            },
             "application_deadline": {"type": ["string", "null"], "description": "ISO date"},
             "sunset_date": {"type": ["string", "null"], "description": "ISO date"},
             "under_review": {"type": "boolean"},

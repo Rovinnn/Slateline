@@ -801,6 +801,9 @@ function HeroCard({
   runnerUp?: Row;
 }) {
   const { rule, benefit } = row;
+  // An older backend won't send realizable_credit; face value is the correct
+  // fallback (it's what the old model implicitly assumed).
+  const realizable = benefit.realizable_credit ?? benefit.gross_credit;
   return (
     <div
       title={failing ?? undefined}
@@ -832,8 +835,23 @@ function HeroCard({
               {runnerUp.rule.jurisdiction}, the next best option.
             </div>
           )}
-          <div className="border-b border-[#eae8e1] pb-4 font-mono text-[14px] text-[#3d3a34]">
-            {money(benefit.gross_credit)} gross credit − {money(benefit.relocation_cost)} relocation = {money(benefit.net_benefit)}
+          <div className="border-b border-[#eae8e1] pb-4">
+            <div className="font-mono text-[14px] text-[#3d3a34]">
+              {realizable !== benefit.gross_credit ? (
+                <>
+                  {money(benefit.gross_credit)} face → {money(realizable)} realizable −{" "}
+                  {money(benefit.relocation_cost)} relocation = {money(benefit.net_benefit)}
+                </>
+              ) : (
+                <>
+                  {money(benefit.gross_credit)} gross credit − {money(benefit.relocation_cost)} relocation ={" "}
+                  {money(benefit.net_benefit)}
+                </>
+              )}
+            </div>
+            {benefit.monetization_note && (
+              <div className="mt-1.5 font-mono text-[11.5px] text-ink-2">{benefit.monetization_note}</div>
+            )}
           </div>
 
           <div className="border-b border-[#eae8e1] py-4">
@@ -865,6 +883,7 @@ function HeroCard({
         <div className="border-l border-[#eae8e1] pl-7">
           <div className="flex flex-col gap-3.5">
             <Fact k="HEADLINE RATE" v={`${(rule.base_rate * 100).toFixed(1)}%`} />
+            <Fact k="PAYOUT" v={(rule.credit_type ?? "unknown").replace("_", "-")} />
             <Fact k="MINIMUM SPEND" v={rule.minimum_spend != null ? money(rule.minimum_spend) : "none"} />
             <Fact k="QUALIFIED SPEND USED" v={money(benefit.qualifying_spend)} />
             <Fact k="CONFIDENCE" v={rule.confidence.replace("_", " ")} />

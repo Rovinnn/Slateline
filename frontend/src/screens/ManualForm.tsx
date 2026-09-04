@@ -177,6 +177,32 @@ export function ManualForm({
 
             <label className="block">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Fringes / payroll burden</span>
+                <span className="font-mono text-[10.5px] text-ink-3">% of wages</span>
+              </div>
+              <div className="flex items-center border border-border-2 bg-card-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={Math.round(budget.fringe_rate * 100)}
+                  onChange={(e) =>
+                    setBudget((b) => ({
+                      ...b,
+                      fringe_rate: Math.max(0, Math.min(60, parseNumber(e.target.value))) / 100,
+                    }))
+                  }
+                  className="min-w-0 flex-1 bg-transparent px-2.5 py-2.5 text-right font-mono text-[13.5px] font-medium text-ink outline-none"
+                />
+                <span className="pr-2.5 font-mono text-[12.5px] text-ink-3">%</span>
+              </div>
+              <div className="mt-1 font-mono text-[10.5px] text-ink-4">
+                employer taxes, union pension/health, workers' comp — 28% is typical on a union feature
+              </div>
+            </label>
+
+            <label className="block">
+              <div className="mb-1.5 flex items-baseline justify-between gap-2">
                 <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Resident labor share</span>
                 <span className="font-mono text-[10.5px] text-ink-3">% of BTL labor</span>
               </div>

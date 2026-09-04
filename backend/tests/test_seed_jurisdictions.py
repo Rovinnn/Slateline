@@ -53,11 +53,20 @@ def test_georgia_indie_drama_golden_value():
     # the 10% GEP logo uplift is not machine-checkable, so it's logged, not applied.
     assert result.qualifying_spend == pytest.approx(2_000_000)
     assert result.gross_credit == pytest.approx(400_000)
-    assert len(result.caps_applied) == 1
-    assert "Georgia Entertainment Promotion" in result.caps_applied[0]
-    # No distance yet (Maps not wired) -> relocation is lodging + equipment only.
+    assert any("Georgia Entertainment Promotion" in note for note in result.caps_applied)
+    # Georgia's sources don't state whether fringes qualify, so they're left
+    # out — and said so, rather than silently understating the credit.
+    assert any("payroll burden left out" in note for note in result.caps_applied)
+    # Georgia's credit is transferable — the state pays nothing, you sell the
+    # credit to a Georgia taxpayer at a broker discount. $400k of face value is
+    # worth $360k in cash at the default 90%, and netting the face value (as
+    # this test asserted before credit_type existed) overstated Georgia by
+    # $40k and flattered it against refundable states like New Mexico.
+    assert result.realizable_credit == pytest.approx(360_000)
+    assert "transferable" in (result.monetization_note or "")
+    # No distance passed here -> relocation is lodging + equipment only.
     assert result.relocation_cost == pytest.approx(104_100)
-    assert result.net_benefit == pytest.approx(295_900)
+    assert result.net_benefit == pytest.approx(255_900)
 
 
 def test_texas_indie_drama_is_not_computable():

@@ -15,5 +15,6 @@ export function makeBlankBudget(): BudgetVector {
     resident_labor_pct: 0,
     home_base: HOME_BASES[0].label,
     constraints: [],
+    fringe_rate: 0.28,
   };
 }

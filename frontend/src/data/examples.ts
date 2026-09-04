@@ -32,6 +32,7 @@ export const EXAMPLES: Example[] = [
       resident_labor_pct: 0.55,
       home_base: "Los Angeles, CA",
       constraints: ["coastline"],
+      fringe_rate: 0.28,
     },
   },
   {
@@ -51,6 +52,7 @@ export const EXAMPLES: Example[] = [
       resident_labor_pct: 0.4,
       home_base: "Los Angeles, CA",
       constraints: ["large_soundstage"],
+      fringe_rate: 0.28,
     },
   },
   {
@@ -70,6 +72,7 @@ export const EXAMPLES: Example[] = [
       resident_labor_pct: 0.35,
       home_base: "Los Angeles, CA",
       constraints: ["coastline", "large_soundstage"],
+      fringe_rate: 0.28,
     },
   },
 ];

@@ -56,6 +56,9 @@ GEORGIA = JurisdictionRule(
     sunset_date=None,
     under_review=False,
     is_discretionary=False,
+    # "a 20% based transferable tax credit" — quoted in the georgia.org source
+    # below. Georgia doesn't pay cash; the credit is sold to a GA taxpayer.
+    credit_type="transferable",
     film_office_contact=None,
     centroid_lat=33.749,
     centroid_lng=-84.388,  # Atlanta hub
@@ -108,6 +111,10 @@ NEW_MEXICO = JurisdictionRule(
     sunset_date=None,
     under_review=False,
     is_discretionary=False,
+    # "Program Type: Refundable Tax Credit" — the state pays face value, so
+    # there's no broker discount, which is why NM can beat a higher headline
+    # rate elsewhere.
+    credit_type="refundable",
     film_office_contact=None,
     centroid_lat=35.084,
     centroid_lng=-106.651,  # Albuquerque hub
@@ -167,6 +174,11 @@ LOUISIANA = JurisdictionRule(
     sunset_date=None,
     under_review=False,
     is_discretionary=False,
+    # Left unknown deliberately: the retrieved excerpt establishes only that
+    # credits "may be used to offset personal or corporate income tax
+    # liability in Louisiana", which doesn't settle refundable vs transferable.
+    # Guessing here is exactly what the rest of the tool refuses to do.
+    credit_type="unknown",
     film_office_contact=None,
     centroid_lat=29.951,
     centroid_lng=-90.072,  # New Orleans hub
@@ -228,6 +240,9 @@ TEXAS = JurisdictionRule(
     # can't be checked from BudgetVector, and its $300M allocation is biennial,
     # not annual, despite the annual_pool_total field name) lives in `conflicts`
     # below instead.
+    # "receive a cash grant based on a percentage of a project's eligible Texas
+    # expenditures" — a grant, paid in cash, hence rebate rather than a credit.
+    credit_type="rebate",
     film_office_contact=None,
     centroid_lat=30.267,
     centroid_lng=-97.743,  # Austin hub

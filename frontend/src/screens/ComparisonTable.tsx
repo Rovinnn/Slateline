@@ -37,12 +37,13 @@ const POOL_STATUS_CLASS: Record<PoolStatus, string> = {
   unknown: "border-border-2 bg-card-2 text-ink-3",
 };
 
-type SortKey = "net" | "credit" | "rate" | "relocation" | "qualified";
+type SortKey = "net" | "credit" | "realizable" | "rate" | "relocation" | "qualified";
 
 const COLUMNS: { key: SortKey; label: string; hint: string }[] = [
   { key: "rate", label: "HEADLINE RATE", hint: "what the state advertises" },
   { key: "qualified", label: "QUALIFIED SPEND", hint: "how much of your budget actually counts" },
-  { key: "credit", label: "GROSS CREDIT", hint: "rate applied to qualified spend, after caps" },
+  { key: "credit", label: "CREDIT (FACE)", hint: "rate applied to qualified spend, after caps" },
+  { key: "realizable", label: "REALIZABLE", hint: "what it's worth in cash — transferable credits sell at a discount" },
   { key: "relocation", label: "RELOCATION", hint: "cost of getting your crew there" },
   { key: "net", label: "NET BENEFIT", hint: "credit minus relocation — the real number" },
 ];
@@ -55,6 +56,8 @@ function valueFor(row: Row, key: SortKey): number {
       return row.benefit.qualifying_spend;
     case "credit":
       return row.benefit.gross_credit;
+    case "realizable":
+      return row.benefit.realizable_credit ?? row.benefit.gross_credit;
     case "relocation":
       return row.benefit.relocation_cost;
     case "net":
@@ -155,6 +158,15 @@ export function ComparisonTable({
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-[13px]">{money(benefit.qualifying_spend)}</td>
                     <td className="px-4 py-3 text-right font-mono text-[13px]">{money(benefit.gross_credit)}</td>
+                    <td
+                      className="px-4 py-3 text-right font-mono text-[13px]"
+                      title={benefit.monetization_note ?? undefined}
+                    >
+                      {money(benefit.realizable_credit ?? benefit.gross_credit)}
+                      {(benefit.realizable_credit ?? benefit.gross_credit) !== benefit.gross_credit && (
+                        <div className="font-mono text-[10.5px] text-amber">after discount</div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono text-[13px] text-ink-2">
                       −{money(benefit.relocation_cost)}
                     </td>
@@ -171,7 +183,7 @@ export function ComparisonTable({
                   </tr>
                   {open && (
                     <tr className="border-b border-[#efede7] bg-card-2">
-                      <td colSpan={6} className="px-4 py-4">
+                      <td colSpan={7} className="px-4 py-4">
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
                           <div className="flex flex-col gap-3">
                             <FundingAvailability rule={rule} />
