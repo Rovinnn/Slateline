@@ -109,3 +109,12 @@ export interface BenefitBreakdown {
   computable: boolean;
   non_computable_reason: string | null;
 }
+
+/** Result of parsing an uploaded budget PDF — see backend/app/extraction/budget_parser.py. */
+export interface ParsedBudget {
+  budget: BudgetVector;
+  /** Field name -> where in the document that figure came from. */
+  field_notes: Record<string, string>;
+  /** Figures not found, ambiguous lines, anything the producer should check. */
+  warnings: string[];
+}

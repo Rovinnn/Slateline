@@ -30,10 +30,20 @@ export function ManualForm({
   initial,
   onBack,
   onSubmit,
+  fieldNotes,
+  warnings,
+  sourceLabel,
 }: {
   initial: BudgetVector;
   onBack: () => void;
   onSubmit: (budget: BudgetVector) => void;
+  /** Field name -> where an uploaded PDF's figure came from. BUILD_BRIEF.md
+   *  section 7: "each parsed field annotated with where it came from". */
+  fieldNotes?: Record<string, string>;
+  /** Figures the parse couldn't find, or anything else worth checking. */
+  warnings?: string[];
+  /** Filename an upload came from, shown so it's clear these are parsed values. */
+  sourceLabel?: string;
 }) {
   const [budget, setBudget] = useState<BudgetVector>(initial);
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
@@ -68,7 +78,9 @@ export function ManualForm({
             Budget and production parameters
           </h1>
           <p className="font-sans text-[13.5px] text-ink-2">
-            Enter what you have. Blank lines are treated as zero and flagged in the sum check.
+            {sourceLabel
+              ? `Figures read from ${sourceLabel}. Each carries the line it came from — correct anything before continuing.`
+              : "Enter what you have. Blank lines are treated as zero and flagged in the sum check."}
           </p>
         </div>
         <div className="flex gap-2.5">
@@ -88,6 +100,21 @@ export function ManualForm({
           </button>
         </div>
       </div>
+
+      {warnings && warnings.length > 0 && (
+        <div className="mb-5 border border-amber/30 bg-amber-bg px-4 py-3">
+          <div className="mb-1.5 font-mono text-[11px] font-medium tracking-wide text-amber">
+            CHECK THESE — {warnings.length} {warnings.length === 1 ? "ITEM" : "ITEMS"}
+          </div>
+          <ul className="flex flex-col gap-1">
+            {warnings.map((w, i) => (
+              <li key={i} className="font-sans text-[12.5px] leading-relaxed text-[#57534c]">
+                {w}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1.55fr_1fr]">
         <section className="border border-border bg-card p-5.5">
@@ -110,6 +137,9 @@ export function ManualForm({
                     className="min-w-0 flex-1 bg-transparent py-2.5 pr-2.5 text-right font-mono text-[13.5px] font-medium text-ink outline-none"
                   />
                 </div>
+                {fieldNotes?.[f.key] && (
+                  <div className="mt-1 font-mono text-[10.5px] text-ink-4">read from {fieldNotes[f.key]}</div>
+                )}
               </label>
             ))}
 

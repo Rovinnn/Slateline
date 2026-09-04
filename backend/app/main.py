@@ -11,12 +11,13 @@ import os
 from dataclasses import replace
 from typing import Optional
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .calculator import compute_benefit
 from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
+from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
 from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
 from .verification import verify_rule
@@ -115,6 +116,27 @@ def search_jurisdictions(jurisdiction: str) -> JurisdictionRule:
             detail=f"Could not extract a jurisdiction rule for {jurisdiction!r}: {exc}",
         ) from exc
     return _verify_and_annotate(rule)
+
+
+@app.post("/budget/parse", response_model=ParsedBudget)
+async def parse_budget(file: UploadFile = File(...)) -> ParsedBudget:
+    """Reads an uploaded budget PDF into a pre-filled BudgetVector plus the
+    provenance note for each figure (see extraction/budget_parser.py).
+
+    A bad file is the caller's problem (400); a Gemini failure is ours (502).
+    Collapsing both into 500 would tell a producer with a scanned, text-free
+    topsheet that the server broke, when the actionable answer is "this PDF
+    has no text layer — type the numbers in instead".
+    """
+    contents = await file.read()
+    if len(contents) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {MAX_PDF_BYTES // (1024 * 1024)} MB limit.")
+    try:
+        return parse_budget_pdf(contents)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Could not read that budget: {exc}") from exc
 
 
 @app.get("/distance", response_model=DistanceResult)

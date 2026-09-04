@@ -113,3 +113,49 @@ def test_distance_endpoint_returns_502_on_maps_failure(monkeypatch):
     resp = client.get("/distance", params={"origin": "Nowhere", "destination_lat": 0, "destination_lng": 0})
 
     assert resp.status_code == 502
+
+
+# ---------- budget PDF upload ----------
+
+def test_budget_parse_returns_budget_and_provenance(monkeypatch):
+    from app.extraction.budget_parser import ParsedBudget
+
+    parsed = ParsedBudget(
+        budget=make_budget(total=2_000_000),
+        field_notes={"total": "page 1, topsheet total"},
+        warnings=["crew headcount was not found in the document — enter it manually."],
+    )
+    monkeypatch.setattr(main, "parse_budget_pdf", lambda contents, **kw: parsed)
+
+    resp = client.post("/budget/parse", files={"file": ("topsheet.pdf", b"%PDF-1.4 fake", "application/pdf")})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["budget"]["total"] == 2_000_000
+    assert body["field_notes"]["total"] == "page 1, topsheet total"
+    assert body["warnings"]
+
+
+def test_budget_parse_rejects_a_bad_file_as_400_not_500(monkeypatch):
+    # A scanned, text-free topsheet is a user-actionable problem ("type the
+    # numbers in"), not a server fault.
+    def reject(contents, **kw):
+        raise ValueError("That file isn't a PDF (no %PDF header)")
+
+    monkeypatch.setattr(main, "parse_budget_pdf", reject)
+
+    resp = client.post("/budget/parse", files={"file": ("scan.png", b"\x89PNG", "image/png")})
+
+    assert resp.status_code == 400
+    assert "PDF" in resp.json()["detail"]
+
+
+def test_budget_parse_surfaces_a_model_failure_as_502(monkeypatch):
+    def boom(contents, **kw):
+        raise RuntimeError("Vertex returned no function call")
+
+    monkeypatch.setattr(main, "parse_budget_pdf", boom)
+
+    resp = client.post("/budget/parse", files={"file": ("topsheet.pdf", b"%PDF-1.4 fake", "application/pdf")})
+
+    assert resp.status_code == 502

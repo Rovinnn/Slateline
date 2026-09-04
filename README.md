@@ -174,9 +174,12 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       calls this live and folds the result into the ranked comparison —
       same compute/distance pipeline as the seed jurisdictions, no separate
       code path.
-- [x] Map tab (`frontend/src/screens/MapView.tsx`) — deliberately lightweight:
-      plain SVG, no D3/topojson/CDN fetch, no country boundaries (see its file
-      docstring for why). Real jurisdiction centroids, schematic projection.
+- [x] Map tab (`frontend/src/screens/MapView.tsx`) — real geography: Natural
+      Earth world countries (110m) + US Census states (10m), served from
+      `frontend/public/geo` and fetched only when the tab opens (~220KB, kept
+      out of the main bundle). d3-geo Mercator fitted to whichever
+      jurisdictions are in the comparison. Vector, not tiles: no second billed
+      API and no map key in the browser for a supporting view.
 - [x] Breakeven line + sparkline under the hero card (`frontend/src/lib/breakeven.ts`,
       `BreakevenLine` in Results.tsx). Scans ATL spend via a new
       `POST /compute/batch` endpoint (same pure `compute_benefit`, batched to
@@ -219,8 +222,34 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
         creating a new deploy-only service-account key was (correctly) blocked
         by this environment's safety policy; the REST calls reuse the same
         `gcloud auth print-access-token` credential already established.
-- [ ] PDF upload, export
+- [x] **PDF export** — the memo as a real PDF via the browser's own
+      print-to-PDF (selectable text, live links, correct pagination, no PDF
+      library). Collapsed panels are force-expanded before printing and reset
+      on `afterprint`, so an export always carries every jurisdiction, the
+      full assumptions table, the can't-verify list, all footnotes and
+      retrieval dates, and the film office contact — regardless of what was
+      collapsed on screen.
+- [x] **PDF upload** (`backend/app/extraction/budget_parser.py`,
+      `POST /budget/parse`) — Gemini reads an uploaded budget PDF with the
+      same forced-function-call discipline as jurisdiction extraction: it
+      quotes the figures printed on the topsheet and says which line each came
+      from, and is never asked to total or reconcile anything. Lands on the
+      *form*, pre-filled, each field annotated with its source line and anything
+      missing raised as a warning — never straight to results.
+- [x] **Automated testing pipeline** — `.github/workflows/ci.yml` runs backend
+      pytest and frontend lint/test/build on every push and PR, with no
+      credentials needed. `backend/scripts/smoke_test.py` drives the real
+      deployed stack and asserts the invariants that must hold whatever
+      Parallel/Gemini/Maps return (net == gross − relocation, components
+      summing, credit monotonic in spend, canonical jurisdiction names,
+      `retrieved` stamped today, coastal states not flagged landlocked); it's
+      a manual/scheduled CI job since it spends real quota. 108 backend tests,
+      19 frontend.
 - [ ] Custom domain (currently the default `*.web.app` / `*.run.app` URLs)
+- [ ] **Redeploy pending**: d8f0cc3 onward (jurisdiction-name canonicalization,
+      pipeline-stamped `retrieved` dates, PDF upload/export, real map) are on
+      master but not yet on the live URLs. `smoke_test.py` against production
+      currently reports 4/6 for exactly that reason.
 
 See BUILD_BRIEF.md section 8 for the intended build order.
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { makeBlankBudget } from "./data/blankBudget";
 import { EXAMPLES, type Example } from "./data/examples";
+import { ApiError, parseBudgetPdf } from "./lib/api";
 import { ManualForm } from "./screens/ManualForm";
 import { Results } from "./screens/Results";
-import type { BudgetVector } from "./types";
+import type { BudgetVector, ParsedBudget } from "./types";
 
 type Screen = "home" | "form" | "results";
 interface NavState {
@@ -11,17 +12,30 @@ interface NavState {
   budget: BudgetVector | null;
 }
 
+type UploadState =
+  | { status: "idle" }
+  | { status: "parsing"; fileName: string }
+  | { status: "error"; fileName: string; message: string };
+
 /**
  * BUILD_BRIEF.md section 8 build order: examples path first ("a judge
  * opening the live URL has no budget file"), then manual form, then results
- * screen — all three now wired end to end against the real backend, and
- * Results itself runs the real Layer 1 pipeline (Parallel search + Gemini
- * extraction) live for every jurisdiction, not canned data. PDF upload is
- * next.
+ * screen — all wired end to end against the real backend, and Results
+ * itself runs the real Layer 1 pipeline (Parallel search + Gemini
+ * extraction) live for every jurisdiction, not canned data. The upload path
+ * (step 7, last) reads a budget PDF with Gemini and lands on the *form*,
+ * pre-filled and annotated — never straight on results, since an unchecked
+ * parsed figure is exactly what this tool exists to stop people trusting.
  */
 function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [budget, setBudget] = useState<BudgetVector | null>(null);
+  const [upload, setUpload] = useState<UploadState>({ status: "idle" });
+  // Parse output lives outside NavState: history.pushState structured-clones
+  // its argument, and this is only meaningful for the form we're navigating
+  // to right now anyway.
+  const parsedRef = useRef<ParsedBudget | null>(null);
+  const fileNameRef = useRef<string | null>(null);
 
   // No router in this app, so without our own history entries the browser's
   // Back button has nothing to step through and exits straight to whatever
@@ -46,7 +60,28 @@ function App() {
   }
 
   function reset() {
+    parsedRef.current = null;
+    fileNameRef.current = null;
+    setUpload({ status: "idle" });
     navigate("home", null);
+  }
+
+  async function uploadBudget(file: File) {
+    fileNameRef.current = file.name;
+    setUpload({ status: "parsing", fileName: file.name });
+    try {
+      const parsed = await parseBudgetPdf(file);
+      parsedRef.current = parsed;
+      setUpload({ status: "idle" });
+      navigate("form", parsed.budget);
+    } catch (err) {
+      setUpload({
+        status: "error",
+        fileName: file.name,
+        message:
+          err instanceof ApiError ? err.message : "Could not reach the backend to read that file.",
+      });
+    }
   }
 
   function runComparison(b: BudgetVector) {
@@ -78,10 +113,28 @@ function App() {
       </header>
 
       {screen === "form" && (
-        <ManualForm initial={budget ?? makeBlankBudget()} onBack={() => window.history.back()} onSubmit={runComparison} />
+        <ManualForm
+          initial={budget ?? makeBlankBudget()}
+          onBack={() => window.history.back()}
+          onSubmit={runComparison}
+          fieldNotes={parsedRef.current?.field_notes}
+          warnings={parsedRef.current?.warnings}
+          sourceLabel={fileNameRef.current ?? undefined}
+        />
       )}
       {screen === "results" && budget && <Results budget={budget} onEditInputs={openForm} />}
-      {screen === "home" && <HomeScreen onSelectExample={runComparison} onOpenForm={openForm} />}
+      {screen === "home" && upload.status === "parsing" && <UploadProgress fileName={upload.fileName} />}
+      {screen === "home" && upload.status === "error" && (
+        <UploadError
+          fileName={upload.fileName}
+          message={upload.message}
+          onRetry={() => setUpload({ status: "idle" })}
+          onEnterManually={openForm}
+        />
+      )}
+      {screen === "home" && upload.status === "idle" && (
+        <HomeScreen onSelectExample={runComparison} onOpenForm={openForm} onUpload={uploadBudget} />
+      )}
     </div>
   );
 }
@@ -89,10 +142,20 @@ function App() {
 function HomeScreen({
   onSelectExample,
   onOpenForm,
+  onUpload,
 }: {
   onSelectExample: (b: BudgetVector) => void;
   onOpenForm: () => void;
+  onUpload: (file: File) => void;
 }) {
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (file) onUpload(file);
+  }
+
   return (
     <>
       <main className="mx-auto max-w-[1320px] px-7 pb-16 pt-11">
@@ -150,18 +213,101 @@ function HomeScreen({
             <p className="mb-4 font-sans text-[13px] leading-[1.45] text-ink-2">
               Figures land pre-filled, for you to correct.
             </p>
-            <div
-              title="Next up — PDF upload"
-              className="flex h-[148px] cursor-not-allowed flex-col items-center justify-center gap-1.5 border border-dashed border-border-2 bg-card-2 text-center"
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                handleFiles(e.dataTransfer.files);
+              }}
+              className={`flex h-[148px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 border border-dashed text-center transition-colors ${
+                dragging ? "border-teal bg-[#f1f5f2]" : "border-border-2 bg-card-2 hover:border-ink"
+              }`}
             >
               <div className="font-mono text-[12px] font-medium tracking-wide text-[#57534c]">DROP PDF HERE</div>
               <div className="font-sans text-[12px] text-ink-3">or click to browse · max 25 MB</div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              hidden
+              onChange={(e) => {
+                handleFiles(e.target.files);
+                e.target.value = ""; // let the same file be re-picked after an error
+              }}
+            />
+            <div className="mt-3 font-mono text-[11px] text-ink-3">
+              Read by Gemini, then shown in the form for you to correct.
             </div>
-            <div className="mt-3 font-mono text-[11px] text-ink-3">NOTHING UPLOADED YET</div>
           </section>
         </div>
       </main>
     </>
+  );
+}
+
+/** BUILD_BRIEF.md section 7 wants real loading and error states on this
+ *  flow, not a spinner that swallows a failed parse. */
+function UploadProgress({ fileName }: { fileName: string }) {
+  return (
+    <div className="mx-auto max-w-[560px] px-7 pt-28">
+      <div className="border border-border bg-card p-7">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-border border-t-ink" />
+          <div className="font-sans text-[14px] font-semibold">Reading {fileName}</div>
+        </div>
+        <p className="font-sans text-[13px] leading-relaxed text-ink-2">
+          Gemini is reading the topsheet and recording the figures it states. Nothing is totalled or inferred —
+          you'll land on the form with each figure annotated, to check before running.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function UploadError({
+  fileName,
+  message,
+  onRetry,
+  onEnterManually,
+}: {
+  fileName: string;
+  message: string;
+  onRetry: () => void;
+  onEnterManually: () => void;
+}) {
+  return (
+    <div className="mx-auto max-w-[560px] px-7 pt-28">
+      <div className="border border-border border-t-[3px] border-t-red bg-card p-7">
+        <div className="mb-2 font-sans text-[15px] font-semibold text-red">Could not read {fileName}</div>
+        <p className="mb-5 font-sans text-[13.5px] leading-relaxed text-[#57534c]">
+          {message} Nothing was inferred and no figures were carried forward.
+        </p>
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="bg-ink px-3.5 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-paper"
+          >
+            TRY ANOTHER FILE
+          </button>
+          <button
+            type="button"
+            onClick={onEnterManually}
+            className="border border-border-2 bg-card px-3.5 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-ink transition-colors hover:border-ink"
+          >
+            ENTER MANUALLY
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

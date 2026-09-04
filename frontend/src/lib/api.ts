@@ -1,4 +1,10 @@
-import type { BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions } from "../types";
+import type {
+  BenefitBreakdown,
+  BudgetVector,
+  JurisdictionRule,
+  ParsedBudget,
+  RelocationAssumptions,
+} from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -101,4 +107,17 @@ export function getDistance(origin: string, destinationLat: number, destinationL
     destination_lng: String(destinationLng),
   });
   return getJson<DistanceInfo>(`/distance?${params.toString()}`);
+}
+
+/**
+ * Uploads a budget PDF for Gemini to read (backend/app/extraction/budget_parser.py).
+ * Returns a pre-filled BudgetVector plus per-field provenance — the caller
+ * takes the user to the form to check it, never straight to results.
+ */
+export async function parseBudgetPdf(file: File): Promise<ParsedBudget> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE_URL}/budget/parse`, { method: "POST", body: form });
+  if (!res.ok) throw new ApiError(await errorDetail(res), res.status);
+  return res.json();
 }
