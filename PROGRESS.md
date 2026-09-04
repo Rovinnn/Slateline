@@ -1,5 +1,10 @@
 # Progress report — 2026-08-30
 
+> **Superseded.** This is a historical snapshot. For current status and the
+> live task list see [NEXT_STEPS.md](NEXT_STEPS.md); much of what's listed
+> below as missing (Layer 1, Maps, deployment, PDF upload/export, the map tab)
+> has since been built.
+
 Snapshot of where this repo stands against [BUILD_BRIEF.md](BUILD_BRIEF.md), written before
 pushing to a new GitHub account. `README.md` has a live, terser checklist; this is the
 fuller point-in-time writeup, section-by-section against the brief.

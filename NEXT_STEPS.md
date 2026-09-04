@@ -1,0 +1,193 @@
+# Next steps — 2026-09-04
+
+Written at the end of a working session, for whoever picks this up (including
+future me). Supersedes the forward-looking half of [PROGRESS.md](PROGRESS.md),
+which is now a historical snapshot from Aug 30.
+
+**Deadline reality check.** `BUILD_BRIEF.md` says 9 Sep; the track map says
+**7 Sep, 2:00 PM PT**, notes three of four official references agree on the
+7th, and recommends **submitting on the 5th** with the 6th–7th held as buffer
+"for the failure you haven't had yet". Treat the 5th as the date. That means
+roughly **one working day**, which should dominate every priority call below.
+
+---
+
+## 1. Blocking — submission fails without these
+
+| # | Item | Owner | Notes |
+|---|---|---|---|
+| 1 | **Make the repo public** | teammate | Currently private. The checklist requires "repo public; license detectable in the About section". MIT LICENSE is already at repo root, so this is a settings toggle. Stage 1 is pass/fail. |
+| 2 | **Demo video, ≤3 min, public on YouTube/Vimeo** | teammate | Not started. The track map is explicit that *"the video carries the impact score, not the README"* — it's load-bearing for 25% of the grade. Show the product working in the first 20 seconds; no third-party logos or marks. |
+| 3 | **Redeploy backend + frontend** | needs gcloud | Everything from `d8f0cc3` onward is on master and **not live**: name canonicalisation, pipeline-stamped `retrieved` dates, PDF upload/export, the real map, the compare tab, evidence display, funding availability, fringes and credit monetisation. A judge opening the live URL today sees none of it. |
+| 4 | **Devpost submission** | teammate | Description needs features, tech, data sources, and explicitly *"findings and learnings"*. Verify the hosted URL logged-out from a different network. |
+
+`backend/scripts/smoke_test.py` run against production is the fastest way to
+confirm #3 worked — it currently reports 4/6, and the two failures are exactly
+the bugs already fixed in the repo.
+
+---
+
+## 2. Product work, in priority order
+
+Each of these is scoped and understood; none is speculative.
+
+### 2.1 Currency guard — ~1 hour, do this first
+Searching "Ireland" today returns Section 481 with `base_rate: 0.32` and a
+`per_project_cap` of 125,000,000 — **euros, silently compared as dollars.**
+There is no currency field anywhere in the codebase.
+
+The brief forbids multi-currency support, so the fix isn't FX rates — it's the
+brief's *own* existing pattern: detect a non-USD jurisdiction, set
+`computable = False` with a reason, and let it land in the "Can't verify"
+section saying so. That converts a confidently wrong number into an honest
+one, which is the whole thesis of the product.
+
+### 2.2 Cache extractions — ~2 hours, and it's a demo risk
+Every results load fires 4 live Layer 1 extractions: 12 Parallel searches plus
+4 Gemini 2.5 Pro calls. **First paint is 30–60 seconds.** A judge opens the
+link, watches a spinner, and forms an opinion before anything renders.
+
+Cache per jurisdiction with the retrieval date shown and an explicit "refresh"
+control. Faster, far cheaper in quota, and *more* honest rather than less,
+because the date becomes visible instead of implied.
+
+### 2.3 Statute hand-verification — ~half a day
+Build order step 3 says *"verify a few by hand against the actual statutes"*
+and section 9 wants *"hand-verified"* golden values. **This has never been
+done.** Our golden numbers were produced by running our own code and recording
+its output — that's a regression test, not a correctness test.
+
+There is already evidence the extraction is shaky: names alternate between
+"New Mexico" and "USA-NM" between runs, Louisiana flipped from computable to
+discretionary between runs, and one run returned source `retrieved` dates two
+years stale. Read O.C.G.A. § 48-7-40.26, NMSA 7-2F and Louisiana's program
+rules, compare field by field, fix what's wrong, and record genuinely verified
+golden values. This is the work most likely to expose real bugs.
+
+### 2.4 ADK agent wrapper — ~half a day
+Universal requirements say *"Powered by Gemini **and Google Cloud Agent
+Builder**"*, and track map §4 is titled *"Build on ADK, Not Wrapper
+Libraries"*. We call `google-genai` directly; `google-adk` is in
+`pyproject.toml` but **imported nowhere**.
+
+The disqualification checklist accepts `google-genai`, so this probably isn't
+a Stage 1 failure — but Technological Implementation (25%) explicitly rewards
+*"ADK agent, multi-step tool use"*. Wrapping the three existing tools
+(`parallel_search`, `compute_benefit`, `get_distance`) as ADK tools would also
+satisfy the brief's own *"the agent must invoke the calculator tool"* line,
+which we skipped by building a pipeline instead.
+
+### 2.5 Conflict detection — ~half a day, lowest of these
+Brief section 4 says Layer 3 *"**cross-checks values across retrieved
+sources**"*, and build order step 8 lists *"conflict detection"*. We assign
+confidence and mark non-computable programs, but **nothing compares source A
+against source B.** `conflicts` is only ever `setdefault("conflicts", [])`,
+which makes the `"conflicting"` confidence state effectively unreachable from
+our own code (the model does occasionally populate it directly).
+
+Needs 2+ sources per field to compare, so it's the most work for the least
+visible payoff. Last of the five.
+
+---
+
+## 3. UI and design suggestions
+
+Design is 25% of the score and the track map warns it's *"where infra-heavy
+projects bleed"*. Ours is a genuine strength — a real workflow tool, not a
+chat box — so these are refinements, not rescues.
+
+### 3.1 Map in the hero — worth doing, with one condition
+
+Proposed: put the map into the hero card so the results screen feels more
+alive and interactive.
+
+**My honest read: do it, but as an *explanatory* element, not decoration.**
+The risk is real — the brief calls the map *"a supporting view, not the
+hero"*, and the critique this project has already had once is that it looks
+like a concept with surface but no substance. A decorative map makes that
+worse, and "non-obvious use" is scored explicitly.
+
+The version that earns its place: a **small inline map strip inside the hero
+card** showing home base → the winning jurisdiction, with the real routed
+distance and travel time labelled on the line. That isn't ornament — it
+*explains the relocation line item*, which is one of the four components of
+the net number, and it turns an abstract "−$114,900 relocation" into
+something a producer can see. Click it to open the full MAP tab.
+
+Concretely:
+- Reuse `MapView` with a `compact` variant (fixed ~260×120, two points only,
+  no legend, no labels beyond the distance).
+- Place it directly beside or beneath the `gross − relocation = net` line,
+  where it's visually attached to the number it explains.
+- Keep the full MAP tab as-is for the multi-jurisdiction view.
+
+What I'd avoid: making the hero map the primary interaction, animating it, or
+adding hotel/POI pins. That drifts straight back into decorating the weakest
+pillar.
+
+### 3.2 "What would change this" panel — ~2 hours, high value
+Under the winner: *"New Mexico leads until ATL exceeds $11.1M. Hire 60% local
+instead of 40% and Georgia wins instead."* The sweep behind this is **already
+computed** for the breakeven sparkline — this is presentation, not new maths.
+It's the difference between a ranking and advice, and it's the single best
+line to have on screen during the video.
+
+### 3.3 Smaller polish
+- **Loading state is too silent.** During the 30–60s extraction, say what's
+  happening ("searching Georgia… reading statute…"), per jurisdiction. Cheap,
+  and it makes the wait feel like work rather than a hang.
+- **`large_soundstage` constraint is a no-op.** It never flags anything by
+  design (no reliable facilities data — see `constraints.py`), but the chip
+  gives no hint of that. Add a "not yet evaluated" note so it doesn't read as
+  broken.
+- **Runner-up cards duplicate the COMPARE tab.** Consider trimming the memo's
+  runner-up list now that the table exists.
+
+---
+
+## 4. Deliberately not doing — recorded so it isn't re-litigated
+
+- **Hotel / commute price lookups.** Productions negotiate block rates; a
+  live nightly rate would be more precise-looking and less accurate. If
+  relocation fidelity ever becomes the priority, the right source is the
+  [GSA per-diem API](https://open.gsa.gov/api/perdiem/) — free, authoritative,
+  county-level, seasonal — not a hotel scraper. Deferred because relocation is
+  the *least* defensible pillar and the one least likely to flip a decision on
+  a large budget.
+- **Drive-time isochrones.** Explicitly on the brief's "do not build" list,
+  and rightly — they'd look impressive and change no decision.
+- **Multi-currency.** Forbidden by the brief. See §2.1 for the honest
+  alternative.
+- **Tile maps (Google Maps JS, Mapbox).** Another billed API and a key exposed
+  in the browser, for a supporting view. Vector boundaries already give real
+  coastlines with no key.
+
+---
+
+## 5. Known limitations to disclose in the write-up
+
+The Devpost description asks for *"findings and learnings"*. These are honest
+and worth stating rather than hiding — they're also the most interesting part
+of the build:
+
+1. **Live extraction is not deterministic.** The same jurisdiction returns
+   different names, and occasionally different computability, between runs.
+   That's inherent to live retrieval against a frozen-weights model, and it's
+   the strongest argument for why hand-verification and conflict detection
+   matter.
+2. **Forced function calling doesn't prevent silent wrongness.** A live run
+   returned `qualifying: {}` — schema-valid, dataclass-valid, and it computed
+   a $0 credit with no error. Fixed by requiring all six keys explicitly; the
+   lesson is that schema validity is not answer validity.
+3. **The model shouldn't be asked facts about our own pipeline.** Asking it
+   for a `retrieved` date produced dates two years stale for pages fetched
+   that second, which silently downgraded fresh data to `stale` confidence.
+   System-time facts belong to the code.
+4. **The breakeven crossover branch is unreachable with real data.** All three
+   ranked jurisdictions are flat-rate with no caps, so ranking is invariant to
+   spend. It's covered by tests using mocked curves, and will surface once a
+   tiered or capped jurisdiction enters the set.
+5. **Fringes and payout mechanism moved the answer by ~$100k on a $2.5M
+   budget** — the same order as the entire relocation calculation. Georgia's
+   net fell from $295,900 to $255,900 once its credit was correctly treated as
+   transferable rather than face value.
