@@ -79,6 +79,12 @@ class JurisdictionRule:
     # excludes federal fringes, Kentucky allows them — so it can't be assumed
     # either way. None means the sources didn't say.
     fringes_qualify: Optional[bool] = None
+    # ISO 4217 code the figures above are denominated in. The brief forbids
+    # FX conversion, so this isn't used to convert anything — calculator.py
+    # uses it only to refuse to compute a non-USD rule as if it were USD
+    # (see its currency guard). Defaults to USD for the seed/fixture data
+    # that predates this field; real extractions always state it explicitly.
+    currency: str = "USD"
 
 
 @dataclass

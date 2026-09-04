@@ -84,9 +84,15 @@ export function computeBenefitBatch(
  * Layer 1, over the wire — Parallel search + a forced-function-call Gemini
  * extraction (see backend/app/extraction/agent.py), verified the same way
  * the seed jurisdictions are. Throws ApiError(502) on extraction failure.
+ *
+ * The backend caches this per jurisdiction (app/cache.py) so a repeat call
+ * is instant and free — pass `refresh: true` to force a live re-extraction
+ * (e.g. a user-facing "refresh" control), bypassing that cache.
  */
-export function searchJurisdiction(jurisdiction: string): Promise<JurisdictionRule> {
-  return postJson<JurisdictionRule>(`/jurisdictions/search?jurisdiction=${encodeURIComponent(jurisdiction)}`, {});
+export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: boolean }): Promise<JurisdictionRule> {
+  const params = new URLSearchParams({ jurisdiction });
+  if (opts?.refresh) params.set("refresh", "true");
+  return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
 }
 
 export interface DistanceInfo {

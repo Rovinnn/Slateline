@@ -175,6 +175,32 @@ def compute_benefit(
             non_computable_reason="Discretionary/jury-allocated program; benefit is not modelable.",
         )
 
+    # The brief forbids FX conversion, so the honest move for a non-USD rule
+    # isn't to convert — it's to refuse. Comparing e.g. Ireland's EUR figures
+    # against USD ones as if they were the same currency (which every field
+    # below silently would, with no unit anywhere to catch it) would be a
+    # confidently wrong number, exactly what this tool exists to avoid.
+    if rule.currency != "USD":
+        return BenefitBreakdown(
+            jurisdiction=rule.jurisdiction,
+            qualifying_spend=0.0,
+            gross_credit=0.0,
+            caps_applied=[f"figures are denominated in {rule.currency}, not USD"],
+            distance_km=distance_km,
+            travel_time_hours=travel_time_hours,
+            relocation_cost=0.0,
+            relocation_components={},
+            realizable_credit=0.0,
+            monetization_note=None,
+            net_benefit=0.0,
+            computable=False,
+            non_computable_reason=(
+                f"This program's figures are stated in {rule.currency}, not USD, and this tool "
+                "doesn't convert currencies — comparing them directly against USD-denominated "
+                "jurisdictions would be misleading. Confirm the USD-equivalent value with the film office."
+            ),
+        )
+
     q = rule.qualifying
     cast_count = cast_count if cast_count is not None else assumed_cast_count(budget.crew_headcount)
 

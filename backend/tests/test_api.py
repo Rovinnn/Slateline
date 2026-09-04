@@ -91,6 +91,38 @@ def test_search_endpoint_returns_502_on_extraction_failure(monkeypatch):
     assert "Nowhereland" in resp.json()["detail"]
 
 
+def test_search_endpoint_caches_so_a_repeat_lookup_skips_extraction(monkeypatch):
+    calls = []
+
+    def record_and_extract(jurisdiction):
+        calls.append(jurisdiction)
+        return make_rule(jurisdiction="Cacheland", sources=[])
+
+    monkeypatch.setattr(main, "extract_jurisdiction_rule", record_and_extract)
+
+    first = client.post("/jurisdictions/search", params={"jurisdiction": "Cacheland"})
+    second = client.post("/jurisdictions/search", params={"jurisdiction": "Cacheland"})
+
+    assert first.status_code == second.status_code == 200
+    assert calls == ["Cacheland"]  # extraction ran once, second call was a cache hit
+    assert first.json() == second.json()
+
+
+def test_search_endpoint_refresh_bypasses_the_cache(monkeypatch):
+    calls = []
+
+    def record_and_extract(jurisdiction):
+        calls.append(jurisdiction)
+        return make_rule(jurisdiction="Refreshland", sources=[])
+
+    monkeypatch.setattr(main, "extract_jurisdiction_rule", record_and_extract)
+
+    client.post("/jurisdictions/search", params={"jurisdiction": "Refreshland"})
+    client.post("/jurisdictions/search", params={"jurisdiction": "Refreshland", "refresh": True})
+
+    assert calls == ["Refreshland", "Refreshland"]  # refresh=true forced a second live call
+
+
 def test_distance_endpoint_returns_maps_result(monkeypatch):
     monkeypatch.setattr(
         main, "get_distance", lambda origin, lat, lng: DistanceResult(distance_km=3498.0, travel_time_hours=31.6)

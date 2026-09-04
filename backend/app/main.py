@@ -14,6 +14,7 @@ from typing import Optional
 from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import cache
 from .calculator import compute_benefit
 from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
@@ -102,12 +103,22 @@ def compute_batch(
 
 
 @app.post("/jurisdictions/search", response_model=JurisdictionRule)
-def search_jurisdictions(jurisdiction: str) -> JurisdictionRule:
+def search_jurisdictions(jurisdiction: str, refresh: bool = False) -> JurisdictionRule:
     """Layer 1, live: Parallel search + a forced-function-call Gemini extraction
     (see app/extraction/agent.py), then Layer 3 verification. Any failure here
     is an external service (Parallel or Vertex), not a client error, so it
     surfaces as 502 with the underlying message rather than 500.
+
+    Cached per jurisdiction (see app/cache.py) — a repeat search is instant
+    and free rather than re-running 3 Parallel searches + a Gemini call.
+    `refresh=true` bypasses the cache for an explicit re-check; the result's
+    own `sources[].retrieved` date already tells the caller how fresh a
+    cached rule is, so no separate cache-age field is needed.
     """
+    if not refresh:
+        cached = cache.get(jurisdiction)
+        if cached is not None:
+            return cached
     try:
         rule = extract_jurisdiction_rule(jurisdiction)
     except Exception as exc:
@@ -115,7 +126,9 @@ def search_jurisdictions(jurisdiction: str) -> JurisdictionRule:
             status_code=502,
             detail=f"Could not extract a jurisdiction rule for {jurisdiction!r}: {exc}",
         ) from exc
-    return _verify_and_annotate(rule)
+    result = _verify_and_annotate(rule)
+    cache.set(jurisdiction, result)
+    return result
 
 
 @app.post("/budget/parse", response_model=ParsedBudget)

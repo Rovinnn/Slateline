@@ -44,25 +44,42 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
   const [printing, setPrinting] = useState(false);
+  const [searchProgress, setSearchProgress] = useState<Record<string, "searching" | "done" | "failed">>(() =>
+    Object.fromEntries(DEFAULT_JURISDICTIONS.map((n) => [n, "searching" as const])),
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedDistancesRef = useRef<Set<string>>(new Set());
 
   // Fetched once on mount — DEFAULT_JURISDICTIONS is just a list of names to
   // look up, not data. Each one runs the real Layer 1 pipeline (Parallel
   // search + Gemini extraction, see backend/app/extraction/agent.py), same
-  // path as JurisdictionSearch below, in parallel. allSettled (not all): one
-  // jurisdiction's search failing (a transient Parallel/Vertex error) leaves
-  // it out rather than blanking the whole screen — only surface the error
-  // state if every one of them failed.
+  // path as JurisdictionSearch below, in parallel. Errors are caught inline
+  // (not via allSettled) so searchProgress updates per jurisdiction as each
+  // one finishes, for the "searching Georgia… reading statute…" loading
+  // list below — one jurisdiction failing (a transient Parallel/Vertex
+  // error) leaves it out rather than blanking the whole screen; only
+  // surface the error state if every one of them failed.
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled(DEFAULT_JURISDICTIONS.map((name) => searchJurisdiction(name))).then((results) => {
+    const found: JurisdictionRule[] = [];
+    const errors: unknown[] = [];
+    Promise.all(
+      DEFAULT_JURISDICTIONS.map((name) =>
+        searchJurisdiction(name).then(
+          (rule) => {
+            found.push(rule);
+            if (!cancelled) setSearchProgress((p) => ({ ...p, [name]: "done" }));
+          },
+          (err) => {
+            errors.push(err);
+            if (!cancelled) setSearchProgress((p) => ({ ...p, [name]: "failed" }));
+          },
+        ),
+      ),
+    ).then(() => {
       if (cancelled) return;
-      const rules = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
-      if (rules.length === 0) {
-        const firstError = results.find(
-          (r): r is PromiseRejectedResult => r.status === "rejected",
-        )?.reason;
+      if (found.length === 0) {
+        const firstError = errors[0];
         const message =
           firstError instanceof ApiError
             ? `${firstError.message} (HTTP ${firstError.status})`
@@ -70,7 +87,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
         setState({ status: "error", message });
         return;
       }
-      setRules(rules);
+      setRules(found);
     });
     return () => {
       cancelled = true;
@@ -210,6 +227,20 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     });
   }
 
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+
+  // Bypasses the backend's per-jurisdiction cache (app/cache.py) for one
+  // explicit re-check — the "refresh" link next to a source's retrieved
+  // date. Everything downstream (distance, compute) already re-runs off
+  // `rules` changing, same as a fresh JurisdictionSearch result does.
+  function refreshRule(jurisdiction: string) {
+    if (refreshing[jurisdiction]) return;
+    setRefreshing((r) => ({ ...r, [jurisdiction]: true }));
+    searchJurisdiction(jurisdiction, { refresh: true })
+      .then(addRule)
+      .finally(() => setRefreshing((r) => ({ ...r, [jurisdiction]: false })));
+  }
+
   return (
     <div className="mx-auto max-w-[1320px] px-7 pb-20">
       <div className="flex flex-wrap items-center gap-5 pt-4">
@@ -246,7 +277,33 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
         </div>
       </div>
 
-      {state.status === "loading" && (
+      {state.status === "loading" && rules === null && (
+        <div className="flex flex-col gap-3.5 py-20">
+          <div className="flex items-center gap-3">
+            <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-border border-t-ink" />
+            <div className="font-mono text-[12.5px] text-ink-2">
+              Searching live sources and extracting each program — this takes 30-60s, not cached until now…
+            </div>
+          </div>
+          <div className="ml-7.5 flex flex-col gap-1.5">
+            {DEFAULT_JURISDICTIONS.map((name) => (
+              <div key={name} className="flex items-center gap-2 font-mono text-[11.5px] text-ink-3">
+                <span className="w-3 shrink-0">
+                  {searchProgress[name] === "done" ? "✓" : searchProgress[name] === "failed" ? "✕" : "…"}
+                </span>
+                <span>
+                  {name}
+                  {searchProgress[name] === "searching" && " — searching statute and film-office pages"}
+                  {searchProgress[name] === "done" && " — extracted"}
+                  {searchProgress[name] === "failed" && " — couldn't verify, will be left out"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {state.status === "loading" && rules !== null && (
         <div className="flex items-center gap-3 py-24">
           <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-border border-t-ink" />
           <div className="font-mono text-[12.5px] text-ink-2">Computing net benefit across jurisdictions…</div>
@@ -274,6 +331,8 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           setShowAll={setShowAll}
           showUnverified={showUnverified}
           setShowUnverified={setShowUnverified}
+          onRefresh={refreshRule}
+          refreshing={refreshing}
         />
       )}
 
@@ -370,6 +429,8 @@ function ReadyResults({
   setShowAll,
   showUnverified,
   setShowUnverified,
+  onRefresh,
+  refreshing,
 }: {
   rows: Row[];
   liveBudget: BudgetVector;
@@ -383,6 +444,9 @@ function ReadyResults({
   setShowAll: (v: boolean) => void;
   showUnverified: boolean;
   setShowUnverified: (v: boolean) => void;
+  /** Re-runs Layer 1 live for one jurisdiction, bypassing the backend's cache. */
+  onRefresh: (jurisdiction: string) => void;
+  refreshing: Record<string, boolean>;
 }) {
   const computable = rows.filter((r) => r.benefit.computable).sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
   const unverified = rows.filter((r) => !r.benefit.computable);
@@ -415,6 +479,8 @@ function ReadyResults({
         breakeven={breakeven}
         failing={failingConstraint(hero.rule, liveBudget.constraints)}
         runnerUp={rest[0]}
+        onRefresh={onRefresh}
+        refreshing={refreshing[hero.rule.jurisdiction] ?? false}
       />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
@@ -446,6 +512,8 @@ function ReadyResults({
                 rank={i + 2}
                 best={hero.benefit.net_benefit}
                 failing={failingConstraint(row.rule, liveBudget.constraints)}
+                onRefresh={onRefresh}
+                refreshing={refreshing[row.rule.jurisdiction] ?? false}
               />
             ))}
           </div>
@@ -479,11 +547,14 @@ function ReadyResults({
                       {benefit.non_computable_reason}
                     </div>
                     {src && (
-                      <div className="flex items-baseline gap-1.5 font-mono text-[11.5px] text-ink-4">
-                        <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
-                          {hostOf(src.url)}
-                        </a>
-                        <span>· retrieved {src.retrieved}</span>
+                      <div className="flex items-baseline justify-between gap-1.5 font-mono text-[11.5px] text-ink-4">
+                        <span className="flex items-baseline gap-1.5">
+                          <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
+                            {hostOf(src.url)}
+                          </a>
+                          <span>· retrieved {src.retrieved}</span>
+                        </span>
+                        <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing[rule.jurisdiction] ?? false} />
                       </div>
                     )}
                   </div>
@@ -630,19 +701,23 @@ function ConstraintsPanel({ constraints, onChange }: { constraints: string[]; on
         {CONSTRAINTS.map((c) => {
           const on = constraints.includes(c.key);
           return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => toggle(c.key)}
-              className={`flex items-center gap-2 border px-3 py-2 font-sans text-[12.5px] transition-colors ${
-                on ? "border-ink bg-card-2" : "border-border-2 bg-card"
-              }`}
-            >
-              <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[#bfbab1]"}`}>
-                {on ? "■" : ""}
-              </span>
-              {c.label}
-            </button>
+            <div key={c.key} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => toggle(c.key)}
+                className={`flex items-center gap-2 border px-3 py-2 font-sans text-[12.5px] transition-colors ${
+                  on ? "border-ink bg-card-2" : "border-border-2 bg-card"
+                }`}
+              >
+                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[#bfbab1]"}`}>
+                  {on ? "■" : ""}
+                </span>
+                {c.label}
+              </button>
+              {on && c.note && (
+                <div className="max-w-55 font-mono text-[10.5px] leading-relaxed text-ink-3">{c.note}</div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -793,12 +868,16 @@ function HeroCard({
   breakeven,
   failing,
   runnerUp,
+  onRefresh,
+  refreshing,
 }: {
   row: Row;
   breakeven: BreakevenResult | "loading" | "error" | null;
   failing?: string | null;
   /** Next-best computable jurisdiction, for the money-left-on-the-table line. */
   runnerUp?: Row;
+  onRefresh: (jurisdiction: string) => void;
+  refreshing: boolean;
 }) {
   const { rule, benefit } = row;
   // An older backend won't send realizable_credit; face value is the correct
@@ -893,7 +972,10 @@ function HeroCard({
             <Fact k="FILM OFFICE" v={rule.film_office_contact ?? "not listed in sources"} />
           </div>
           <div className="mt-4.5 border-t border-[#eae8e1] pt-3.5">
-            <div className="mb-2 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>
+              <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} />
+            </div>
             <SourceEvidence rule={rule} />
           </div>
         </div>
@@ -911,7 +993,21 @@ function Fact({ k, v }: { k: string; v: string }) {
   );
 }
 
-function RunnerUpCard({ row, rank, best, failing }: { row: Row; rank: number; best: number; failing?: string | null }) {
+function RunnerUpCard({
+  row,
+  rank,
+  best,
+  failing,
+  onRefresh,
+  refreshing,
+}: {
+  row: Row;
+  rank: number;
+  best: number;
+  failing?: string | null;
+  onRefresh: (jurisdiction: string) => void;
+  refreshing: boolean;
+}) {
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
@@ -939,13 +1035,41 @@ function RunnerUpCard({ row, rank, best, failing }: { row: Row; rank: number; be
         </div>
       </div>
       {src && (
-        <div className="flex items-baseline gap-1.5 border-t border-[#efede7] bg-card-2 px-4 py-2 font-mono text-[11.5px] text-ink-4">
-          <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
-            {hostOf(src.url)}
-          </a>
-          <span>· retrieved {src.retrieved}</span>
+        <div className="flex items-baseline justify-between gap-1.5 border-t border-[#efede7] bg-card-2 px-4 py-2 font-mono text-[11.5px] text-ink-4">
+          <span className="flex items-baseline gap-1.5">
+            <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
+              {hostOf(src.url)}
+            </a>
+            <span>· retrieved {src.retrieved}</span>
+          </span>
+          <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} />
         </div>
       )}
     </div>
+  );
+}
+
+/** Re-runs Layer 1 live for one jurisdiction, bypassing the backend's
+ * per-jurisdiction cache (app/cache.py) — an explicit opt back into a live
+ * check, next to the retrieved date it refreshes. */
+function RefreshLink({
+  jurisdiction,
+  onRefresh,
+  refreshing,
+}: {
+  jurisdiction: string;
+  onRefresh: (jurisdiction: string) => void;
+  refreshing: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onRefresh(jurisdiction)}
+      disabled={refreshing}
+      title="Re-run the live search for this jurisdiction instead of using the cached result"
+      className="font-mono text-[11px] text-teal underline decoration-1 underline-offset-2 disabled:opacity-50 disabled:no-underline print:hidden"
+    >
+      {refreshing ? "refreshing…" : "refresh"}
+    </button>
   );
 }

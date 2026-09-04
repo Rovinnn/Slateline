@@ -196,3 +196,18 @@ def test_discretionary_short_circuits_regardless_of_other_fields():
     assert result.gross_credit == 0
     assert result.net_benefit == 0
     assert result.relocation_cost == 0  # nothing to net against, so nothing is claimed
+
+
+# ---------- currency guard ----------
+
+def test_non_usd_rule_is_not_computable_rather_than_silently_treated_as_usd():
+    rule = make_rule(currency="EUR", base_rate=0.32, minimum_spend=None)
+    result = compute_benefit(make_budget(atl_cast=1_000_000), rule, distance_km=1000, assumptions=ASSUMPTIONS)
+    assert result.computable is False
+    assert result.gross_credit == 0
+    assert result.net_benefit == 0
+    assert "EUR" in result.non_computable_reason
+
+
+def test_usd_rule_is_unaffected_by_the_currency_guard():
+    assert compute_benefit(make_budget(), make_rule(currency="USD"), assumptions=ASSUMPTIONS).computable is True

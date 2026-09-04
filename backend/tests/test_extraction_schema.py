@@ -96,6 +96,9 @@ def test_every_schema_required_field_is_one_the_model_can_answer_without_guessin
         # Like pool_status, its enum carries "unknown", so requiring it forces
         # the model to consider payout mechanism without forcing a guess.
         "credit_type",
+        # A quotable fact, same tier as base_rate: the source text's own
+        # currency symbols/statements carry it directly, nothing to guess.
+        "currency",
     }
     assert set(PARAMS["required"]) <= allowed_required, (
         "A figure the model might not find in its sources became required — "

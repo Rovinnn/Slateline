@@ -31,7 +31,7 @@ the bugs already fixed in the repo.
 
 Each of these is scoped and understood; none is speculative.
 
-### 2.1 Currency guard — ~1 hour, do this first
+### 2.1 Currency guard — ~1 hour, do this first — ✅ done
 Searching "Ireland" today returns Section 481 with `base_rate: 0.32` and a
 `per_project_cap` of 125,000,000 — **euros, silently compared as dollars.**
 There is no currency field anywhere in the codebase.
@@ -42,7 +42,12 @@ brief's *own* existing pattern: detect a non-USD jurisdiction, set
 section saying so. That converts a confidently wrong number into an honest
 one, which is the whole thesis of the product.
 
-### 2.2 Cache extractions — ~2 hours, and it's a demo risk
+Done: `JurisdictionRule.currency` (required in the extraction schema, same
+tier as `base_rate` — see `models.py`/`agent.py`), and `calculator.py` returns
+`computable=False` with the currency named in `non_computable_reason` for
+anything not stated in USD.
+
+### 2.2 Cache extractions — ~2 hours, and it's a demo risk — ✅ done
 Every results load fires 4 live Layer 1 extractions: 12 Parallel searches plus
 4 Gemini 2.5 Pro calls. **First paint is 30–60 seconds.** A judge opens the
 link, watches a spinner, and forms an opinion before anything renders.
@@ -50,6 +55,13 @@ link, watches a spinner, and forms an opinion before anything renders.
 Cache per jurisdiction with the retrieval date shown and an explicit "refresh"
 control. Faster, far cheaper in quota, and *more* honest rather than less,
 because the date becomes visible instead of implied.
+
+Done: `app/cache.py`, an in-process per-jurisdiction cache; `/jurisdictions/search`
+serves a cached rule instantly unless `refresh=true`. The frontend exposes a
+"refresh" link next to every jurisdiction's retrieved-date citation (hero,
+runner-up, and Can't-verify cards), and the initial load now shows
+per-jurisdiction progress ("Georgia — searching statute and film-office
+pages" → "— extracted") instead of one generic spinner.
 
 ### 2.3 Statute hand-verification — ~half a day
 Build order step 3 says *"verify a few by hand against the actual statutes"*
@@ -133,13 +145,13 @@ It's the difference between a ranking and advice, and it's the single best
 line to have on screen during the video.
 
 ### 3.3 Smaller polish
-- **Loading state is too silent.** During the 30–60s extraction, say what's
-  happening ("searching Georgia… reading statute…"), per jurisdiction. Cheap,
-  and it makes the wait feel like work rather than a hang.
-- **`large_soundstage` constraint is a no-op.** It never flags anything by
-  design (no reliable facilities data — see `constraints.py`), but the chip
-  gives no hint of that. Add a "not yet evaluated" note so it doesn't read as
-  broken.
+- **Loading state is too silent.** ✅ done — During the 30–60s extraction, say
+  what's happening ("searching Georgia… reading statute…"), per jurisdiction.
+  Cheap, and it makes the wait feel like work rather than a hang.
+- **`large_soundstage` constraint is a no-op.** ✅ done — It never flags
+  anything by design (no reliable facilities data — see `constraints.py`),
+  but the chip gives no hint of that. Add a "not yet evaluated" note so it
+  doesn't read as broken.
 - **Runner-up cards duplicate the COMPARE tab.** Consider trimming the memo's
   runner-up list now that the table exists.
 
@@ -191,3 +203,78 @@ of the build:
    budget** — the same order as the entire relocation calculation. Georgia's
    net fell from $295,900 to $255,900 once its credit was correctly treated as
    transferable rather than face value.
+
+---
+
+## 6. Proposed next features — not yet scoped/started
+
+### 6.1 Present value
+**What:** Stop treating a credit as cash today. Chain it: face value →
+monetization type → transfer discount → months to payment → discount rate →
+present value. Add interim financing cost if you borrow against it in the
+meantime.
+
+**Why it's first:** The Georgia card already says "credit is transferable"
+and then quietly counts it at 100 cents. That's the one factually soft claim
+in an otherwise rigorous product. A refundable credit paid in six months and
+a transferable credit sold at 88 cents paid in twenty months are different
+instruments with identical headline rates — and the gap between them can
+exceed the gap between two jurisdictions' rates entirely. So this can
+reorder rankings, which makes it load-bearing rather than cosmetic.
+
+**Cost:** Three fields on `JurisdictionRule`, one chained calculation, one
+display line. Half a day. Best value-per-hour on this list by a wide margin.
+
+### 6.2 Split-location allocation
+**What:** Stop assuming one answer. Principal photography in one
+jurisdiction, post and VFX in another. Solve for the allocation subject to
+each program's minimum spend and qualifying rules.
+
+**Why:** The genuinely non-obvious one. Every comparison tool in existence
+assumes a single destination, because a table has one row per place. Real
+productions split constantly — post-only and VFX-specific incentives exist
+precisely to attract that spend separately. Turning the sort into a small
+optimization produces answers no incumbent can produce, and it hits
+"creative, non-obvious use" harder than anything else here.
+
+**Watch out:** minimum spend is a cliff, so splitting can drop you below a
+threshold and zero out a credit you'd otherwise have earned. That
+interaction is the interesting part — surface it rather than hiding it.
+
+**Cost:** A day, maybe two. The calculator already handles the
+per-jurisdiction math; this is a search over combinations of it.
+
+### 6.3 Adversarial verification
+**What:** A second agent pass whose only job is to disprove the first. It
+searches for amendments, pending bills, pool exhaustion notices, and trade
+coverage contradicting what the extraction pass found — then reports the
+conflict rather than silently overwriting.
+
+**Why:** It makes the agent architecture the interesting thing, not just the
+plumbing around a search API. It's the honest answer to "how do I know your
+extraction is right," and it's a real multi-agent structure that the problem
+actually justifies. It also deepens the Parallel integration, since
+falsification search is a structurally different query pattern from
+discovery search.
+
+**Cost:** A day. Reuses existing search tooling and the existing `conflicts`
+field.
+
+### 6.4 Crew depth
+**What:** Replace the user's `resident_labor_pct` guess with a sourced
+default from film office crew directories, union local rosters, and hub
+listings — shown with a citation like every other number.
+
+**Why:** The biggest hole in the model, and easy to miss. Resident labor
+share drives qualifying spend, which drives the credit, which drives the
+ranking. Right now the single most influential input is a number the user
+made up. Everything else in the product is sourced and dated; this one
+isn't, and it's the one that matters most.
+
+It also fixes something subtle: crew depth and distance are correlated.
+Remote jurisdictions have thinner crews, so more people get imported, so
+more labor fails to qualify and relocation cost rises. Two existing
+penalties compound, and right now the model can't see it.
+
+**Cost:** A day. Search quality varies by jurisdiction, so fall back to the
+user's estimate with lower confidence where it can't be sourced.

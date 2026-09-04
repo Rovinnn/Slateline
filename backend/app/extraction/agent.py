@@ -73,11 +73,24 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
             "centroid_lng",
             "pool_status",
             "credit_type",
+            "currency",
         ],
         "properties": {
             "jurisdiction": {"type": "string"},
             "program_name": {"type": "string"},
             "base_rate": {"type": "number"},
+            # Required, not optional-with-a-default: a US-jurisdiction default
+            # would silently mislabel a euro or pound figure as USD the one
+            # time it matters. The source text itself carries this (a currency
+            # symbol or an explicit statement next to every dollar figure), so
+            # it's exactly as knowable as base_rate — not something to guess.
+            "currency": {
+                "type": "string",
+                "description": (
+                    "ISO 4217 code the monetary figures above are denominated in (USD, EUR, GBP, CAD, "
+                    "...), per the source text's own currency symbols/statements. USD for US states."
+                ),
+            },
             "qualifying": {
                 "type": "object",
                 "description": "Whether each budget category is qualifying spend under this program's statute.",
@@ -319,6 +332,11 @@ def extract_jurisdiction_rule(jurisdiction: str) -> JurisdictionRule:
     raw = dict(_extract_with_forced_function_call(jurisdiction, search_results))
 
     raw["jurisdiction"] = canonicalize_jurisdiction(raw["jurisdiction"])
+    # setdefault + normalize rather than trust the required field blindly:
+    # mode=ANY forces a function call but not that every required property
+    # actually lands in it (the same gap that let qualifying={} through
+    # before that field got explicit required sub-keys).
+    raw["currency"] = str(raw.get("currency") or "USD").strip().upper()
     raw["application_deadline"] = _parse_date(raw.get("application_deadline"))
     raw["sunset_date"] = _parse_date(raw.get("sunset_date"))
 
