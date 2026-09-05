@@ -70,6 +70,21 @@ export function ManualForm({
   const diff = budget.total - categorySum;
   const reconciles = Math.abs(diff) < 1;
 
+  // Two different kinds of wrong, treated differently on purpose.
+  //
+  // A negative budget line is impossible, and the backend now refuses to
+  // compute against one (see calculator._impossible_inputs). Left unblocked,
+  // the producer would submit and get "can't verify" on every jurisdiction
+  // at once with no hint that one typo upstream caused it — so it's caught
+  // here, where the offending field is on screen.
+  //
+  // An unreconciled total is merely inconsistent. `total` never enters the
+  // arithmetic — qualifying spend is built from the category lines — so
+  // blocking on it would refuse a budget the tool can price perfectly well.
+  // It stays a warning.
+  const negativeFields = MONEY_FIELDS.filter((f) => budget[f.key] < 0);
+  const blocked = negativeFields.length > 0;
+
   return (
     <div className="mx-auto max-w-[1180px] px-7 pb-16 pt-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-5">
@@ -94,7 +109,9 @@ export function ManualForm({
           <button
             type="button"
             onClick={() => onSubmit(budget)}
-            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-colors hover:bg-[#091318]"
+            disabled={blocked}
+            title={blocked ? `Negative spend on ${negativeFields.map((f) => f.label).join(", ")}` : undefined}
+            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-colors hover:bg-[#091318] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink"
           >
             RUN COMPARISON
           </button>
@@ -221,6 +238,14 @@ export function ManualForm({
               </div>
             </label>
           </div>
+
+          {blocked && (
+            <div className="mt-4.5 border border-red/30 bg-red-bg px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-red">
+              {negativeFields.map((f) => f.label).join(" and ")}{" "}
+              {negativeFields.length > 1 ? "are" : "is"} negative. A budget line can't be below zero, and no
+              credit can be computed against one — correct it to continue.
+            </div>
+          )}
 
           <div className="mt-4.5 flex justify-between gap-3.5 border-t border-[#eae8e1] pt-3.5">
             <div className="font-mono text-[12px] text-ink-2">CATEGORY SUM</div>

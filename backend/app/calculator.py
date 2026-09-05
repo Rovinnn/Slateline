@@ -185,6 +185,143 @@ def _availability_warnings(rule: JurisdictionRule) -> list[str]:
     return notes
 
 
+def _impossible_inputs(
+    budget: BudgetVector,
+    rule: JurisdictionRule,
+    distance_km: Optional[float],
+    travel_time_hours: Optional[float],
+    transfer_discount: float,
+) -> Optional[tuple[str, str]]:
+    """Inputs that cannot describe a real production or a real statute.
+
+    Layer 2 is trusted precisely because a model never touches its arithmetic.
+    But it still consumes numbers a model extracted, and arithmetic on a
+    hallucinated input is just as wrong as arithmetic by a hallucination — it
+    only looks more credible. The dangerous case is real: a statute saying
+    "30%" read out as `base_rate: 30` computes a $57M credit on a $2M film and
+    reports it with the same confidence as a correct answer.
+
+    So these are checked, not clamped. Clamping 30 to 1.0 would silently
+    invent a 100% credit; correcting it to 0.30 would guess at what the source
+    meant. Refusing shows the producer a jurisdiction that couldn't be read
+    and why, which is the honest outcome and the one the rest of this module
+    already takes for currency, discretion and closed pools.
+
+    Returns (reason, note) or None. Bounds are deliberately generous: this is
+    a filter for the impossible, not a plausibility judgement.
+    """
+    rate_fields: list[tuple[str, float]] = [("base rate", rule.base_rate)]
+    rate_fields += [(f"tier rate at ${t.threshold:,.0f}", t.rate) for t in rule.tiers]
+    rate_fields += [(f'uplift "{u.condition}"', u.bonus_rate) for u in rule.uplifts]
+    for label, rate in rate_fields:
+        if not 0.0 <= rate <= 1.0:
+            return (
+                f"The extracted {label} is {rate:.1%}, which no incentive program offers. This "
+                "usually means a percentage was recorded as a whole number (30 rather than 0.30) "
+                "when the source was read. Rather than guess which was meant, this program is "
+                "left out of the ranking — check the source link and re-run.",
+                f"{label} of {rate:.1%} is outside the possible 0-100% range",
+            )
+
+    negative_caps = [
+        (name, value)
+        for name, value in (
+            ("per-person wage cap", rule.per_person_wage_cap),
+            ("minimum spend", rule.minimum_spend),
+            ("per-project cap", rule.per_project_cap),
+        )
+        if value is not None and value < 0
+    ]
+    if negative_caps:
+        name, value = negative_caps[0]
+        return (
+            f"The extracted {name} is negative (${value:,.0f}), which isn't a meaningful statutory "
+            "limit. This program is left out of the ranking rather than computed against it.",
+            f"negative {name} (${value:,.0f}) in the extracted rule",
+        )
+
+    spend_lines = {
+        "above-the-line cast": budget.atl_cast,
+        "above-the-line non-cast": budget.atl_noncast,
+        "below-the-line labor": budget.btl_labor,
+        "below-the-line non-labor": budget.btl_nonlabor,
+        "post and VFX": budget.post_vfx,
+    }
+    negative_lines = [name for name, value in spend_lines.items() if value < 0]
+    if negative_lines:
+        return (
+            f"The budget has negative spend on {negative_lines[0]}. A credit computed against it "
+            "would be meaningless, so no figure is offered for this run.",
+            f"negative {negative_lines[0]} spend in the budget",
+        )
+
+    # Shares, not amounts: outside [0,1] these silently produce a qualifying
+    # spend larger than the entire budget, which reads as a plausible number.
+    for label, share in (
+        ("resident labor share", budget.resident_labor_pct),
+        ("fringe rate", budget.fringe_rate),
+        ("transferable-credit sale price", transfer_discount),
+    ):
+        if not 0.0 <= share <= 1.0:
+            return (
+                f"The {label} is {share:.1%}, outside the 0-100% range it has to fall in. "
+                "Left out of the ranking rather than computed from it.",
+                f"{label} of {share:.1%} is outside 0-100%",
+            )
+
+    if budget.shoot_days < 0 or budget.crew_headcount < 0:
+        return (
+            "The budget has a negative shoot-day count or crew headcount, so relocation cost "
+            "can't be computed. Left out of the ranking.",
+            "negative shoot days or crew headcount",
+        )
+
+    # A negative distance doesn't just look wrong — it subtracts a negative
+    # relocation cost, making the jurisdiction appear *more* profitable the
+    # more impossible the input is.
+    for label, value in (("distance", distance_km), ("travel time", travel_time_hours)):
+        if value is not None and value < 0:
+            return (
+                f"The {label} from home base came back negative ({value:,.1f}), which can't be "
+                "true. Left out of the ranking rather than credited with a negative relocation cost.",
+                f"negative {label} from home base ({value:,.1f})",
+            )
+
+    return None
+
+
+def _refuse(
+    rule: JurisdictionRule,
+    reason: str,
+    note: str,
+    distance_km: Optional[float],
+    travel_time_hours: Optional[float],
+) -> BenefitBreakdown:
+    """A jurisdiction this layer declines to compute.
+
+    Refusing is a first-class outcome here, not an error path: the tool's
+    whole claim is that its numbers are trustworthy, and a confidently wrong
+    figure costs more than a visible gap. Every refusal carries `note` for the
+    caps list and `reason` for the "can't verify" panel, which is where these
+    land in the UI — listed, never silently dropped.
+    """
+    return BenefitBreakdown(
+        jurisdiction=rule.jurisdiction,
+        qualifying_spend=0.0,
+        gross_credit=0.0,
+        caps_applied=[note],
+        distance_km=distance_km,
+        travel_time_hours=travel_time_hours,
+        relocation_cost=0.0,
+        relocation_components={},
+        realizable_credit=0.0,
+        monetization_note=None,
+        net_benefit=0.0,
+        computable=False,
+        non_computable_reason=reason,
+    )
+
+
 def compute_benefit(
     budget: BudgetVector,
     rule: JurisdictionRule,
@@ -207,21 +344,18 @@ def compute_benefit(
     today = today or date.today()
     caps_applied: list[str] = []
 
+    impossible = _impossible_inputs(budget, rule, distance_km, travel_time_hours, transfer_discount)
+    if impossible:
+        reason, note = impossible
+        return _refuse(rule, reason, note, distance_km, travel_time_hours)
+
     if rule.is_discretionary:
-        return BenefitBreakdown(
-            jurisdiction=rule.jurisdiction,
-            qualifying_spend=0.0,
-            gross_credit=0.0,
-            caps_applied=["discretionary allocation — no statutory rate to compute"],
-            distance_km=distance_km,
-            travel_time_hours=travel_time_hours,
-            relocation_cost=0.0,
-            relocation_components={},
-            realizable_credit=0.0,
-            monetization_note=None,
-            net_benefit=0.0,
-            computable=False,
-            non_computable_reason="Discretionary/jury-allocated program; benefit is not modelable.",
+        return _refuse(
+            rule,
+            "Discretionary/jury-allocated program; benefit is not modelable.",
+            "discretionary allocation — no statutory rate to compute",
+            distance_km,
+            travel_time_hours,
         )
 
     # The brief forbids FX conversion, so the honest move for a non-USD rule
@@ -230,43 +364,19 @@ def compute_benefit(
     # below silently would, with no unit anywhere to catch it) would be a
     # confidently wrong number, exactly what this tool exists to avoid.
     if rule.currency != "USD":
-        return BenefitBreakdown(
-            jurisdiction=rule.jurisdiction,
-            qualifying_spend=0.0,
-            gross_credit=0.0,
-            caps_applied=[f"figures are denominated in {rule.currency}, not USD"],
-            distance_km=distance_km,
-            travel_time_hours=travel_time_hours,
-            relocation_cost=0.0,
-            relocation_components={},
-            realizable_credit=0.0,
-            monetization_note=None,
-            net_benefit=0.0,
-            computable=False,
-            non_computable_reason=(
-                f"This program's figures are stated in {rule.currency}, not USD, and this tool "
-                "doesn't convert currencies — comparing them directly against USD-denominated "
-                "jurisdictions would be misleading. Confirm the USD-equivalent value with the film office."
-            ),
+        return _refuse(
+            rule,
+            f"This program's figures are stated in {rule.currency}, not USD, and this tool "
+            "doesn't convert currencies — comparing them directly against USD-denominated "
+            "jurisdictions would be misleading. Confirm the USD-equivalent value with the film office.",
+            f"figures are denominated in {rule.currency}, not USD",
+            distance_km,
+            travel_time_hours,
         )
 
     unavailable = _availability_block(rule, today)
     if unavailable:
-        return BenefitBreakdown(
-            jurisdiction=rule.jurisdiction,
-            qualifying_spend=0.0,
-            gross_credit=0.0,
-            caps_applied=[unavailable],
-            distance_km=distance_km,
-            travel_time_hours=travel_time_hours,
-            relocation_cost=0.0,
-            relocation_components={},
-            realizable_credit=0.0,
-            monetization_note=None,
-            net_benefit=0.0,
-            computable=False,
-            non_computable_reason=unavailable,
-        )
+        return _refuse(rule, unavailable, unavailable, distance_km, travel_time_hours)
 
     q = rule.qualifying
     cast_count = cast_count if cast_count is not None else assumed_cast_count(budget.crew_headcount)
