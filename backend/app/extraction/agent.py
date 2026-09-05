@@ -151,6 +151,31 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
                     "non_refundable (only offsets in-state liability), or unknown."
                 ),
             },
+            # Timing is administrative practice, not usually statute, so this
+            # is null far more often than not — and that's the point. Null
+            # means "no source said", and calculator.CreditTimingAssumptions
+            # supplies a visible, editable per-credit-type default instead.
+            # Letting the model fill a plausible number here would put an
+            # invented figure behind the most consequential input to present
+            # value, which is exactly the failure this schema exists to stop.
+            "months_to_payment": {
+                "type": ["integer", "null"],
+                "description": (
+                    "Months from end of principal photography until the production actually "
+                    "receives the money, ONLY if a source states a timeline or statutory "
+                    "deadline. Null if no source addresses it — do not estimate."
+                ),
+            },
+            # Distinct from null: an audit that a source confirms is mandatory
+            # both delays payment and costs real money.
+            "audit_required": {
+                "type": ["boolean", "null"],
+                "description": (
+                    "True if a source states a CPA or state audit is mandatory before the "
+                    "credit is paid or transferred, false if a source states none is "
+                    "required, null if unaddressed."
+                ),
+            },
             # Payroll burden is 22-35% of wages and whether it qualifies varies
             # by statute. Null when the sources don't say — never assumed.
             "fringes_qualify": {

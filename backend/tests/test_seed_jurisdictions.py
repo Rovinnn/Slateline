@@ -66,7 +66,19 @@ def test_georgia_indie_drama_golden_value():
     assert "transferable" in (result.monetization_note or "")
     # No distance passed here -> relocation is lodging + equipment only.
     assert result.relocation_cost == pytest.approx(104_100)
-    assert result.net_benefit == pytest.approx(255_900)
+    # And $360k of Georgia credit is not $360k of money today. A transferable
+    # credit has to be sold, which happens after wrap and after the return is
+    # filed — 18 months by default, discounted at 12%/yr:
+    #   360,000 / 1.12^(18/12) = 303,721.
+    # Relocation, meanwhile, is spent up front in today's dollars, so netting
+    # the two undiscounted (as this asserted before timing existed) overstated
+    # Georgia by a further $56k on top of the $40k the transfer discount
+    # already cost it. Two corrections, same direction, same root cause:
+    # treating a claim on future money as if it were cash on wrap day.
+    assert result.months_to_payment == 18
+    assert result.timing_is_assumed is True
+    assert result.present_value == pytest.approx(303_721.45, abs=0.01)
+    assert result.net_benefit == pytest.approx(199_621.45, abs=0.01)
 
 
 def test_texas_indie_drama_is_not_computable():

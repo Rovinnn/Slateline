@@ -28,7 +28,13 @@ from dataclasses import replace
 from datetime import date
 from typing import Optional
 
-from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
+from .models import (
+    BenefitBreakdown,
+    BudgetVector,
+    CreditTimingAssumptions,
+    JurisdictionRule,
+    RelocationAssumptions,
+)
 
 QUALIFYING_KEYS = (
     "atl_cast",
@@ -105,6 +111,60 @@ def _evaluate_uplift_condition(condition: str, budget: BudgetVector) -> Optional
 # data, not a statutory fact, so it's an editable assumption rather than
 # something the model is asked to state.
 DEFAULT_TRANSFER_DISCOUNT = 0.90
+
+
+def _time_to_cash(
+    realizable_credit: float,
+    rule: JurisdictionRule,
+    timing: CreditTimingAssumptions,
+) -> tuple[float, float, int, bool, Optional[str]]:
+    """What the credit is worth today, given when it actually arrives.
+
+    Returns (present_value, audit_cost, months_used, months_were_assumed, note).
+
+    The tool priced a credit as if it were cash on wrap day. It isn't: it's a
+    claim realised after a return is filed, after an auditor signs off, and —
+    for a transferable credit — after a buyer is found. Two programs with the
+    same rate and the same payout mechanism can still differ by six figures on
+    timing alone, which is enough to change which one wins.
+
+    Discounted at an annual rate compounded over the wait, because that is
+    what the money would earn (or what borrowing against the credit costs —
+    productions routinely do exactly that rather than wait).
+
+    The audit cost is subtracted before discounting: it is paid to *get* the
+    credit, so it isn't money the production ever has the use of.
+    """
+    if realizable_credit <= 0:
+        return realizable_credit, 0.0, 0, True, None
+
+    months = rule.months_to_payment
+    assumed = months is None
+    if months is None:
+        months = {
+            "refundable": timing.months_refundable,
+            "rebate": timing.months_rebate,
+            "transferable": timing.months_transferable,
+            "non_refundable": timing.months_non_refundable,
+        }.get(rule.credit_type, timing.months_unknown)
+
+    # None means no source addressed it, which is not the same as "no audit".
+    audit_cost = timing.audit_cost if rule.audit_required else 0.0
+
+    after_audit = realizable_credit - audit_cost
+    discount_factor = (1.0 + timing.discount_rate_annual) ** (-months / 12.0)
+    present_value = after_audit * discount_factor
+    waiting_cost = after_audit - present_value
+
+    source = "assumed for a " + (rule.credit_type or "unknown") + " credit" if assumed else "per source"
+    note = (
+        f"paid about {months} months after wrap ({source}) — waiting costs "
+        f"${waiting_cost:,.0f} at {timing.discount_rate_annual:.0%} a year"
+    )
+    if audit_cost > 0:
+        note += f", and a required audit costs ${audit_cost:,.0f}"
+
+    return present_value, audit_cost, months, assumed, note
 
 
 def _monetize(
@@ -330,6 +390,7 @@ def compute_benefit(
     assumptions: Optional[RelocationAssumptions] = None,
     cast_count: Optional[int] = None,
     transfer_discount: float = DEFAULT_TRANSFER_DISCOUNT,
+    timing: Optional[CreditTimingAssumptions] = None,
     today: Optional[date] = None,
 ) -> BenefitBreakdown:
     """No I/O, no model calls. Deterministic given its arguments — pass
@@ -341,6 +402,7 @@ def compute_benefit(
     records every cap that bites in the returned caps_applied list.
     """
     assumptions = assumptions or RelocationAssumptions()
+    timing = timing or CreditTimingAssumptions()
     today = today or date.today()
     caps_applied: list[str] = []
 
@@ -476,6 +538,9 @@ def compute_benefit(
     relocation_cost = transport + lodging + assumptions.equipment_shipping_base
 
     realizable_credit, monetization_note = _monetize(gross_credit, rule.credit_type, transfer_discount)
+    present_value, audit_cost, months_used, timing_assumed, timing_note = _time_to_cash(
+        realizable_credit, rule, timing
+    )
 
     return BenefitBreakdown(
         jurisdiction=rule.jurisdiction,
@@ -492,9 +557,16 @@ def compute_benefit(
         },
         realizable_credit=realizable_credit,
         monetization_note=monetization_note,
-        # Nets the realizable figure, not face value: that's the money that
-        # actually reaches the production.
-        net_benefit=realizable_credit - relocation_cost,
+        audit_cost=audit_cost,
+        months_to_payment=months_used,
+        timing_is_assumed=timing_assumed,
+        present_value=present_value,
+        timing_note=timing_note,
+        # Nets the present value, not face value and not even the realizable
+        # figure: money arriving in 18 months is worth less than money now,
+        # and relocation is spent up front in today's dollars. Comparing the
+        # two without discounting would flatter slow-paying programs.
+        net_benefit=present_value - relocation_cost,
         computable=True,
         non_computable_reason=None,
     )

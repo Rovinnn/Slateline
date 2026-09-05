@@ -141,7 +141,20 @@ def check_constraint_gaps(base: str) -> str:
 
 
 def check_compute_arithmetic(base: str) -> str:
-    """The product's core claim: net == gross - relocation, exactly."""
+    """The product's core claim: the walk from face value to cash reconciles.
+
+    Once a credit is treated as a claim on future money, `net == gross -
+    relocation` is no longer the identity — a credit paid in 18 months is
+    worth less than its face value, and this deliberately asserts the fuller
+    chain rather than the old shortcut:
+
+        net = gross + discount - audit + timing_loss - relocation
+
+    A deployment predating any of those stages omits the fields, and the
+    fallbacks below collapse the chain back to exactly the old arithmetic —
+    so this check is meaningful against either version rather than reporting
+    a false failure the first time it meets an older one.
+    """
     rule = _search(base, "Georgia")
     resp = requests.post(
         f"{base}/compute",
@@ -151,18 +164,36 @@ def check_compute_arithmetic(base: str) -> str:
     resp.raise_for_status()
     body = resp.json()
 
-    expected_net = body["gross_credit"] - body["relocation_cost"]
+    gross = body["gross_credit"]
+    realizable = body.get("realizable_credit", gross)
+    audit = body.get("audit_cost", 0.0)
+    present_value = body.get("present_value", realizable - audit)
+    relocation = body["relocation_cost"]
+
+    discount = realizable - gross
+    timing_loss = present_value - (realizable - audit)
+    expected_net = gross + discount - audit + timing_loss - relocation
     require(
         abs(body["net_benefit"] - expected_net) < 0.01,
-        f"net {body['net_benefit']} != gross {body['gross_credit']} - relocation {body['relocation_cost']}",
+        f"net {body['net_benefit']} != gross {gross} + discount {discount} - audit {audit} "
+        f"+ timing {timing_loss} - relocation {relocation}",
+    )
+    require(
+        present_value <= realizable - audit + 0.01,
+        f"present value {present_value} exceeds the {realizable - audit} it discounts — money cannot "
+        "be worth more for arriving later",
     )
     components = body["relocation_components"]
     require(
-        abs(sum(components.values()) - body["relocation_cost"]) < 0.01,
-        f"relocation components {components} don't sum to {body['relocation_cost']}",
+        abs(sum(components.values()) - relocation) < 0.01,
+        f"relocation components {components} don't sum to {relocation}",
     )
     require(body["distance_km"] == 3498.0, "distance_km sent in the body was dropped by the endpoint")
-    return f"net {body['net_benefit']:,.0f} = gross {body['gross_credit']:,.0f} - reloc {body['relocation_cost']:,.0f}"
+    months = body.get("months_to_payment", 0)
+    return (
+        f"net {body['net_benefit']:,.0f} = gross {gross:,.0f} - {gross - realizable:,.0f} discount "
+        f"- {audit:,.0f} audit - {-timing_loss:,.0f} for {months}mo wait - {relocation:,.0f} reloc"
+    )
 
 
 def check_batch_monotonicity(base: str) -> str:

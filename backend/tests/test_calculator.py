@@ -167,7 +167,12 @@ def test_relocation_cost_uses_flights_over_threshold():
     assert result.relocation_components["lodging"] == pytest.approx(89_100)
     assert result.relocation_cost == pytest.approx(114_900)
     assert result.gross_credit == pytest.approx(500_000)
-    assert result.net_benefit == pytest.approx(385_100)
+    # net is no longer gross - relocation: the credit arrives later than the
+    # relocation is paid, so it's discounted first. This rule states no payout
+    # mechanism, so timing falls back to months_unknown = 15 at 12%/yr:
+    #   500,000 / 1.12^(15/12) = 433,958, less 114,900 relocation.
+    assert result.present_value == pytest.approx(433_957.78, abs=0.01)
+    assert result.net_benefit == pytest.approx(319_057.78, abs=0.01)
 
 
 def test_relocation_cost_uses_ground_under_threshold():

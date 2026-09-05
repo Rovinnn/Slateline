@@ -69,6 +69,11 @@ export interface JurisdictionRule {
    *  non-USD rule rather than converting, so this arrives already reflected in
    *  `non_computable_reason` — declared here because the field is sent. */
   currency: string;
+  /** Months from wrap to payment, only when a source states it. Null means the
+   *  backend fell back to a CreditTimingAssumptions default. */
+  months_to_payment: number | null;
+  /** Whether a mandatory audit stands between wrap and payment. Null = unstated. */
+  audit_required: boolean | null;
 }
 
 export interface BudgetVector {
@@ -86,6 +91,28 @@ export interface BudgetVector {
   /** Employer payroll burden as a fraction of wages; 0.28 is a typical union feature. */
   fringe_rate: number;
 }
+
+/** When the credit becomes money, and what waiting for it costs. Mirrors
+ *  backend/app/models.py CreditTimingAssumptions. */
+export interface CreditTimingAssumptions {
+  discount_rate_annual: number;
+  months_refundable: number;
+  months_rebate: number;
+  months_transferable: number;
+  months_non_refundable: number;
+  months_unknown: number;
+  audit_cost: number;
+}
+
+export const DEFAULT_CREDIT_TIMING: CreditTimingAssumptions = {
+  discount_rate_annual: 0.12,
+  months_refundable: 12,
+  months_rebate: 9,
+  months_transferable: 18,
+  months_non_refundable: 12,
+  months_unknown: 15,
+  audit_cost: 15000,
+};
 
 export interface RelocationAssumptions {
   flight_threshold_km: number;
@@ -123,6 +150,15 @@ export interface BenefitBreakdown {
   net_benefit: number;
   computable: boolean;
   non_computable_reason: string | null;
+  /** Cost of proving the spend to an auditor, where one is required. */
+  audit_cost: number;
+  /** Months actually used for discounting, and whether that was a source fact
+   *  or our assumption — the UI must be able to say which. */
+  months_to_payment: number;
+  timing_is_assumed: boolean;
+  /** What the credit is worth today. net_benefit nets this, not face value. */
+  present_value: number;
+  timing_note: string | null;
 }
 
 /** Result of parsing an uploaded budget PDF — see backend/app/extraction/budget_parser.py. */

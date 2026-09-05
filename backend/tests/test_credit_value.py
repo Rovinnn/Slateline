@@ -104,9 +104,16 @@ def test_a_zero_fringe_rate_produces_no_fringe_note_at_all():
 def test_refundable_credit_is_worth_face_value():
     rule = make_rule(minimum_spend=None, credit_type="refundable", fringes_qualify=False)
     result = compute_benefit(make_budget(fringe_rate=0), rule, assumptions=NO_RELOCATION)
+    # "Face value" is a claim about monetisation — no broker takes a cut — and
+    # that's what realizable_credit measures. It was never a claim that the
+    # money arrives on wrap day, which is what asserting it against
+    # net_benefit used to imply.
     assert result.realizable_credit == pytest.approx(result.gross_credit)
-    assert result.net_benefit == pytest.approx(result.gross_credit)
     assert "face value" in (result.monetization_note or "")
+    # Paid at face, but still paid later: 12 months by default for refundable.
+    assert result.months_to_payment == 12
+    assert result.present_value < result.realizable_credit
+    assert result.net_benefit == pytest.approx(result.present_value)
 
 
 def test_transferable_credit_is_discounted_to_what_a_broker_pays():

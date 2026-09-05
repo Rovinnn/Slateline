@@ -5,8 +5,14 @@ import { ApiError, computeBenefit, getDistance, searchJurisdiction, type Distanc
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import type { Row } from "../lib/explain";
 import { hostOf, money, moneyShort } from "../lib/format";
-import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
-import type { BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
+import { DEFAULT_CREDIT_TIMING, DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
+import type {
+  BudgetVector,
+  CreditTimingAssumptions,
+  JurisdictionRule,
+  PoolStatus,
+  RelocationAssumptions,
+} from "../types";
 import { ComparisonTable } from "./ComparisonTable";
 import { FundingAvailability, SourceEvidence } from "./Evidence";
 import { MapView } from "./MapView";
@@ -34,6 +40,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [rules, setRules] = useState<JurisdictionRule[] | null>(null);
   const [liveBudget, setLiveBudget] = useState<BudgetVector>(initialBudget);
   const [assumptions, setAssumptions] = useState<RelocationAssumptions>(DEFAULT_RELOCATION_ASSUMPTIONS);
+  const [timing, setTiming] = useState<CreditTimingAssumptions>(DEFAULT_CREDIT_TIMING);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
@@ -149,6 +156,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
                 rule,
                 benefit: await computeBenefit(liveBudget, rule, {
                   assumptions,
+                  timing,
                   distance_km: dist?.distance_km,
                   travel_time_hours: dist?.travel_time_hours,
                 }),
@@ -170,7 +178,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [rules, liveBudget, assumptions, distances]);
+  }, [rules, liveBudget, assumptions, timing, distances]);
 
   // Scans ATL spend to find where the top pick stops leading — a second,
   // coarser sweep than the main recompute above, so it rides the same
@@ -322,6 +330,8 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           onBudgetChange={setLiveBudget}
           assumptions={assumptions}
           onAssumptionsChange={setAssumptions}
+          timing={timing}
+          onTimingChange={setTiming}
           breakeven={breakeven}
           printing={printing}
           showAll={showAll}
@@ -420,6 +430,8 @@ function ReadyResults({
   onBudgetChange,
   assumptions,
   onAssumptionsChange,
+  timing,
+  onTimingChange,
   breakeven,
   printing,
   showAll,
@@ -435,6 +447,8 @@ function ReadyResults({
   onBudgetChange: (b: BudgetVector) => void;
   assumptions: RelocationAssumptions;
   onAssumptionsChange: (a: RelocationAssumptions) => void;
+  timing: CreditTimingAssumptions;
+  onTimingChange: (t: CreditTimingAssumptions) => void;
   breakeven: BreakevenResult | "loading" | "error" | null;
   printing: boolean;
   showAll: boolean;
@@ -486,6 +500,8 @@ function ReadyResults({
         constraints={liveBudget.constraints}
         onChange={(constraints) => onBudgetChange({ ...liveBudget, constraints })}
       />
+
+      <CreditTimingPanel timing={timing} onChange={onTimingChange} forceOpen={printing} />
 
       <RelocationAssumptionsPanel assumptions={assumptions} onChange={onAssumptionsChange} forceOpen={printing} />
 
@@ -801,6 +817,103 @@ function RelocationAssumptionsPanel({
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+interface TimingField {
+  key: keyof CreditTimingAssumptions;
+  label: string;
+  prefix?: string;
+  suffix?: string;
+  step: number;
+  note: string;
+  /** UI shows percent 0-100; state stores a 0-1 fraction. */
+  isPercent?: boolean;
+}
+
+const TIMING_FIELDS: TimingField[] = [
+  { key: "discount_rate_annual", label: "Cost of capital", suffix: "%/yr", step: 0.5, note: "or the rate you'd borrow against the credit at", isPercent: true },
+  { key: "months_refundable", label: "Refundable wait", suffix: "mo", step: 1, note: "state pays on a filed return" },
+  { key: "months_rebate", label: "Rebate wait", suffix: "mo", step: 1, note: "cash grant, usually fastest" },
+  { key: "months_transferable", label: "Transferable wait", suffix: "mo", step: 1, note: "adds finding a buyer" },
+  { key: "months_non_refundable", label: "Non-refundable wait", suffix: "mo", step: 1, note: "offsets in-state liability" },
+  { key: "months_unknown", label: "Unstated wait", suffix: "mo", step: 1, note: "used when payout type isn't known" },
+  { key: "audit_cost", label: "Audit cost", prefix: "$", step: 500, note: "charged only where an audit is required" },
+];
+
+/**
+ * When the credit becomes money, and what waiting costs.
+ *
+ * These are assumptions, not extracted facts — payment timing is
+ * administrative practice and statutes rarely state it — so they're editable
+ * and on screen for the same reason relocation assumptions are
+ * (BUILD_BRIEF.md section 6). Where a source *does* state a timeline, the
+ * rule's own months_to_payment overrides the default here, and the hero's
+ * waterfall says which of the two it used.
+ */
+function CreditTimingPanel({
+  timing,
+  onChange,
+  forceOpen = false,
+}: {
+  timing: CreditTimingAssumptions;
+  onChange: (t: CreditTimingAssumptions) => void;
+  forceOpen?: boolean;
+}) {
+  const [userOpen, setUserOpen] = useState(false);
+  const open = forceOpen || userOpen;
+
+  function setField(key: keyof CreditTimingAssumptions, raw: string) {
+    const parsed = num(raw);
+    onChange({ ...timing, [key]: TIMING_FIELDS.find((f) => f.key === key)?.isPercent ? parsed / 100 : parsed });
+  }
+
+  return (
+    <div className="mt-5 border border-border-3 bg-card">
+      <button
+        type="button"
+        onClick={() => setUserOpen(!open)}
+        className="flex w-full items-center gap-2.5 bg-card-2 px-5.5 py-3.5 text-left"
+      >
+        <span className="font-mono text-[11px] text-ink-3">{open ? "−" : "+"}</span>
+        <span className="font-sans text-[13.5px] font-semibold">When the credit becomes money</span>
+        <span className="font-mono text-[11.5px] text-ink-2">
+          discounted at {(timing.discount_rate_annual * 100).toFixed(1)}%/yr · {timing.months_transferable} mo to sell a
+          transferable credit
+        </span>
+      </button>
+      {open && (
+        <>
+          <div className="grid grid-cols-1 gap-4 px-5.5 pt-5.5 sm:grid-cols-3 lg:grid-cols-4">
+            {TIMING_FIELDS.map((f) => {
+              const raw = f.isPercent ? timing[f.key] * 100 : timing[f.key];
+              return (
+                <label key={f.key} className="block">
+                  <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[#3d3a34]">{f.label}</div>
+                  <div className="flex items-center border border-border-2 bg-card-2">
+                    {f.prefix && <span className="pl-2 font-mono text-[12px] text-ink-3">{f.prefix}</span>}
+                    <input
+                      type="number"
+                      step={f.step}
+                      min={0}
+                      value={raw}
+                      onChange={(e) => setField(f.key, e.target.value)}
+                      className="min-w-0 flex-1 bg-transparent px-2 py-2 text-right font-mono text-[13px] font-medium text-ink outline-none"
+                    />
+                    {f.suffix && <span className="pr-2 font-mono text-[12px] text-ink-3">{f.suffix}</span>}
+                  </div>
+                  <div className="mt-1 font-mono text-[10.5px] text-ink-3">{f.note}</div>
+                </label>
+              );
+            })}
+          </div>
+          <div className="px-5.5 pb-5.5 pt-4 font-mono text-[10.5px] leading-relaxed text-ink-3">
+            A credit is a claim on future money, not cash on wrap day. Set the rate to 0 to compare face values
+            undiscounted, as this tool did before.
+          </div>
+        </>
       )}
     </div>
   );

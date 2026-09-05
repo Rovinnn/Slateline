@@ -208,7 +208,21 @@ of the build:
 
 ## 6. Proposed next features — not yet scoped/started
 
-### 6.1 Present value
+### 6.1 Present value — ✅ done
+**Outcome:** `CreditTimingAssumptions` (visible and editable, like relocation
+assumptions), `months_to_payment` and `audit_required` on the rule (extracted
+only where a source states them, null otherwise), and `present_value` /
+`audit_cost` / `timing_note` on the breakdown. `net_benefit` now nets the
+present value.
+
+**What it actually changed:** on the four seed jurisdictions it moved every
+net benefit by $53k-$66k on a $2M budget — the same order as the entire
+relocation calculation — but it did **not** change who wins. What it did
+change is that New Mexico and Louisiana stopped being exactly tied at
+$395,900; they now differ by $12,471 on payout speed alone, which the tool
+previously had no basis to distinguish. Reordering is demonstrated on
+constructed rules in `test_present_value.py`, not claimed of this dataset.
+
 **What:** Stop treating a credit as cash today. Chain it: face value →
 monetization type → transfer discount → months to payment → discount rate →
 present value. Add interim financing cost if you borrow against it in the

@@ -1,4 +1,5 @@
 import type {
+  CreditTimingAssumptions,
   BenefitBreakdown,
   BudgetVector,
   JurisdictionRule,
@@ -50,7 +51,12 @@ async function getJson<T>(path: string): Promise<T> {
 export function computeBenefit(
   budget: BudgetVector,
   rule: JurisdictionRule,
-  opts?: { distance_km?: number; travel_time_hours?: number; assumptions?: RelocationAssumptions },
+  opts?: {
+    distance_km?: number;
+    travel_time_hours?: number;
+    assumptions?: RelocationAssumptions;
+    timing?: CreditTimingAssumptions;
+  },
 ): Promise<BenefitBreakdown> {
   return postJson<BenefitBreakdown>("/compute", {
     budget,
@@ -58,6 +64,10 @@ export function computeBenefit(
     distance_km: opts?.distance_km ?? null,
     travel_time_hours: opts?.travel_time_hours ?? null,
     assumptions: opts?.assumptions ?? null,
+    // Null lets the backend apply its own defaults, which is what an older
+    // frontend does implicitly — so sending it explicitly changes nothing
+    // except making the assumptions editable.
+    timing: opts?.timing ?? null,
   });
 }
 
@@ -69,7 +79,12 @@ export function computeBenefit(
 export function computeBenefitBatch(
   budgets: BudgetVector[],
   rule: JurisdictionRule,
-  opts?: { distance_km?: number; travel_time_hours?: number; assumptions?: RelocationAssumptions },
+  opts?: {
+    distance_km?: number;
+    travel_time_hours?: number;
+    assumptions?: RelocationAssumptions;
+    timing?: CreditTimingAssumptions;
+  },
 ): Promise<BenefitBreakdown[]> {
   return postJson<BenefitBreakdown[]>("/compute/batch", {
     budgets,
@@ -77,6 +92,10 @@ export function computeBenefitBatch(
     distance_km: opts?.distance_km ?? null,
     travel_time_hours: opts?.travel_time_hours ?? null,
     assumptions: opts?.assumptions ?? null,
+    // Null lets the backend apply its own defaults, which is what an older
+    // frontend does implicitly — so sending it explicitly changes nothing
+    // except making the assumptions editable.
+    timing: opts?.timing ?? null,
   });
 }
 

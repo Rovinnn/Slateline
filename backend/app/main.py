@@ -20,7 +20,13 @@ from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
-from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
+from .models import (
+    BenefitBreakdown,
+    BudgetVector,
+    CreditTimingAssumptions,
+    JurisdictionRule,
+    RelocationAssumptions,
+)
 from .verification import verify_rule
 
 
@@ -71,6 +77,10 @@ def compute(
     distance_km: Optional[float] = Body(default=None),
     travel_time_hours: Optional[float] = Body(default=None),
     assumptions: Optional[RelocationAssumptions] = None,
+    # When the credit turns into money. Editable for the same reason
+    # `assumptions` is: it changes the answer, so it can't be a hidden
+    # constant (BUILD_BRIEF.md section 6).
+    timing: Optional[CreditTimingAssumptions] = None,
     # Both were computed but unreachable from any client. The transfer
     # discount decides what a transferable credit is worth, and cast_count
     # drives the per-person wage cap off an 8%-of-crew guess — consequential
@@ -96,6 +106,7 @@ def compute(
         assumptions,
         cast_count=cast_count,
         transfer_discount=transfer_discount,
+        timing=timing,
     )
 
 
@@ -106,6 +117,7 @@ def compute_batch(
     distance_km: Optional[float] = Body(default=None),
     travel_time_hours: Optional[float] = Body(default=None),
     assumptions: Optional[RelocationAssumptions] = None,
+    timing: Optional[CreditTimingAssumptions] = None,
     transfer_discount: float = Body(default=DEFAULT_TRANSFER_DISCOUNT),
     cast_count: Optional[int] = Body(default=None),
 ) -> list[BenefitBreakdown]:
@@ -124,6 +136,7 @@ def compute_batch(
             assumptions,
             cast_count=cast_count,
             transfer_discount=transfer_discount,
+            timing=timing,
         )
         for b in budgets
     ]

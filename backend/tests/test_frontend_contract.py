@@ -81,6 +81,7 @@ SHARED_MODELS = [
     ("JurisdictionRule", models.JurisdictionRule),
     ("BudgetVector", models.BudgetVector),
     ("RelocationAssumptions", models.RelocationAssumptions),
+    ("CreditTimingAssumptions", models.CreditTimingAssumptions),
     ("BenefitBreakdown", models.BenefitBreakdown),
 ]
 
@@ -125,24 +126,31 @@ def test_qualifying_map_matches_the_calculator_key_set(ts_source):
 # ---------- defaults, which the frontend sends back as real values ----------
 
 
-def test_frontend_relocation_defaults_equal_the_python_defaults(ts_source):
-    """DEFAULT_RELOCATION_ASSUMPTIONS is sent on every /compute call.
+@pytest.mark.parametrize(
+    "const_name,ts_type,dataclass",
+    [
+        ("DEFAULT_RELOCATION_ASSUMPTIONS", "RelocationAssumptions", models.RelocationAssumptions),
+        ("DEFAULT_CREDIT_TIMING", "CreditTimingAssumptions", models.CreditTimingAssumptions),
+    ],
+)
+def test_frontend_assumption_defaults_equal_the_python_defaults(ts_source, const_name, ts_type, dataclass):
+    """These constants are sent on every /compute call.
 
     So a drifted default isn't a cosmetic mismatch — the deployed app would
-    silently compute relocation cost against different assumptions than the
-    test suite, the smoke test, and every golden number in the repo.
+    silently price against different assumptions than the test suite, the
+    smoke test, and every golden number in the repo. Timing is the worse of
+    the two to drift: the discount rate compounds over a wait of a year or
+    more, so a small difference moves the ranking, not just a figure.
     """
     match = re.search(
-        r"export const DEFAULT_RELOCATION_ASSUMPTIONS: RelocationAssumptions = \{(.*?)\n\};",
+        rf"export const {const_name}: {ts_type} = " + r"\{(.*?)\n\};",
         ts_source,
         flags=re.DOTALL,
     )
-    assert match, "types.ts has no DEFAULT_RELOCATION_ASSUMPTIONS"
+    assert match, f"types.ts has no {const_name}"
     declared = {k: float(v) for k, v in re.findall(r"^\s*(\w+)\s*:\s*([\d.]+)", match.group(1), flags=re.MULTILINE)}
 
-    python_defaults = {
-        f.name: f.default for f in fields(models.RelocationAssumptions) if f.default is not MISSING
-    }
+    python_defaults = {f.name: f.default for f in fields(dataclass) if f.default is not MISSING}
     assert declared == pytest.approx(python_defaults)
 
 

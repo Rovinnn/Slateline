@@ -85,6 +85,15 @@ class JurisdictionRule:
     # (see its currency guard). Defaults to USD for the seed/fixture data
     # that predates this field; real extractions always state it explicitly.
     currency: str = "USD"
+    # Months from wrap until the production actually has the money. Statutes
+    # rarely state this — it's administrative practice — so it stays None
+    # unless a source says otherwise, and CreditTimingAssumptions supplies a
+    # per-credit-type default. Extracting a number nobody published would be
+    # inventing the most consequential input to present value.
+    months_to_payment: Optional[int] = None
+    # Whether a CPA audit stands between wrap and payment. Georgia's is
+    # mandatory and both delays and costs money; several states have none.
+    audit_required: Optional[bool] = None
 
 
 @dataclass
@@ -118,6 +127,39 @@ class RelocationAssumptions:
 
 
 @dataclass
+class CreditTimingAssumptions:
+    """When the credit turns into money, and what waiting for it costs.
+
+    A credit is not cash: it's a claim realised after wrap, after an audit,
+    sometimes two years out. A refundable credit paid at face in 9 months and
+    a transferable one sold at 88c in 20 months are different instruments with
+    identical headline rates, and the gap between them can exceed the gap
+    between two jurisdictions' rates — so timing can reorder the ranking.
+
+    These are assumptions, not extracted facts, and they live here for the
+    same reason RelocationAssumptions does: BUILD_BRIEF.md section 6 requires
+    every assumption to be visible and editable rather than buried in a
+    constant. JurisdictionRule.months_to_payment overrides the default below
+    whenever a source actually states a timeline.
+    """
+
+    # Opportunity cost of capital tied up waiting. Productions frequently
+    # borrow against credits rather than wait, and this doubles as a proxy for
+    # that interim financing rate.
+    discount_rate_annual: float = 0.12
+    # Typical waits by payout mechanism. Refundable and rebate programs pay on
+    # a filed return or claim; transferable credits add finding a buyer.
+    months_refundable: int = 12
+    months_rebate: int = 9
+    months_transferable: int = 18
+    months_non_refundable: int = 12
+    months_unknown: int = 15
+    # A mandatory audit is a real, quotable line item, not a rounding error on
+    # an indie budget.
+    audit_cost: float = 15000.0
+
+
+@dataclass
 class BenefitBreakdown:
     jurisdiction: str
     qualifying_spend: float
@@ -136,3 +178,14 @@ class BenefitBreakdown:
     net_benefit: float
     computable: bool
     non_computable_reason: Optional[str]
+    # Cost of proving the spend to an auditor, where one is required.
+    audit_cost: float = 0.0
+    # Months actually used for discounting, and whether that came from a
+    # source or from CreditTimingAssumptions — the UI has to be able to say
+    # which, because one is a fact and the other is our guess.
+    months_to_payment: int = 0
+    timing_is_assumed: bool = True
+    # present_value <= realizable_credit - audit_cost. The difference is what
+    # waiting costs, reported separately so it can be shown as its own stage.
+    present_value: float = 0.0
+    timing_note: Optional[str] = None

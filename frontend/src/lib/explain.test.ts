@@ -14,11 +14,18 @@ function row(
     distanceKm?: number | null;
     caps?: string[];
     monetizationNote?: string | null;
+    audit?: number;
+    months?: number;
+    timingAssumed?: boolean;
+    /** Omit to derive an undiscounted present value (the pre-timing shape). */
+    presentValue?: number;
   },
 ): Row {
   const gross = opts.gross ?? 0;
   const realizable = opts.realizable ?? gross;
   const relocation = opts.relocation ?? 0;
+  const audit = opts.audit ?? 0;
+  const presentValue = opts.presentValue ?? realizable - audit;
   return {
     rule: {
       jurisdiction,
@@ -33,9 +40,35 @@ function row(
       monetization_note: opts.monetizationNote ?? null,
       caps_applied: opts.caps ?? [],
       distance_km: opts.distanceKm ?? null,
-      net_benefit: realizable - relocation,
+      audit_cost: audit,
+      months_to_payment: opts.months ?? 0,
+      timing_is_assumed: opts.timingAssumed ?? true,
+      present_value: presentValue,
+      net_benefit: presentValue - relocation,
       computable: true,
     } as BenefitBreakdown,
+  };
+}
+
+/** A row shaped like a backend deployed before timing existed. The two halves
+ *  deploy separately, so this is a normal runtime state, not a broken one. */
+function legacyRow(jurisdiction: string, gross: number, realizable: number, relocation: number): Row {
+  return {
+    rule: { jurisdiction, base_rate: 0.25, credit_type: "refundable" } as JurisdictionRule,
+    benefit: {
+      qualifying_spend: 0,
+      gross_credit: gross,
+      realizable_credit: realizable,
+      relocation_cost: relocation,
+      caps_applied: [],
+      distance_km: null,
+      net_benefit: realizable - relocation,
+      computable: true,
+      // Deliberately cast through `unknown`: BenefitBreakdown declares the
+      // timing fields as required, and the point of this fixture is that a
+      // separately-deployed older backend doesn't send them. The type
+      // describes the current contract; the wire can carry an older one.
+    } as unknown as BenefitBreakdown,
   };
 }
 
@@ -144,5 +177,97 @@ describe("buildWaterfall", () => {
   it("omits relocation entirely when there is none to charge", () => {
     const steps = buildWaterfall(row("NM", { gross: 500_000, relocation: 0 }));
     expect(steps.some((s) => s.label === "Relocation cost")).toBe(false);
+  });
+});
+
+describe("timing, once a credit is treated as a claim on future money", () => {
+  it("keeps the five-way decomposition summing exactly to the advantage", () => {
+    // The guarantee the whole explanation rests on, now that there are five
+    // moving parts instead of three. If these stop reconciling, "why it wins"
+    // is inventing a number.
+    const winner = row("New Mexico", {
+      rate: 0.25, creditType: "refundable", qualifying: 2_000_000,
+      gross: 500_000, audit: 0, months: 12, presentValue: 446_429, relocation: 90_000,
+    });
+    const rival = row("Georgia", {
+      rate: 0.3, creditType: "transferable", qualifying: 2_000_000,
+      gross: 600_000, realizable: 540_000, audit: 15_000, months: 18,
+      presentValue: 439_000, relocation: 120_000,
+    });
+
+    const result = explainWin(winner, rival);
+    const summed = result.deltas.reduce((acc, d) => acc + d.delta, 0);
+
+    expect(summed).toBeCloseTo(result.total, 6);
+    expect(result.total).toBeCloseTo(winner.benefit.net_benefit - rival.benefit.net_benefit, 6);
+  });
+
+  it("attributes an advantage to paying out sooner", () => {
+    const winner = row("Fastland", { gross: 500_000, months: 6, presentValue: 480_000 });
+    const rival = row("Slowland", { gross: 500_000, months: 24, presentValue: 400_000 });
+
+    const sooner = explainWin(winner, rival).deltas.find((d) => d.label === "Pays out sooner");
+    expect(sooner?.delta).toBeCloseTo(80_000);
+    expect(sooner?.detail).toContain("6 vs 24 months");
+  });
+
+  it("charges a required audit to the jurisdiction that requires it", () => {
+    const winner = row("New Mexico", { gross: 500_000, audit: 0 });
+    const rival = row("Georgia", { gross: 500_000, audit: 15_000 });
+
+    const compliance = explainWin(winner, rival).deltas.find((d) => d.label === "Lower compliance cost");
+    expect(compliance?.delta).toBeCloseTo(15_000);
+  });
+
+  it("walks through audit and waiting before reaching net benefit", () => {
+    const steps = buildWaterfall(
+      row("Georgia", {
+        rate: 0.3, creditType: "transferable", qualifying: 2_000_000, gross: 600_000,
+        realizable: 540_000, audit: 15_000, months: 18, presentValue: 421_059, relocation: 114_900,
+      }),
+    );
+    const labels = steps.map((s) => s.label);
+
+    expect(labels).toContain("Monetisation discount");
+    expect(labels).toContain("Audit and compliance");
+    expect(labels).toContain("Waiting 18 months to be paid");
+    expect(labels).toContain("Worth today");
+    expect(labels.indexOf("Audit and compliance")).toBeLessThan(labels.indexOf("Waiting 18 months to be paid"));
+    expect(steps.at(-1)).toMatchObject({ label: "Net benefit", value: 306_159 });
+  });
+
+  it("says whether a payment timeline was sourced or assumed", () => {
+    const sourced = buildWaterfall(row("X", { gross: 500_000, months: 4, presentValue: 480_000, timingAssumed: false }));
+    expect(sourced.find((s) => s.label.startsWith("Waiting"))?.note).toContain("stated by a source");
+
+    const assumed = buildWaterfall(row("Y", { gross: 500_000, months: 4, presentValue: 480_000, timingAssumed: true }));
+    expect(assumed.find((s) => s.label.startsWith("Waiting"))?.note).toContain("assumed");
+  });
+
+  it("omits the waiting stage when nothing was discounted", () => {
+    const steps = buildWaterfall(row("Z", { gross: 500_000, months: 12 }));
+    expect(steps.some((s) => s.label.startsWith("Waiting"))).toBe(false);
+  });
+});
+
+describe("a backend deployed before timing existed", () => {
+  // The two halves deploy independently, so the frontend has to render a
+  // response missing these fields — and render the *old* answer, not a
+  // corrupted one.
+  it("still decomposes exactly, with no timing rows invented", () => {
+    const winner = legacyRow("New Mexico", 500_000, 500_000, 90_000);
+    const rival = legacyRow("Georgia", 600_000, 540_000, 120_000);
+
+    const result = explainWin(winner, rival);
+    expect(result.deltas.some((d) => d.label.includes("Pays out"))).toBe(false);
+    expect(result.deltas.some((d) => d.label.includes("compliance"))).toBe(false);
+    expect(result.deltas.reduce((a, d) => a + d.delta, 0)).toBeCloseTo(result.total, 6);
+  });
+
+  it("builds a waterfall that ends at the undiscounted net it actually sent", () => {
+    const steps = buildWaterfall(legacyRow("Georgia", 600_000, 540_000, 120_000));
+    expect(steps.some((s) => s.label.startsWith("Waiting"))).toBe(false);
+    expect(steps.some((s) => s.label === "Audit and compliance")).toBe(false);
+    expect(steps.at(-1)).toMatchObject({ label: "Net benefit", value: 420_000 });
   });
 });

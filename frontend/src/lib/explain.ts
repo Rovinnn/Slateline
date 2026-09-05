@@ -30,24 +30,25 @@ export interface WinExplanation {
  * explanation of a number has to come from that number or it's decoration.
  * Everything here is a subtraction between two BenefitBreakdowns.
  *
- * The decomposition is exact. With `net = realizable − relocation` and
- * `discount = realizable − gross` (≤ 0):
+ * The decomposition is exact. Writing `discount = realizable − gross` (≤ 0)
+ * and `timingLoss = presentValue − (realizable − audit)` (≤ 0), the backend
+ * computes `net = gross + discount − audit + timingLoss − relocation`
+ * (pinned on that side by test_present_value.py), so:
  *
- *     (gross_w − gross_r) + (discount_w − discount_r) + (reloc_r − reloc_w)
- *   = (realizable_w − reloc_w) − (realizable_r − reloc_r)
+ *     (gross_w − gross_r) + (discount_w − discount_r) + (audit_r − audit_w)
+ *   + (timingLoss_w − timingLoss_r) + (reloc_r − reloc_w)
  *   = net_w − net_r
  *
- * so the three deltas always sum to the headline advantage. Qualifying spend
+ * and the five deltas always sum to the headline advantage. Qualifying spend
  * and headline rate multiply rather than add, so they're reported as context
  * rather than folded into the sum — claiming a clean split there would be a
  * lie about arithmetic the rest of this project refuses to tell.
  */
 export function explainWin(winner: Row, rival: Row): WinExplanation {
-  const realizableOf = (r: Row) => r.benefit.realizable_credit ?? r.benefit.gross_credit;
-  const discountOf = (r: Row) => realizableOf(r) - r.benefit.gross_credit;
-
   const creditDelta = winner.benefit.gross_credit - rival.benefit.gross_credit;
   const monetizationDelta = discountOf(winner) - discountOf(rival);
+  const auditDelta = auditOf(rival) - auditOf(winner);
+  const timingDelta = timingLossOf(winner) - timingLossOf(rival);
   const relocationDelta = rival.benefit.relocation_cost - winner.benefit.relocation_cost;
 
   const deltas: WinDelta[] = [];
@@ -67,6 +68,22 @@ export function explainWin(winner: Row, rival: Row): WinExplanation {
       label: monetizationDelta > 0 ? "Credit keeps more of its face value" : "Credit loses more to monetisation",
       detail: `${payoutPhrase(winner)} vs ${payoutPhrase(rival)}`,
       delta: monetizationDelta,
+    });
+  }
+
+  if (Math.abs(auditDelta) >= 1) {
+    deltas.push({
+      label: auditDelta > 0 ? "Lower compliance cost" : "Higher compliance cost",
+      detail: `${money(auditOf(winner))} vs ${money(auditOf(rival))} to have the spend audited before payment`,
+      delta: auditDelta,
+    });
+  }
+
+  if (Math.abs(timingDelta) >= 1) {
+    deltas.push({
+      label: timingDelta > 0 ? "Pays out sooner" : "Pays out later",
+      detail: `${monthsOf(winner)} vs ${monthsOf(rival)} months from wrap to money in hand`,
+      delta: timingDelta,
     });
   }
 
@@ -105,6 +122,38 @@ export function explainWin(winner: Row, rival: Row): WinExplanation {
   };
 }
 
+/* The stages of the walk from face value to cash, each with the fallback a
+ * backend deployed before that stage existed makes necessary. The frontend
+ * and backend deploy separately, so "the field isn't there" is a normal
+ * runtime state, not a bug — and every fallback below is the value that
+ * reproduces the older behaviour exactly. */
+
+/** What the credit is worth after a broker's cut. Face value if none. */
+function realizableOf(row: Row): number {
+  return row.benefit.realizable_credit ?? row.benefit.gross_credit;
+}
+
+/** The broker's cut itself, as a non-positive number. */
+function discountOf(row: Row): number {
+  return realizableOf(row) - row.benefit.gross_credit;
+}
+
+/** Cost of the audit standing between wrap and payment. */
+function auditOf(row: Row): number {
+  return row.benefit.audit_cost ?? 0;
+}
+
+/** What the wait costs, as a non-positive number. Zero on an older backend,
+ *  which reproduces its undiscounted arithmetic exactly. */
+function timingLossOf(row: Row): number {
+  const pv = row.benefit.present_value ?? realizableOf(row) - auditOf(row);
+  return pv - (realizableOf(row) - auditOf(row));
+}
+
+function monthsOf(row: Row): number {
+  return row.benefit.months_to_payment ?? 0;
+}
+
 function payoutPhrase(row: Row): string {
   const type = row.rule.credit_type ?? "unknown";
   const phrases: Record<string, string> = {
@@ -141,8 +190,10 @@ export interface WaterfallStep {
  */
 export function buildWaterfall(row: Row): WaterfallStep[] {
   const { rule, benefit } = row;
-  const realizable = benefit.realizable_credit ?? benefit.gross_credit;
-  const discount = realizable - benefit.gross_credit;
+  const realizable = realizableOf(row);
+  const discount = discountOf(row);
+  const audit = auditOf(row);
+  const timingLoss = timingLossOf(row);
 
   const steps: WaterfallStep[] = [
     {
@@ -167,6 +218,30 @@ export function buildWaterfall(row: Row): WaterfallStep[] {
       note: benefit.monetization_note ?? undefined,
     });
     steps.push({ label: "Realizable in cash", value: realizable, kind: "total" });
+  }
+
+  if (audit >= 1) {
+    steps.push({
+      label: "Audit and compliance",
+      value: -audit,
+      kind: "deduction",
+      note: "a required audit is paid to earn the credit, not out of it",
+    });
+  }
+
+  // The stage the tool was missing entirely: a credit is a claim on future
+  // money, and the wait is a real cost even when nobody discounts the face
+  // value. Omitted when timing was never applied, so a pre-timing backend
+  // still renders a coherent walk.
+  if (timingLoss <= -1) {
+    const months = monthsOf(row);
+    steps.push({
+      label: `Waiting ${months} months to be paid`,
+      value: timingLoss,
+      kind: "deduction",
+      note: benefit.timing_is_assumed === false ? "timeline stated by a source" : "typical wait, assumed",
+    });
+    steps.push({ label: "Worth today", value: benefit.present_value ?? realizable, kind: "total" });
   }
 
   if (benefit.relocation_cost > 0) {
