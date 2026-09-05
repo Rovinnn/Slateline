@@ -3,6 +3,7 @@ the real request/response cycle (JSON (de)serialization of the dataclasses,
 routing, verify_rule wiring), not just the underlying Python functions.
 """
 
+import pytest
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
 
@@ -191,3 +192,35 @@ def test_budget_parse_surfaces_a_model_failure_as_502(monkeypatch):
     resp = client.post("/budget/parse", files={"file": ("topsheet.pdf", b"%PDF-1.4 fake", "application/pdf")})
 
     assert resp.status_code == 502
+
+
+def test_compute_accepts_an_editable_transfer_discount():
+    # A transferable credit's cash value turns on the broker discount, so the
+    # client has to be able to change it — it was a backend-only default.
+    from app.models import JurisdictionRule
+    from dataclasses import replace as dc_replace
+
+    transferable = dc_replace(GEORGIA, minimum_spend=None, credit_type="transferable")
+    body = {"budget": jsonable_encoder(make_budget()), "rule": jsonable_encoder(transferable)}
+
+    default = client.post("/compute", json=body).json()
+    steep = client.post("/compute", json={**body, "transfer_discount": 0.5}).json()
+
+    assert isinstance(transferable, JurisdictionRule)
+    assert steep["realizable_credit"] < default["realizable_credit"]
+    assert steep["realizable_credit"] == pytest.approx(default["gross_credit"] * 0.5)
+
+
+def test_compute_accepts_an_explicit_cast_count():
+    # The wage cap otherwise divides ATL cast by a guess (8% of crew).
+    from dataclasses import replace as dc_replace
+
+    capped = dc_replace(GEORGIA, per_person_wage_cap=50_000, minimum_spend=None)
+    budget = make_budget(atl_cast=1_000_000, crew_headcount=45)
+    body = {"budget": jsonable_encoder(budget), "rule": jsonable_encoder(capped)}
+
+    guessed = client.post("/compute", json=body).json()
+    stated = client.post("/compute", json={**body, "cast_count": 20}).json()
+
+    # 20 cast at a $50k cap admits far more than the guessed 4 would.
+    assert stated["qualifying_spend"] > guessed["qualifying_spend"]

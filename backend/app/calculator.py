@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace
+from datetime import date
 from typing import Optional
 
 from .models import BenefitBreakdown, BudgetVector, JurisdictionRule, RelocationAssumptions
@@ -141,6 +142,49 @@ def _monetize(
     return gross_credit, "payout mechanism not stated in sources — shown at face value"
 
 
+def _availability_block(rule: JurisdictionRule, today: date) -> Optional[str]:
+    """Why this program's money can't actually be accessed, if it can't.
+
+    BUILD_BRIEF.md section 1 is built on this: "they report the rate but not
+    whether the annual funding pool is exhausted, the application window has
+    closed, or the program is sunsetting. A 30% credit you can't access is a
+    0% credit." Until now compute_benefit read none of these fields, so a
+    closed program computed a full credit and could rank first — the exact
+    failure the product exists to prevent.
+    """
+    if rule.pool_status == "closed":
+        return (
+            f"{rule.program_name}'s funding pool is closed — the credit cannot be claimed for "
+            "this production regardless of rate."
+        )
+    if rule.sunset_date is not None and rule.sunset_date < today:
+        return f"{rule.program_name} sunset on {rule.sunset_date.isoformat()} and is no longer available."
+    if rule.application_deadline is not None and rule.application_deadline < today:
+        return (
+            f"{rule.program_name}'s application window closed on "
+            f"{rule.application_deadline.isoformat()}."
+        )
+    return None
+
+
+def _availability_warnings(rule: JurisdictionRule) -> list[str]:
+    """Conditions that don't block a claim but qualify the recommendation."""
+    notes = []
+    if rule.pool_status == "capping_out":
+        notes.append(
+            "funding is capping out — the pool may be exhausted before this production applies; "
+            "confirm remaining allocation with the film office"
+        )
+    elif rule.pool_status == "unknown":
+        notes.append(
+            "funding availability not confirmed in sources — this figure assumes the program can "
+            "still be accessed"
+        )
+    if rule.under_review:
+        notes.append("program is under legislative review; terms may change before you apply")
+    return notes
+
+
 def compute_benefit(
     budget: BudgetVector,
     rule: JurisdictionRule,
@@ -149,13 +193,18 @@ def compute_benefit(
     assumptions: Optional[RelocationAssumptions] = None,
     cast_count: Optional[int] = None,
     transfer_discount: float = DEFAULT_TRANSFER_DISCOUNT,
+    today: Optional[date] = None,
 ) -> BenefitBreakdown:
-    """Pure function. No I/O, no model calls, fully deterministic.
+    """No I/O, no model calls. Deterministic given its arguments — pass
+    `today` explicitly to pin the sunset/deadline comparisons; it defaults to
+    the current date purely as a convenience, the same concession
+    verification.assess_confidence makes.
 
     Applies the calculation rules in BUILD_BRIEF.md section 6, in order, and
     records every cap that bites in the returned caps_applied list.
     """
     assumptions = assumptions or RelocationAssumptions()
+    today = today or date.today()
     caps_applied: list[str] = []
 
     if rule.is_discretionary:
@@ -201,8 +250,27 @@ def compute_benefit(
             ),
         )
 
+    unavailable = _availability_block(rule, today)
+    if unavailable:
+        return BenefitBreakdown(
+            jurisdiction=rule.jurisdiction,
+            qualifying_spend=0.0,
+            gross_credit=0.0,
+            caps_applied=[unavailable],
+            distance_km=distance_km,
+            travel_time_hours=travel_time_hours,
+            relocation_cost=0.0,
+            relocation_components={},
+            realizable_credit=0.0,
+            monetization_note=None,
+            net_benefit=0.0,
+            computable=False,
+            non_computable_reason=unavailable,
+        )
+
     q = rule.qualifying
     cast_count = cast_count if cast_count is not None else assumed_cast_count(budget.crew_headcount)
+    caps_applied.extend(_availability_warnings(rule))
 
     atl_cast_capped, wage_note = _apply_wage_cap(budget.atl_cast, rule.per_person_wage_cap, cast_count)
     if wage_note:

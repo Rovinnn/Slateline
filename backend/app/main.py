@@ -15,7 +15,7 @@ from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import cache
-from .calculator import compute_benefit
+from .calculator import DEFAULT_TRANSFER_DISCOUNT, compute_benefit
 from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
@@ -71,6 +71,12 @@ def compute(
     distance_km: Optional[float] = Body(default=None),
     travel_time_hours: Optional[float] = Body(default=None),
     assumptions: Optional[RelocationAssumptions] = None,
+    # Both were computed but unreachable from any client. The transfer
+    # discount decides what a transferable credit is worth, and cast_count
+    # drives the per-person wage cap off an 8%-of-crew guess — consequential
+    # assumptions have to be editable, per BUILD_BRIEF.md section 6.
+    transfer_discount: float = Body(default=DEFAULT_TRANSFER_DISCOUNT),
+    cast_count: Optional[int] = Body(default=None),
 ) -> BenefitBreakdown:
     """Layer 2, exposed directly. Given an already-extracted rule (or a
     hand-written fixture, for now) and a distance, returns the net benefit.
@@ -82,7 +88,15 @@ def compute(
     Python place" credibility claim in section 4.
     """
     verified_rule = verify_rule(rule)
-    return compute_benefit(budget, verified_rule, distance_km, travel_time_hours, assumptions)
+    return compute_benefit(
+        budget,
+        verified_rule,
+        distance_km,
+        travel_time_hours,
+        assumptions,
+        cast_count=cast_count,
+        transfer_discount=transfer_discount,
+    )
 
 
 @app.post("/compute/batch", response_model=list[BenefitBreakdown])
@@ -92,6 +106,8 @@ def compute_batch(
     distance_km: Optional[float] = Body(default=None),
     travel_time_hours: Optional[float] = Body(default=None),
     assumptions: Optional[RelocationAssumptions] = None,
+    transfer_discount: float = Body(default=DEFAULT_TRANSFER_DISCOUNT),
+    cast_count: Optional[int] = Body(default=None),
 ) -> list[BenefitBreakdown]:
     """compute_benefit over a list of budgets against one rule, in a single
     round trip. Used by the frontend's breakeven sparkline (BUILD_BRIEF.md
@@ -99,7 +115,18 @@ def compute_batch(
     point. Same pure function as /compute, just batched — no new arithmetic.
     """
     verified_rule = verify_rule(rule)
-    return [compute_benefit(b, verified_rule, distance_km, travel_time_hours, assumptions) for b in budgets]
+    return [
+        compute_benefit(
+            b,
+            verified_rule,
+            distance_km,
+            travel_time_hours,
+            assumptions,
+            cast_count=cast_count,
+            transfer_discount=transfer_discount,
+        )
+        for b in budgets
+    ]
 
 
 @app.post("/jurisdictions/search", response_model=JurisdictionRule)
