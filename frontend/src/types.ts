@@ -65,6 +65,10 @@ export interface JurisdictionRule {
   credit_type: CreditType;
   /** Whether employer-side payroll burden counts as qualified spend. Null = sources didn't say. */
   fringes_qualify: boolean | null;
+  /** ISO 4217 code the figures are stated in. The backend refuses to compute a
+   *  non-USD rule rather than converting, so this arrives already reflected in
+   *  `non_computable_reason` — declared here because the field is sent. */
+  currency: string;
 }
 
 export interface BudgetVector {
