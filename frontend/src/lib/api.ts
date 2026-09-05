@@ -1,4 +1,5 @@
 import type {
+  ChallengeResponse,
   CreditTimingAssumptions,
   BenefitBreakdown,
   BudgetVector,
@@ -112,6 +113,22 @@ export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: bool
   const params = new URLSearchParams({ jurisdiction });
   if (opts?.refresh) params.set("refresh", "true");
   return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
+}
+
+/**
+ * Layer 1b: ask whether this rule is wrong.
+ *
+ * A separate call from searchJurisdiction on purpose — it's a second Parallel
+ * + Gemini round trip, so folding it into the initial load would roughly
+ * double an already slow first paint. Called after results render, it
+ * annotates them in place: the ranking appears fast, then each jurisdiction
+ * gains either a conflict or the note that we went looking and found nothing.
+ *
+ * Sends the whole rule, not a name: the point is to disagree with the figures
+ * currently on screen, not to run discovery again.
+ */
+export function challengeJurisdiction(rule: JurisdictionRule): Promise<ChallengeResponse> {
+  return postJson<ChallengeResponse>("/jurisdictions/challenge", rule);
 }
 
 export interface DistanceInfo {

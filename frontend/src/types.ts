@@ -161,6 +161,34 @@ export interface BenefitBreakdown {
   timing_note: string | null;
 }
 
+/** One point where a challenge source disagrees with a held figure.
+ *  Mirrors backend/app/extraction/challenge.py ChallengeFinding. */
+export interface ChallengeFinding {
+  field_name: string;
+  current_value: string;
+  source_says: string;
+  url: string;
+  excerpt: string;
+  /** Code's judgement, not the model's: only "material" disagreements
+   *  downgrade confidence. A wrong phone number is not a wrong tax rate. */
+  severity: "material" | "minor";
+}
+
+/** What the falsification pass found — including finding nothing. */
+export interface ChallengeReport {
+  jurisdiction: string;
+  findings: ChallengeFinding[];
+  corroborated_fields: string[];
+  /** Zero means the pass had nothing to read, which is not a clean result. */
+  sources_checked: number;
+}
+
+/** Response from POST /jurisdictions/challenge. */
+export interface ChallengeResponse {
+  rule: JurisdictionRule;
+  report: ChallengeReport;
+}
+
 /** Result of parsing an uploaded budget PDF — see backend/app/extraction/budget_parser.py. */
 export interface ParsedBudget {
   budget: BudgetVector;

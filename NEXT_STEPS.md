@@ -89,7 +89,7 @@ a Stage 1 failure — but Technological Implementation (25%) explicitly rewards
 satisfy the brief's own *"the agent must invoke the calculator tool"* line,
 which we skipped by building a pipeline instead.
 
-### 2.5 Conflict detection — ~half a day, lowest of these
+### 2.5 Conflict detection — ✅ done (via §6.3)
 Brief section 4 says Layer 3 *"**cross-checks values across retrieved
 sources**"*, and build order step 8 lists *"conflict detection"*. We assign
 confidence and mark non-computable programs, but **nothing compares source A
@@ -99,6 +99,14 @@ our own code (the model does occasionally populate it directly).
 
 Needs 2+ sources per field to compare, so it's the most work for the least
 visible payoff. Last of the five.
+
+**Done**, but not the way this described. Rather than diffing the discovery
+pass's own sources against each other, the adversarial pass in §6.3 goes and
+*finds* contradicting sources — which is strictly better, because the
+discovery pass tends to return sources that agree (they're all restating the
+same statute). `conflicts` is now populated by `apply_challenge`, so
+`confidence: "conflicting"` is reachable from our own code for the first
+time.
 
 ---
 
@@ -258,7 +266,21 @@ interaction is the interesting part — surface it rather than hiding it.
 **Cost:** A day, maybe two. The calculator already handles the
 per-jurisdiction math; this is a search over combinations of it.
 
-### 6.3 Adversarial verification
+### 6.3 Adversarial verification — ✅ done
+**Outcome:** `app/extraction/challenge.py` — a second Parallel + Gemini pass
+searching for suspensions, exhausted pools, pending amendments and trade
+coverage, forced (mode=ANY) into `record_challenge_result`. Exposed as
+`POST /jurisdictions/challenge`, called *after* results render so it annotates
+rather than delaying an already slow first paint.
+
+Three rules keep it honest, each with tests: silence in a source is not a
+contradiction (a model rewarded for finding problems will find them); it
+reports and never overwrites a figure; and code, not the model, decides
+whether a disagreement is material — a wrong phone number does not condemn a
+jurisdiction. Finding nothing is recorded as a result, and "checked against 4
+sources, nothing contradicts it" is rendered distinctly from "couldn't
+check", which must never read as a clean bill of health.
+
 **What:** A second agent pass whose only job is to disprove the first. It
 searches for amendments, pending bills, pool exhaustion notices, and trade
 coverage contradicting what the extraction pass found — then reports the

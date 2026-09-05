@@ -224,3 +224,98 @@ def test_compute_accepts_an_explicit_cast_count():
 
     # 20 cast at a $50k cap admits far more than the guessed 4 would.
     assert stated["qualifying_spend"] > guessed["qualifying_spend"]
+
+
+# ---------- Layer 1b: the challenge endpoint ----------
+
+def _challenge_raw(contradictions=(), corroborations=()):
+    return {"contradictions": list(contradictions), "corroborations": list(corroborations)}
+
+
+def _rate_contradiction(url="https://example.gov/hb1001"):
+    return {
+        "field": "base_rate",
+        "current_value": "30.0%",
+        "source_says": "20% from tax year 2027",
+        "url": url,
+        "excerpt": "The credit is reduced to 20%.",
+    }
+
+
+def _patch_challenge(monkeypatch, raw, sources=4):
+    monkeypatch.setattr("app.extraction.challenge._challenge_search", lambda rule: [object()] * sources)
+    monkeypatch.setattr("app.extraction.challenge._challenge_with_forced_function_call", lambda rule, r: raw)
+
+
+def test_challenge_endpoint_downgrades_confidence_on_a_material_contradiction(monkeypatch):
+    _patch_challenge(monkeypatch, _challenge_raw([_rate_contradiction()]))
+    rule = make_rule(jurisdiction="Georgia", base_rate=0.30)
+
+    resp = client.post("/jurisdictions/challenge", json=jsonable_encoder(rule))
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert body["rule"]["confidence"] == "conflicting"
+    assert len(body["rule"]["conflicts"]) == 1
+    # The figure itself is never rewritten — the disagreement is surfaced, not resolved.
+    assert body["rule"]["base_rate"] == 0.30
+    assert body["report"]["findings"][0]["severity"] == "material"
+
+
+def test_challenge_endpoint_reports_a_clean_result_distinctly_from_no_result(monkeypatch):
+    # "We looked and found nothing" is evidence; "we couldn't look" is not,
+    # and the response has to let the caller tell them apart.
+    _patch_challenge(monkeypatch, _challenge_raw(), sources=4)
+    rule = make_rule(jurisdiction="Georgia")
+    checked = client.post("/jurisdictions/challenge", json=jsonable_encoder(rule)).json()
+
+    _patch_challenge(monkeypatch, _challenge_raw(), sources=0)
+    unchecked = client.post("/jurisdictions/challenge", json=jsonable_encoder(rule)).json()
+
+    assert checked["report"]["sources_checked"] == 4
+    assert checked["report"]["findings"] == []
+    assert unchecked["report"]["sources_checked"] == 0
+    assert checked["rule"]["confidence"] != "conflicting"
+
+
+def test_challenge_endpoint_returns_502_when_the_challenge_pass_fails(monkeypatch):
+    def boom(rule):
+        raise RuntimeError("Parallel timed out")
+
+    monkeypatch.setattr("app.main.challenge_rule", boom)
+    resp = client.post("/jurisdictions/challenge", json=jsonable_encoder(make_rule(jurisdiction="Georgia")))
+    assert resp.status_code == 502
+    assert "Parallel timed out" in resp.json()["detail"]
+
+
+def test_challenge_endpoint_updates_the_cache_so_a_later_search_is_not_stale(monkeypatch):
+    """A cached rule must not outlive the challenge that contradicted it.
+
+    Otherwise the next /jurisdictions/search hands back the unchallenged
+    version and the conflict silently disappears — the exact failure this
+    whole pass exists to prevent, reintroduced by the cache.
+    """
+    from app import cache
+
+    cache.clear()
+    rule = make_rule(jurisdiction="Georgia", base_rate=0.30)
+    cache.set("Georgia", rule)
+    assert cache.get("Georgia").conflicts == []
+
+    _patch_challenge(monkeypatch, _challenge_raw([_rate_contradiction()]))
+    client.post("/jurisdictions/challenge", json=jsonable_encoder(rule))
+
+    assert cache.get("Georgia").conflicts != []
+    cache.clear()
+
+
+def test_challenge_endpoint_does_not_populate_the_cache_for_an_unsearched_rule(monkeypatch):
+    # A hand-supplied or seed rule was never cached; caching it here would
+    # make a rule the user pasted in look like a live extraction.
+    from app import cache
+
+    cache.clear()
+    _patch_challenge(monkeypatch, _challenge_raw([_rate_contradiction()]))
+    client.post("/jurisdictions/challenge", json=jsonable_encoder(make_rule(jurisdiction="Nowhere")))
+
+    assert cache.get("Nowhere") is None

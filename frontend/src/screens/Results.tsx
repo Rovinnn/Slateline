@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CONSTRAINTS } from "../data/constraints";
 import { DEFAULT_JURISDICTIONS } from "../data/examples";
-import { ApiError, computeBenefit, getDistance, searchJurisdiction, type DistanceInfo } from "../lib/api";
+import {
+  ApiError,
+  challengeJurisdiction,
+  computeBenefit,
+  getDistance,
+  searchJurisdiction,
+  type DistanceInfo,
+} from "../lib/api";
+import { challengeState } from "../lib/challenge";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import type { Row } from "../lib/explain";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_CREDIT_TIMING, DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
 import type {
   BudgetVector,
+  ChallengeReport,
   CreditTimingAssumptions,
   JurisdictionRule,
   PoolStatus,
@@ -47,12 +56,14 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [tab, setTab] = useState<"memo" | "compare" | "map">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
+  const [challenges, setChallenges] = useState<Record<string, ChallengeReport | "checking" | "failed">>({});
   const [printing, setPrinting] = useState(false);
   const [searchProgress, setSearchProgress] = useState<Record<string, "searching" | "done" | "failed">>(() =>
     Object.fromEntries(DEFAULT_JURISDICTIONS.map((n) => [n, "searching" as const])),
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedDistancesRef = useRef<Set<string>>(new Set());
+  const challengedRef = useRef<Set<string>>(new Set());
 
   // Fetched once on mount — DEFAULT_JURISDICTIONS is just a list of names to
   // look up, not data. Each one runs the real Layer 1 pipeline (Parallel
@@ -136,6 +147,52 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       cancelled = true;
     };
   }, [rules, initialBudget.home_base]);
+
+
+  // Layer 1b, as progressive enhancement: the ranking renders off the
+  // discovery pass, then a second pass goes looking for evidence that each
+  // rule is wrong and annotates it in place. Deliberately not awaited before
+  // first paint — it's another Parallel + Gemini round trip per jurisdiction,
+  // and doubling a 30-60s load to show the same ranking with a badge on it
+  // would be a bad trade.
+  //
+  // The challenged rule comes back with any conflicts merged in and its
+  // confidence downgraded, so it goes through addRule like any other rule
+  // update rather than down a second rendering path. challengedRef (not
+  // `challenges`) gates what's in flight, so this doesn't re-fire on its own
+  // state update.
+  useEffect(() => {
+    if (!rules) return;
+    const toChallenge = rules.filter((r) => !challengedRef.current.has(r.jurisdiction));
+    if (toChallenge.length === 0) return;
+    for (const r of toChallenge) challengedRef.current.add(r.jurisdiction);
+    setChallenges((c) => ({
+      ...c,
+      ...Object.fromEntries(toChallenge.map((r) => [r.jurisdiction, "checking" as const])),
+    }));
+
+    let cancelled = false;
+    for (const rule of toChallenge) {
+      challengeJurisdiction(rule).then(
+        (response) => {
+          if (cancelled) return;
+          setChallenges((c) => ({ ...c, [rule.jurisdiction]: response.report }));
+          // Only fold the rule back in when it actually changed: a clean
+          // challenge returns it untouched, and re-setting it would churn a
+          // recompute for nothing.
+          if (response.rule.conflicts.length > rule.conflicts.length) addRule(response.rule);
+        },
+        () => {
+          // A failed challenge must never read as a clean one — it's recorded
+          // as "couldn't check", which challengeState renders distinctly.
+          if (!cancelled) setChallenges((c) => ({ ...c, [rule.jurisdiction]: "failed" }));
+        },
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [rules]);
 
   // Layer 2 is a pure function with no I/O of its own, so recomputing on every
   // slider tick still means "no model call" per BUILD_BRIEF.md section 7 — it
@@ -340,6 +397,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           setShowUnverified={setShowUnverified}
           onRefresh={refreshRule}
           refreshing={refreshing}
+          challenges={challenges}
         />
       )}
 
@@ -440,6 +498,7 @@ function ReadyResults({
   setShowUnverified,
   onRefresh,
   refreshing,
+  challenges,
 }: {
   rows: Row[];
   liveBudget: BudgetVector;
@@ -458,6 +517,8 @@ function ReadyResults({
   /** Re-runs Layer 1 live for one jurisdiction, bypassing the backend's cache. */
   onRefresh: (jurisdiction: string) => void;
   refreshing: Record<string, boolean>;
+  /** Layer 1b results per jurisdiction; absent means still in flight. */
+  challenges: Record<string, ChallengeReport | "checking" | "failed">;
 }) {
   const computable = rows.filter((r) => r.benefit.computable).sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
   const unverified = rows.filter((r) => !r.benefit.computable);
@@ -492,6 +553,7 @@ function ReadyResults({
         runnerUp={rest[0]}
         onRefresh={onRefresh}
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
+        challenge={challenges[hero.rule.jurisdiction]}
       />
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
@@ -527,6 +589,7 @@ function ReadyResults({
                 failing={failingConstraint(row.rule, liveBudget.constraints)}
                 onRefresh={onRefresh}
                 refreshing={refreshing[row.rule.jurisdiction] ?? false}
+                challenge={challenges[row.rule.jurisdiction]}
               />
             ))}
           </div>
@@ -919,6 +982,65 @@ function CreditTimingPanel({
   );
 }
 
+const CHALLENGE_CLASS: Record<string, string> = {
+  checking: "border-border-2 bg-card-2 text-ink-3",
+  contradicted: "border-red/20 bg-red-bg text-red",
+  corroborated: "border-teal/20 bg-teal-bg text-teal",
+  unchecked: "border-border-2 bg-card-2 text-ink-3",
+};
+
+/**
+ * What the falsification pass (Layer 1b) found for one jurisdiction.
+ *
+ * Renders four states, and the one that matters most is `unchecked`: a pass
+ * that found nothing because it had nothing to read is not a clean result,
+ * and showing it in the same teal as a genuine corroboration would turn a
+ * failed check into a reassurance.
+ */
+function ChallengeBadge({ challenge }: { challenge?: ChallengeReport | "checking" | "failed" }) {
+  const state = challengeState(challenge);
+  if (state.status === "checking") {
+    return (
+      <span className="font-mono text-[10.5px] text-ink-3">re-checking against contradicting sources…</span>
+    );
+  }
+  return (
+    <span
+      className={`border px-1.5 py-1 font-mono text-[10.5px] leading-none ${CHALLENGE_CLASS[state.status]}`}
+      title={
+        state.status === "contradicted"
+          ? "A source explicitly disagrees with a figure this ranking depends on — see conflicts below."
+          : "A second search looked for evidence this program has changed."
+      }
+    >
+      {state.label}
+    </span>
+  );
+}
+
+/** The specific disagreements, named so they can be adjudicated. */
+function ConflictList({ conflicts }: { conflicts: string[] }) {
+  if (conflicts.length === 0) return null;
+  return (
+    <div className="border border-red/30 bg-red-bg px-3 py-2.5">
+      <div className="mb-1.5 font-mono text-[10.5px] font-medium tracking-wide text-red">
+        SOURCES DISAGREE
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {conflicts.map((c, i) => (
+          <div key={i} className="font-mono text-[11px] leading-relaxed text-red">
+            {c}
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 font-sans text-[11.5px] leading-relaxed text-[#7d3529]">
+        Figures above are unchanged — this tool surfaces the disagreement rather than picking a side.
+        Confirm with the film office before relying on this jurisdiction.
+      </div>
+    </div>
+  );
+}
+
 function BreakevenLine({ breakeven }: { breakeven: BreakevenResult }) {
   const { series, hi, heroName, atlNow, crossAtl, above, rivalName } = breakeven;
   const W = 260;
@@ -980,6 +1102,7 @@ function HeroCard({
   runnerUp,
   onRefresh,
   refreshing,
+  challenge,
 }: {
   row: Row;
   breakeven: BreakevenResult | "loading" | "error" | null;
@@ -988,6 +1111,8 @@ function HeroCard({
   runnerUp?: Row;
   onRefresh: (jurisdiction: string) => void;
   refreshing: boolean;
+  /** Layer 1b result; undefined means still in flight. */
+  challenge?: ChallengeReport | "checking" | "failed";
 }) {
   const { rule, benefit } = row;
   return (
@@ -1002,12 +1127,19 @@ function HeroCard({
             <span className={`border px-1.5 py-1 font-mono text-[10.5px] font-medium uppercase tracking-wide ${POOL_STATUS_CLASS[rule.pool_status]}`}>
               {POOL_STATUS_LABEL[rule.pool_status]}
             </span>
+            <ChallengeBadge challenge={challenge} />
           </div>
           <div className="mb-5 font-mono text-[12.5px] text-ink-2">{rule.program_name}</div>
 
           {failing && (
             <div className="mb-4 border border-amber/30 bg-amber-bg px-3 py-2 font-mono text-[11.5px] leading-relaxed text-amber">
               Doesn't meet a constraint: {failing}
+            </div>
+          )}
+
+          {rule.conflicts.length > 0 && (
+            <div className="mb-4">
+              <ConflictList conflicts={rule.conflicts} />
             </div>
           )}
 
@@ -1098,6 +1230,7 @@ function RunnerUpCard({
   failing,
   onRefresh,
   refreshing,
+  challenge,
 }: {
   row: Row;
   rank: number;
@@ -1105,6 +1238,7 @@ function RunnerUpCard({
   failing?: string | null;
   onRefresh: (jurisdiction: string) => void;
   refreshing: boolean;
+  challenge?: ChallengeReport | "checking" | "failed";
 }) {
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
@@ -1120,6 +1254,10 @@ function RunnerUpCard({
             </span>
           </div>
           <div className="mt-1 font-mono text-[11.5px] text-ink-4">{(rule.base_rate * 100).toFixed(1)}% base rate</div>
+          <div className="mt-1.5"><ChallengeBadge challenge={challenge} /></div>
+          {rule.conflicts.length > 0 && (
+            <div className="mt-2 font-mono text-[11px] leading-relaxed text-red">{rule.conflicts[0]}</div>
+          )}
           {failing && <div className="mt-1 font-mono text-[11px] leading-relaxed text-amber">Doesn't meet: {failing}</div>}
         </div>
         <div>

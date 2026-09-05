@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Optional
 
 from fastapi import Body, FastAPI, File, HTTPException, UploadFile
@@ -18,6 +18,7 @@ from . import cache
 from .calculator import DEFAULT_TRANSFER_DISCOUNT, compute_benefit
 from .constraints import constraint_gaps_for
 from .extraction.agent import extract_jurisdiction_rule
+from .extraction.challenge import ChallengeReport, apply_challenge, challenge_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
 from .models import (
@@ -37,6 +38,20 @@ def _verify_and_annotate(rule: JurisdictionRule) -> JurisdictionRule:
     """
     verified = verify_rule(rule)
     return replace(verified, constraint_gaps=constraint_gaps_for(verified))
+
+@dataclass
+class ChallengeResponse:
+    """The annotated rule plus what the challenge actually found.
+
+    Both halves matter: the rule carries any conflicts and the downgraded
+    confidence, while the report says whether the pass had sources to read at
+    all — "we checked and found nothing" and "we couldn't check" must never
+    render as the same thing.
+    """
+
+    rule: JurisdictionRule
+    report: ChallengeReport
+
 
 app = FastAPI(title="Incentive Verifier API")
 
@@ -169,6 +184,39 @@ def search_jurisdictions(jurisdiction: str, refresh: bool = False) -> Jurisdicti
     result = _verify_and_annotate(rule)
     cache.set(jurisdiction, result)
     return result
+
+
+@app.post("/jurisdictions/challenge", response_model=ChallengeResponse)
+def challenge_jurisdiction(rule: JurisdictionRule) -> "ChallengeResponse":
+    """Layer 1b: search for evidence this rule is wrong, and report what turns up.
+
+    A separate endpoint rather than part of /jurisdictions/search on purpose.
+    It's a second Parallel + Gemini round trip, so folding it in would roughly
+    double an already 30-60s first paint. Called after results render, it
+    annotates them in place — the ranking appears fast, then each jurisdiction
+    gains either a conflict or the (genuinely informative) note that we went
+    looking and found nothing.
+
+    Takes a whole rule rather than a name because the challenge is against
+    specific held figures: the point is to disagree with what we're showing,
+    not to run discovery a second time.
+    """
+    try:
+        report = challenge_rule(rule)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not challenge the rule for {rule.jurisdiction!r}: {exc}",
+        ) from exc
+    # _verify_and_annotate, not verify_rule alone: a material contradiction
+    # changes confidence, and the constraint gaps have to be recomputed on the
+    # same object the caller receives.
+    challenged = _verify_and_annotate(apply_challenge(rule, report))
+    # Keep the cache consistent with what was just shown, so a later search
+    # doesn't quietly hand back the unchallenged version.
+    if cache.get(rule.jurisdiction) is not None:
+        cache.set(rule.jurisdiction, challenged)
+    return ChallengeResponse(rule=challenged, report=report)
 
 
 @app.post("/budget/parse", response_model=ParsedBudget)

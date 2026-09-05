@@ -162,6 +162,25 @@ def test_parsed_budget_shape_is_declared(ts_source):
     assert _interface_fields(ts_source, "ParsedBudget") == _dataclass_fields(ParsedBudget)
 
 
+@pytest.mark.parametrize("ts_name", ["ChallengeFinding", "ChallengeReport"])
+def test_challenge_shapes_are_declared(ts_name):
+    # Same boundary, via /jurisdictions/challenge. These live in
+    # extraction/challenge.py rather than models.py, so they'd otherwise sit
+    # outside every parity check in this file.
+    from app.extraction import challenge
+
+    src = _strip_comments(TYPES_TS.read_text(encoding="utf-8"))
+    assert _interface_fields(src, ts_name) == _dataclass_fields(getattr(challenge, ts_name))
+
+
+def test_the_challenge_severity_union_matches_the_backend(ts_source):
+    from app.extraction.challenge import Severity
+
+    match = re.search(r'severity:\s*([^;]+);', ts_source)
+    assert match, "ChallengeFinding declares no severity"
+    assert set(re.findall(r'"([^"]*)"', match.group(1))) == set(get_args(Severity))
+
+
 # ---------- the parser's own assumptions, so a silent pass is impossible ----------
 
 
