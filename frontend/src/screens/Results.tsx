@@ -3,17 +3,14 @@ import { CONSTRAINTS } from "../data/constraints";
 import { DEFAULT_JURISDICTIONS } from "../data/examples";
 import { ApiError, computeBenefit, getDistance, searchJurisdiction, type DistanceInfo } from "../lib/api";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
+import type { Row } from "../lib/explain";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
-import type { BenefitBreakdown, BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
+import type { BudgetVector, JurisdictionRule, PoolStatus, RelocationAssumptions } from "../types";
 import { ComparisonTable } from "./ComparisonTable";
 import { FundingAvailability, SourceEvidence } from "./Evidence";
 import { MapView } from "./MapView";
-
-interface Row {
-  rule: JurisdictionRule;
-  benefit: BenefitBreakdown;
-}
+import { Waterfall, WhyItWins } from "./Recommendation";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; rows: Row[] };
 
@@ -880,9 +877,6 @@ function HeroCard({
   refreshing: boolean;
 }) {
   const { rule, benefit } = row;
-  // An older backend won't send realizable_credit; face value is the correct
-  // fallback (it's what the old model implicitly assumed).
-  const realizable = benefit.realizable_credit ?? benefit.gross_credit;
   return (
     <div
       title={failing ?? undefined}
@@ -915,23 +909,14 @@ function HeroCard({
             </div>
           )}
           <div className="border-b border-[#eae8e1] pb-4">
-            <div className="font-mono text-[14px] text-[#3d3a34]">
-              {realizable !== benefit.gross_credit ? (
-                <>
-                  {money(benefit.gross_credit)} face → {money(realizable)} realizable −{" "}
-                  {money(benefit.relocation_cost)} relocation = {money(benefit.net_benefit)}
-                </>
-              ) : (
-                <>
-                  {money(benefit.gross_credit)} gross credit − {money(benefit.relocation_cost)} relocation ={" "}
-                  {money(benefit.net_benefit)}
-                </>
-              )}
-            </div>
-            {benefit.monetization_note && (
-              <div className="mt-1.5 font-mono text-[11.5px] text-ink-2">{benefit.monetization_note}</div>
-            )}
+            <Waterfall row={row} />
           </div>
+
+          {runnerUp && (
+            <div className="border-b border-[#eae8e1] py-4">
+              <WhyItWins winner={row} rival={runnerUp} />
+            </div>
+          )}
 
           <div className="border-b border-[#eae8e1] py-4">
             <FundingAvailability rule={rule} />
