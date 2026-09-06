@@ -240,16 +240,66 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       pytest and frontend lint/test/build on every push and PR, with no
       credentials needed. `backend/scripts/smoke_test.py` drives the real
       deployed stack and asserts the invariants that must hold whatever
-      Parallel/Gemini/Maps return (net == gross − relocation, components
-      summing, credit monotonic in spend, canonical jurisdiction names,
-      `retrieved` stamped today, coastal states not flagged landlocked); it's
-      a manual/scheduled CI job since it spends real quota. 108 backend tests,
-      19 frontend.
+      Parallel/Gemini/Maps return (the full face-value-to-cash chain
+      reconciling, components summing, credit monotonic in spend, canonical
+      jurisdiction names, `retrieved` stamped today, coastal states not
+      flagged landlocked); it's a manual/scheduled CI job since it spends real
+      quota. **267 backend tests, 68 frontend.**
+
+      `net == gross − relocation` was the invariant until a credit stopped
+      being priced as cash on wrap day; it's now
+      `gross + discount − audit + timing_loss − relocation`, and the smoke
+      test reconciles that chain against pre-timing and pre-monetisation
+      deployments too, so it stays meaningful across a version skew.
+- [x] **What a credit is actually worth** — three corrections that each moved
+      the answer by roughly the size of the entire relocation calculation.
+      Payout mechanism (`credit_type`): a transferable credit is sold at a
+      discount, a refundable one isn't, and treating them alike flattered
+      transferable states. Fringes: 22-35% of wages, counted only where a
+      statute says they qualify. And present value — a credit is a claim on
+      future money, so it's discounted from wrap to payment, with a required
+      audit charged before discounting. Timing defaults live in
+      `CreditTimingAssumptions`, visible and editable, because payment timing
+      is administrative practice rather than statute; a rule's own stated
+      timeline overrides them.
+- [x] **Funding availability gates the ranking** (`_availability_block`) — a
+      closed pool, a passed sunset or a shut application window makes a
+      program non-computable rather than merely lower-scoring. This is the
+      product's stated wedge and it wasn't wired until now.
+- [x] **Adversarial verification** (`backend/app/extraction/challenge.py`,
+      `POST /jurisdictions/challenge`) — a second Parallel + Gemini pass whose
+      only job is to disprove the first, searching for suspensions, exhausted
+      pools and pending amendments. Reports contradictions, never overwrites a
+      figure; code rather than the model decides whether a disagreement is
+      material. Makes `confidence: "conflicting"` reachable from our own code
+      for the first time.
+- [x] **Refusal on impossible inputs** (`_impossible_inputs`) — found by firing
+      adversarial payloads at a running server, which answered all of them
+      with HTTP 200 and a confident number. `base_rate: 5.0` returned a
+      $9,520,000 credit on a $2M film. Checked, not clamped: clamping 30.0 to
+      1.0 would invent a 100% credit and rank it first.
+- [x] **Statutes hand-verified** for Georgia, New Mexico and Louisiana against
+      O.C.G.A. § 48-7-40.26, Rule 560-7-8-.45, NMSA 7-2F-15 and Louisiana
+      Entertainment. Three errors in three jurisdictions, and the top
+      recommendation changed. See `test_seed_jurisdictions.py`.
+- [x] **ADK agent** (`backend/app/agent/`, `scripts/run_agent.py`) — an
+      `LlmAgent` over six tools, satisfying BUILD_BRIEF §4's "the agent must
+      invoke the calculator tool". Tools address jurisdictions by name, never
+      by value, so the model never carries a figure between steps. Additive:
+      the REST pipeline is untouched and is still what the frontend uses.
 - [ ] Custom domain (currently the default `*.web.app` / `*.run.app` URLs)
-- [ ] **Redeploy pending**: d8f0cc3 onward (jurisdiction-name canonicalization,
-      pipeline-stamped `retrieved` dates, PDF upload/export, real map) are on
-      master but not yet on the live URLs. `smoke_test.py` against production
-      currently reports 4/6 for exactly that reason.
+- [ ] **Statutes unverified beyond those three.** Texas and every
+      live-extracted jurisdiction are unchecked. Three of three checked had
+      errors, so assume a similar rate rather than zero.
+- [ ] **Per-category qualifying rates.** `qualifying` is a boolean per spend
+      category and can't express New Mexico's real rule (non-resident crew at
+      15% rather than 25%, capped at a share of the BTL budget). We exclude
+      them, understating NM by $16,875 on a $2M drama rather than overstating
+      by $67,500 — the smaller error, stated on the card.
+- [ ] **Redeploy pending.** Everything from `d8f0cc3` onward is on master and
+      not on the live URLs. **See [HANDOFF.md](HANDOFF.md) to deploy and
+      [VERIFY_LIVE.md](VERIFY_LIVE.md) for what to check once it's up** —
+      including two code paths that have never run outside a mock.
 
 See BUILD_BRIEF.md section 8 for the intended build order.
 

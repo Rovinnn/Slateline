@@ -6,11 +6,15 @@ Everything below is blocked on Google Cloud credentials that only exist on a
 teammate's machine. The code is done and tested; none of it is live.
 
 **The single most important fact:** the deployed URL judges will open is
-running code from **17 commits ago**. It predates funding-availability
-gating, credit monetisation, fringes, evidence display, the map, PDF export,
-present value, the adversarial verification pass, and input validation. A
-judge opening the live link today is scoring the weakest version of this
+running code from **before commit `d8f0cc3`** — more than twenty commits back.
+It predates funding-availability gating, credit monetisation, fringes,
+statute-verified seed data, evidence display, the map, PDF export, present
+value, the adversarial verification pass, input validation and the ADK agent.
+A judge opening the live link today is scoring the weakest version of this
 product while the good one sits on `master`.
+
+Check the gap yourself rather than trusting this line:
+`git log --oneline d8f0cc3..HEAD | wc -l`
 
 Deploying is worth more than any remaining feature work.
 

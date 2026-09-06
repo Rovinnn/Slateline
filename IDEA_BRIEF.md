@@ -133,7 +133,7 @@ the whole memo.
 ### The core architectural bet
 
 **The language model never does arithmetic.** It reads and quotes; all
-computation happens in pure Python with 121 unit tests. This is enforced by
+computation happens in pure Python with 267 unit tests. This is enforced by
 configuration (forced function calling), not by asking nicely.
 
 ### Why the partner integration is structurally necessary

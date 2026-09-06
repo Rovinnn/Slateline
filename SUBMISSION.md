@@ -182,7 +182,7 @@ the same.** The most dangerous state in a verification feature is the one that
 looks reassuring because it's empty.
 
 **7. Hand-verifying the statutes changed which jurisdiction wins.** Every
-number had passed 235 tests, because those tests recorded our own output — a
+number had passed the entire test suite, because those tests recorded our own output — a
 regression test, not a correctness test. Reading O.C.G.A. § 48-7-40.26, its
 implementing regulation 560-7-8-.45, and NMSA 7-2F-15 directly turned up three
 real errors in a day: Georgia's $500,000 per-person salary cap was missing;
