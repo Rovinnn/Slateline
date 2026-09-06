@@ -130,34 +130,27 @@ deploying.** Before deploying it reports 5/6, failing on
 deployment; local code canonicalises correctly and there is a test for it. If
 it still fails after a deploy, the deploy didn't take.
 
-### In a browser — do not skip this
+### In a browser, and against the live pipeline
 
-Nobody has opened this UI during the last two days of work. It is verified by
-types, tests and a build only. Components have render tests, but **nothing has
-checked what it looks like** — spacing, overflow, whether a bar is visible.
+**→ Work through [VERIFY_LIVE.md](VERIFY_LIVE.md).** It's the full checklist,
+with expected values, severities, and what to do when something fails.
 
-Open the live URL logged out (or in a private window — judges must reach it
-with no auth) and check:
+The four things on it that matter most:
 
-- [ ] Results load, and the hero card shows a **waterfall** walking qualifying
-      spend → credit → discount → audit → wait → relocation → net.
-- [ ] A **"why it wins"** block lists components that sum to the stated
-      advantage.
-- [ ] Each jurisdiction gets a **challenge badge** — either "re-checked
-      against N sources — nothing contradicts it" (teal) or a conflict (red).
-      Grey "couldn't re-check" means the challenge pass is erroring; check
-      Cloud Run logs.
-- [ ] The **MAP** and **COMPARE** tabs render.
-- [ ] **EXPORT PDF** produces a memo with every panel expanded.
-- [ ] Nothing overflows horizontally on a laptop screen.
-
-> The adversarial verification pass has **never run against real Parallel +
-> Gemini** — it's only ever been exercised with mocked model responses,
-> because no one could authenticate. Its first live run will be on the
-> deployed site. Watch specifically for it inventing conflicts: the prompt
-> forbids treating silence as contradiction, but that behaviour is unobserved.
-> If it produces nonsense, the honest fix is to stop calling the endpoint from
-> `Results.tsx` — the ranking does not depend on it.
+1. **The adversarial challenge pass has never run against real Parallel and
+   Gemini** — only mocked responses, because nobody could authenticate. Its
+   first live execution will be in production. If it invents conflicts, remove
+   the `challengeJurisdiction` effect from `Results.tsx` and redeploy; the
+   ranking doesn't depend on it.
+2. **Live extraction can now be graded, not just inspected.** Georgia, New
+   Mexico and Louisiana were hand-verified against the statutes on 6 Sep, so
+   they're a correctness oracle. Compare what the live pipeline extracts
+   against the tables in VERIFY_LIVE.md §2.
+3. **Nobody has ever opened this UI.** It's verified by types, tests and a
+   build only. Bars could overflow, panels could be broken, and every check
+   here would still be green.
+4. **No key may appear in the browser.** The map is vector data with no tile
+   API, so there should be no Maps key client-side at all.
 
 ---
 
