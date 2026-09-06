@@ -33,20 +33,52 @@ async function errorDetail(res: Response): Promise<string> {
   return text || res.statusText;
 }
 
+// Layer 1 search is normally 30-60s (Parallel + Gemini extraction, see
+// searchJurisdiction below); this gives headroom above that before treating
+// a hung request as failed rather than leaving the UI waiting forever.
+const DEFAULT_TIMEOUT_MS = 90_000;
+
+function withTimeout(ms = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, cleanup: () => clearTimeout(id) };
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new ApiError(await errorDetail(res), res.status);
-  return res.json();
+  const { signal, cleanup } = withTimeout();
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!res.ok) throw new ApiError(await errorDetail(res), res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Timed out waiting for the server — try again.", 408);
+    }
+    throw err;
+  } finally {
+    cleanup();
+  }
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`);
-  if (!res.ok) throw new ApiError(await errorDetail(res), res.status);
-  return res.json();
+  const { signal, cleanup } = withTimeout();
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, { signal });
+    if (!res.ok) throw new ApiError(await errorDetail(res), res.status);
+    return res.json();
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Timed out waiting for the server — try again.", 408);
+    }
+    throw err;
+  } finally {
+    cleanup();
+  }
 }
 
 /** Layer 2, over the wire. Works today with zero credentials — see backend/app/main.py. */

@@ -315,6 +315,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   }
 
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+  const [refreshError, setRefreshError] = useState<Record<string, string>>({});
 
   // Bypasses the backend's per-jurisdiction cache (app/cache.py) for one
   // explicit re-check — the "refresh" link next to a source's retrieved
@@ -324,7 +325,16 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     if (refreshing[jurisdiction]) return;
     setRefreshing((r) => ({ ...r, [jurisdiction]: true }));
     searchJurisdiction(jurisdiction, { refresh: true })
-      .then(addRule)
+      .then((rule) => {
+        addRule(rule);
+        setRefreshError((e) => ({ ...e, [jurisdiction]: "" }));
+      })
+      .catch((err) =>
+        setRefreshError((e) => ({
+          ...e,
+          [jurisdiction]: err instanceof ApiError ? err.message : "Refresh failed.",
+        })),
+      )
       .finally(() => setRefreshing((r) => ({ ...r, [jurisdiction]: false })));
   }
 
@@ -337,7 +347,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       <div aria-hidden className="pointer-events-none absolute inset-0 print:hidden" style={glow.style} />
       <div className="relative z-10">
       <div className="flex flex-wrap items-center gap-5 pt-4">
-        <div className="flex gap-0.5 print:hidden">
+        <div role="tablist" className="flex gap-0.5 print:hidden">
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
           <TabButton active={tab === "compare"} onClick={() => setTab("compare")}>COMPARE</TabButton>
           <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
@@ -429,6 +439,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           setShowUnverified={setShowUnverified}
           onRefresh={refreshRule}
           refreshing={refreshing}
+          refreshError={refreshError}
           challenges={challenges}
         />
       )}
@@ -484,6 +495,7 @@ function JurisdictionSearch({ existing, onFound }: { existing: string[]; onFound
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="search another jurisdiction…"
+        aria-label="Search another jurisdiction"
         disabled={pending}
         className="w-[210px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
       />
@@ -532,6 +544,7 @@ function ReadyResults({
   setShowUnverified,
   onRefresh,
   refreshing,
+  refreshError,
   challenges,
 }: {
   rows: Row[];
@@ -553,6 +566,7 @@ function ReadyResults({
   /** Re-runs Layer 1 live for one jurisdiction, bypassing the backend's cache. */
   onRefresh: (jurisdiction: string) => void;
   refreshing: Record<string, boolean>;
+  refreshError: Record<string, string>;
   /** Layer 1b results per jurisdiction; absent means still in flight. */
   challenges: Record<string, ChallengeReport | "checking" | "failed">;
 }) {
@@ -591,6 +605,7 @@ function ReadyResults({
         runnerUp={rest[0]}
         onRefresh={onRefresh}
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
+        refreshError={refreshError[hero.rule.jurisdiction]}
         challenge={challenges[hero.rule.jurisdiction]}
       />
 
@@ -632,6 +647,7 @@ function ReadyResults({
                 failing={failingConstraint(row.rule, liveBudget.constraints)}
                 onRefresh={onRefresh}
                 refreshing={refreshing[row.rule.jurisdiction] ?? false}
+                refreshError={refreshError[row.rule.jurisdiction]}
                 challenge={challenges[row.rule.jurisdiction]}
               />
             ))}
@@ -671,12 +687,18 @@ function ReadyResults({
                         <span className="flex items-baseline gap-1.5">
                           <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
                             {hostOf(src.url)}
+                            <span className="sr-only"> (opens in new tab)</span>
                           </a>
                           <span className="inline-flex items-center gap-1">
                             · retrieved <RetrievedBadge date={src.retrieved} />
                           </span>
                         </span>
-                        <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing[rule.jurisdiction] ?? false} />
+                        <RefreshLink
+                          jurisdiction={rule.jurisdiction}
+                          onRefresh={onRefresh}
+                          refreshing={refreshing[rule.jurisdiction] ?? false}
+                          error={refreshError[rule.jurisdiction]}
+                        />
                       </div>
                     )}
                   </div>
@@ -701,6 +723,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       className={`px-4 py-2.5 font-mono text-[11.5px] font-medium tracking-wide transition-transform hover:-translate-y-px ${
         active ? "border border-ink bg-ink text-paper" : "border border-border-2 bg-card text-ink-2"
@@ -895,6 +919,7 @@ function RelocationAssumptionsPanel({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center gap-2.5 bg-card-2 px-5.5 py-3.5 text-left"
       >
         <span className="font-mono text-[11px] text-ink-3">{open ? "−" : "+"}</span>
@@ -985,6 +1010,7 @@ function CreditTimingPanel({
       <button
         type="button"
         onClick={() => setUserOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center gap-2.5 bg-card-2 px-5.5 py-3.5 text-left"
       >
         <span className="font-mono text-[11px] text-ink-3">{open ? "−" : "+"}</span>
@@ -1150,6 +1176,7 @@ function HeroCard({
   runnerUp,
   onRefresh,
   refreshing,
+  refreshError,
   challenge,
 }: {
   row: Row;
@@ -1161,6 +1188,7 @@ function HeroCard({
   runnerUp?: Row;
   onRefresh: (jurisdiction: string) => void;
   refreshing: boolean;
+  refreshError?: string;
   /** Layer 1b result; undefined means still in flight. */
   challenge?: ChallengeReport | "checking" | "failed";
 }) {
@@ -1267,7 +1295,7 @@ function HeroCard({
           <div className="mt-4.5 border-t border-[#eae8e1] pt-3.5">
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>
-              <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} />
+              <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} error={refreshError} />
             </div>
             <SourceEvidence rule={rule} />
           </div>
@@ -1293,6 +1321,7 @@ function RunnerUpCard({
   failing,
   onRefresh,
   refreshing,
+  refreshError,
   challenge,
 }: {
   row: Row;
@@ -1301,6 +1330,7 @@ function RunnerUpCard({
   failing?: string | null;
   onRefresh: (jurisdiction: string) => void;
   refreshing: boolean;
+  refreshError?: string;
   challenge?: ChallengeReport | "checking" | "failed";
 }) {
   const { rule, benefit } = row;
@@ -1341,12 +1371,13 @@ function RunnerUpCard({
           <span className="flex items-baseline gap-1.5">
             <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
               {hostOf(src.url)}
+              <span className="sr-only"> (opens in new tab)</span>
             </a>
             <span className="inline-flex items-center gap-1">
               · retrieved <RetrievedBadge date={src.retrieved} />
             </span>
           </span>
-          <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} />
+          <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} error={refreshError} />
         </div>
       )}
     </div>
@@ -1360,20 +1391,25 @@ function RefreshLink({
   jurisdiction,
   onRefresh,
   refreshing,
+  error,
 }: {
   jurisdiction: string;
   onRefresh: (jurisdiction: string) => void;
   refreshing: boolean;
+  error?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onRefresh(jurisdiction)}
-      disabled={refreshing}
-      title="Re-run the live search for this jurisdiction instead of using the cached result"
-      className="font-mono text-[11px] text-teal underline decoration-1 underline-offset-2 disabled:opacity-50 disabled:no-underline print:hidden"
-    >
-      {refreshing ? "refreshing…" : "refresh"}
-    </button>
+    <span className="inline-flex items-baseline gap-1.5 print:hidden">
+      <button
+        type="button"
+        onClick={() => onRefresh(jurisdiction)}
+        disabled={refreshing}
+        title="Re-run the live search for this jurisdiction instead of using the cached result"
+        className="font-mono text-[11px] text-teal underline decoration-1 underline-offset-2 disabled:opacity-50 disabled:no-underline"
+      >
+        {refreshing ? "refreshing…" : "refresh"}
+      </button>
+      {error && <span className="font-mono text-[11px] text-red">{error}</span>}
+    </span>
   );
 }

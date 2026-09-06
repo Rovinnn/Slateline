@@ -93,6 +93,7 @@ export function SourceEvidence({ rule, max = 2 }: { rule: JurisdictionRule; max?
               className="text-teal underline decoration-1 underline-offset-2"
             >
               {hostOf(src.url)}
+              <span className="sr-only"> (opens in new tab)</span>
             </a>
             <span className="inline-flex items-center gap-1">
               · retrieved <RetrievedBadge date={src.retrieved} />
@@ -118,6 +119,7 @@ export function SourceEvidence({ rule, max = 2 }: { rule: JurisdictionRule; max?
               className="text-teal underline decoration-1 underline-offset-2"
             >
               {hostOf(src.url)}
+              <span className="sr-only"> (opens in new tab)</span>
             </a>
             <span className="inline-flex items-center gap-1">
               · retrieved <RetrievedBadge date={src.retrieved} />

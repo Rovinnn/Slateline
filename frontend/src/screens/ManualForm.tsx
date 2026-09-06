@@ -26,6 +26,11 @@ function formatMoney(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }
 
+function describedBy(...ids: (string | undefined | false)[]): string | undefined {
+  const joined = ids.filter(Boolean).join(" ");
+  return joined || undefined;
+}
+
 export function ManualForm({
   initial,
   onBack,
@@ -151,11 +156,18 @@ export function ManualForm({
                     value={drafts[f.key]}
                     onChange={(e) => setMoneyField(f.key, e.target.value)}
                     onBlur={() => blurMoneyField(f.key)}
+                    aria-invalid={budget[f.key] < 0}
+                    aria-describedby={describedBy(
+                      fieldNotes?.[f.key] && `${f.key}-note`,
+                      budget[f.key] < 0 && "budget-error",
+                    )}
                     className="min-w-0 flex-1 bg-transparent py-2.5 pr-2.5 text-right font-mono text-[13.5px] font-medium text-ink outline-none"
                   />
                 </div>
                 {fieldNotes?.[f.key] && (
-                  <div className="mt-1 font-mono text-[10.5px] text-ink-4">read from {fieldNotes[f.key]}</div>
+                  <div id={`${f.key}-note`} className="mt-1 font-mono text-[10.5px] text-ink-4">
+                    read from {fieldNotes[f.key]}
+                  </div>
                 )}
               </label>
             ))}
@@ -240,7 +252,10 @@ export function ManualForm({
           </div>
 
           {blocked && (
-            <div className="mt-4.5 border border-red/30 bg-red-bg px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-red">
+            <div
+              id="budget-error"
+              className="mt-4.5 border border-red/30 bg-red-bg px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-red"
+            >
               {negativeFields.map((f) => f.label).join(" and ")}{" "}
               {negativeFields.length > 1 ? "are" : "is"} negative. A budget line can't be below zero, and no
               credit can be computed against one — correct it to continue.
@@ -259,8 +274,11 @@ export function ManualForm({
 
         <div className="flex flex-col gap-5">
           <section className="border border-border bg-card p-5.5">
-            <div className="mb-3.5 font-mono text-[11px] font-medium tracking-wide text-ink-3">HOME BASE</div>
+            <label htmlFor="home-base-select" className="mb-3.5 block font-mono text-[11px] font-medium tracking-wide text-ink-3">
+              HOME BASE
+            </label>
             <select
+              id="home-base-select"
               value={budget.home_base}
               onChange={(e) => setBudget((b) => ({ ...b, home_base: e.target.value }))}
               className="w-full border border-border-2 bg-card-2 px-2.5 py-2.5 font-mono text-[13px] font-medium text-ink outline-none"
@@ -289,6 +307,7 @@ export function ManualForm({
                     key={c.key}
                     type="button"
                     onClick={() => toggleConstraint(c.key)}
+                    aria-pressed={on}
                     className={`flex w-full items-center gap-2.5 border px-3 py-2.5 text-left font-sans text-[12.5px] transition-all hover:-translate-y-px ${
                       on ? "border-ink bg-card-2" : "border-border-2 bg-card hover:border-ink"
                     }`}
