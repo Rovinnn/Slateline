@@ -29,9 +29,9 @@ Those are pass/fail gates and none of them are code.
 | 1 | Authenticate gcloud | 2 min | everything below |
 | 2 | Deploy backend + frontend | ~20 min | 3, 5 |
 | 3 | Verify (smoke test + browser) | ~10 min | — |
-| 4 | Repo public, license in About | 1 min | Stage 1 pass/fail |
+| 4 | ~~Repo public, license in About~~ ✅ done 6 Sep, MIT detected | — | Stage 1 pass/fail |
 | 5 | Demo video ≤3 min | — | 25% of the grade |
-| 6 | Devpost submission | — | Stage 1 pass/fail |
+| 6 | Devpost submission — see [DEVPOST.md](DEVPOST.md) | — | Stage 1 pass/fail |
 
 Items 4 and 6 are pass/fail gates. The submission fails outright without them,
 regardless of how good the product is.

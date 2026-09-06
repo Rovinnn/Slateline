@@ -1,12 +1,56 @@
 # Incentive Verifier
 
-Tells film producers not just what a jurisdiction's film tax incentive rate is, but
-whether the funding is still available right now, and what the incentive nets after
-the cost of relocating cast and crew there. Full spec: [BUILD_BRIEF.md](BUILD_BRIEF.md).
+**The advertised film tax credit is never the real number. This computes the real
+one, live, with receipts.**
 
-The language model never does arithmetic — it only fills structured objects
-(`JurisdictionRule`). All computation happens in `backend/app/calculator.py`, a pure,
-unit-tested Python function with no I/O and no model calls.
+| | |
+|---|---|
+| **Live demo** | https://zeta-structure-437412-v7.web.app |
+| **API** | https://incentive-verifier-backend-559874048514.us-central1.run.app |
+| **Demo video** | _(add link)_ |
+| **Track** | Parallel — live Search API at request time |
+| **Tests** | 283 backend, 68 frontend, CI on every push |
+
+Every US state advertises a film incentive — *"Georgia 30%!"* — and producers pick
+shooting locations on those numbers. Four things sit between the advertised rate and
+money in the bank, and no public tool prices any of them: whether the annual funding
+pool is exhausted, how much of *your* budget actually qualifies, what it costs to be
+there, and what the credit is worth when it finally arrives.
+
+Give it a budget. It searches the live web for each jurisdiction's statute, has Gemini
+extract the terms, computes the benefit in deterministic Python, prices relocation off
+real routed distances, then runs a **second search pass whose only job is to disprove
+the first**. Everything is traceable to a dated source link, and anything it can't
+verify is listed as "can't verify" rather than guessed.
+
+### What it produces
+
+A $2M indie drama out of Los Angeles, on hand-verified statutes and real distances:
+
+| | advertised | net benefit |
+|---|---|---|
+| **New Mexico** | 25% + uplifts | **$259,952** |
+| Georgia | 20% + 10% uplift | $175,722 |
+| Louisiana / Texas | — | *can't verify — discretionary, not modelable* |
+
+The advertised rate and the real answer are different questions. Georgia's $400,000
+credit is worth $175,722 once you account for selling a transferable credit at a
+discount, an 18-month wait to be paid, a mandatory audit, and flying 18 people 3,747 km.
+No rate table contains that.
+
+### The architectural bet
+
+**The language model never does arithmetic.** It reads and quotes; it only fills
+structured objects (`JurisdictionRule`). All computation happens in
+`backend/app/calculator.py` — pure, unit-tested, no I/O and no model calls. This is
+enforced by configuration (forced function calling, `mode: "ANY"`), not by asking nicely.
+
+Why live search is structurally necessary, not decoration: you physically cannot answer
+*"is New Mexico's pool exhausted right now?"* from a frozen-weights model. Incentive law
+changes by legislative session.
+
+Full spec: [BUILD_BRIEF.md](BUILD_BRIEF.md) · Submission write-up and findings:
+[SUBMISSION.md](SUBMISSION.md)
 
 ## Layout
 
