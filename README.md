@@ -296,10 +296,10 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       15% rather than 25%, capped at a share of the BTL budget). We exclude
       them, understating NM by $16,875 on a $2M drama rather than overstating
       by $67,500 — the smaller error, stated on the card.
-- [ ] **Redeploy pending.** Everything from `d8f0cc3` onward is on master and
-      not on the live URLs. **See [HANDOFF.md](HANDOFF.md) to deploy and
-      [VERIFY_LIVE.md](VERIFY_LIVE.md) for what to check once it's up** —
-      including two code paths that have never run outside a mock.
+- [x] **Deployed and verified 6 Sep 2026.** Both halves current; smoke test
+      6/6 against production. The adversarial pass and the ADK agent have now
+      run live — each found a real bug on its first execution, both fixed.
+      See [VERIFY_LIVE.md](VERIFY_LIVE.md) for what was checked and found.
 
 See BUILD_BRIEF.md section 8 for the intended build order.
 

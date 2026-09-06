@@ -5,18 +5,20 @@
 Everything below is blocked on Google Cloud credentials that only exist on a
 teammate's machine. The code is done and tested; none of it is live.
 
-**The single most important fact:** the deployed URL judges will open is
-running code from **before commit `d8f0cc3`** — more than twenty commits back.
-It predates funding-availability gating, credit monetisation, fringes,
-statute-verified seed data, evidence display, the map, PDF export, present
-value, the adversarial verification pass, input validation and the ADK agent.
-A judge opening the live link today is scoring the weakest version of this
-product while the good one sits on `master`.
+**DEPLOYED 6 Sep 2026.** Both halves are live and current:
 
-Check the gap yourself rather than trusting this line:
-`git log --oneline d8f0cc3..HEAD | wc -l`
+- Backend — Cloud Run revision `incentive-verifier-backend-00005-gqt`
+  (rollback point: `00004-rfw`). Smoke test **6/6**.
+- Frontend — Firebase Hosting release `1788696118287000`, bundle
+  `index-PmB0JqtX.js`, SPA rewrite confirmed on a deep link.
 
-Deploying is worth more than any remaining feature work.
+Verified end to end against production: four jurisdictions extracted live,
+real Maps distances, New Mexico ranked first at $259,952 over Georgia at
+$175,722, discretionary programs correctly refused rather than ranked, and the
+adversarial pass running on the winner.
+
+What remains is entirely **items 4-6 below** — repo public, video, Devpost.
+Those are pass/fail gates and none of them are code.
 
 ---
 
