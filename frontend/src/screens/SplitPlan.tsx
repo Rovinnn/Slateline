@@ -29,7 +29,7 @@ export function SplitRecommendation({ split }: { split: SplitResponse }) {
         splitting_wins ? "border-teal/40 border-l-[3px] border-l-teal" : "border-border-3"
       }`}
     >
-      <div className="flex flex-wrap items-baseline gap-3 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+      <div className="flex flex-wrap items-baseline gap-3 border-b border-[var(--color-hairline)] bg-card-2 px-5.5 py-3.5">
         <div className="font-sans text-[13.5px] font-semibold">Splitting the production</div>
         <div className="font-sans text-[12.5px] text-ink-2">
           Principal photography in one jurisdiction, post and VFX in another.
@@ -59,7 +59,7 @@ export function SplitRecommendation({ split }: { split: SplitResponse }) {
                 />
               )}
             </div>
-            <div className="mt-3.5 border-t border-[#eae8e1] pt-3 font-mono text-[11.5px] leading-relaxed text-ink-2">
+            <div className="mt-3.5 border-t border-[var(--color-hairline)] pt-3 font-mono text-[11.5px] leading-relaxed text-ink-2">
               Combined {money(best.net_benefit)} against {money(best_single.net_benefit)} for the best
               single location. Both legs must independently clear their own minimum spend — the
               figures above already account for that.
@@ -71,7 +71,7 @@ export function SplitRecommendation({ split }: { split: SplitResponse }) {
               Don't split — {best_single.shoot_in} alone is the best plan at{" "}
               {money(best_single.net_benefit)}.
             </div>
-            <p className="mt-2 font-sans text-[13px] leading-relaxed text-[#57534c]">
+            <p className="mt-2 font-sans text-[13px] leading-relaxed text-[var(--color-text-muted-2)]">
               Every shoot/post pairing was priced and none beat keeping the production in one place.
             </p>
           </>
@@ -84,7 +84,7 @@ export function SplitRecommendation({ split }: { split: SplitResponse }) {
             </div>
             <div className="flex flex-col gap-1.5">
               {cliffPlans.map((p, i) => (
-                <div key={i} className="font-sans text-[12.5px] leading-relaxed text-[#7d5a29]">
+                <div key={i} className="font-sans text-[12.5px] leading-relaxed text-[var(--color-amber-text)]">
                   <span className="font-medium">
                     Shoot {p.shoot_in}, post {p.post_in}:
                   </span>{" "}

@@ -108,7 +108,7 @@ export function SourceEvidence({ rule, max = 2 }: { rule: JurisdictionRule; max?
     <div className="flex flex-col gap-2.5">
       {shown.map((src, i) => (
         <figure key={i} className="border-l-2 border-border-2 pl-3">
-          <blockquote className="font-sans text-[12.5px] leading-relaxed text-[#57534c]">
+          <blockquote className="font-sans text-[12.5px] leading-relaxed text-[var(--color-text-muted-2)]">
             &ldquo;{src.excerpt.trim()}&rdquo;
           </blockquote>
           <figcaption className="mt-1 flex flex-wrap items-baseline gap-1.5 font-mono text-[11px] text-ink-4">

@@ -189,12 +189,18 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
           >
             <g aria-hidden>
               {geo.countries.map((f, i) => (
-                <path key={`c${i}`} d={path(f) ?? undefined} fill="#F0EEEA" stroke="#DDDBD4" strokeWidth={0.7} />
+                <path
+                  key={`c${i}`}
+                  d={path(f) ?? undefined}
+                  fill="var(--color-map-land)"
+                  stroke="var(--color-map-border)"
+                  strokeWidth={0.7}
+                />
               ))}
             </g>
             <g aria-hidden>
               {geo.states.map((f, i) => (
-                <path key={`s${i}`} d={path(f) ?? undefined} fill="none" stroke="#DDDBD4" strokeWidth={0.5} />
+                <path key={`s${i}`} d={path(f) ?? undefined} fill="none" stroke="var(--color-map-border)" strokeWidth={0.5} />
               ))}
             </g>
 
@@ -219,7 +225,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                     y1={hy}
                     x2={x}
                     y2={y}
-                    stroke={p.excluded ? "#C0BDB6" : netColor(p.net, lo, hi)}
+                    stroke={p.excluded ? "var(--color-map-excluded-line)" : netColor(p.net, lo, hi)}
                     strokeWidth={1}
                     strokeDasharray={p.excluded ? "3 3" : undefined}
                     opacity={0.7}
@@ -233,7 +239,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                         textAnchor="middle"
                         fontFamily="'IBM Plex Mono',monospace"
                         fontSize={10}
-                        stroke="#FBFAF7"
+                        stroke="var(--color-map-label-halo)"
                         strokeWidth={3.5}
                         strokeLinejoin="round"
                       >
@@ -244,7 +250,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                         textAnchor="middle"
                         fontFamily="'IBM Plex Mono',monospace"
                         fontSize={10}
-                        fill="#57534C"
+                        fill="var(--color-text-muted-2)"
                       >
                         {label}
                       </text>
@@ -261,12 +267,12 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                 y={-6}
                 width={12}
                 height={12}
-                fill="#F7F5F1"
-                stroke="#1a2630"
+                fill="var(--color-paper)"
+                stroke="var(--color-ink)"
                 strokeWidth={2}
                 transform="rotate(45)"
               />
-              <text y={-16} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={12} fill="#1a2630">
+              <text y={-16} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={12} fill="var(--color-ink)">
                 {home.label}
               </text>
               <text
@@ -276,7 +282,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                 fontWeight={500}
                 fontSize={10}
                 letterSpacing="0.06em"
-                fill="#4E5A60"
+                fill="var(--color-ink-2)"
               >
                 HOME BASE
               </text>
@@ -284,7 +290,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
 
             {points.map((p) => {
               const [x, y] = project(p.lat, p.lng);
-              const color = p.excluded ? "#F7F5F1" : netColor(p.net, lo, hi);
+              const color = p.excluded ? "var(--color-paper)" : netColor(p.net, lo, hi);
               const pointLabel = `${p.name}${
                 p.excluded
                   ? " — excluded from the ranking"
@@ -296,10 +302,10 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                   <circle
                     r={p.excluded ? 5 : 8}
                     fill={color}
-                    stroke={p.excluded ? "#A7A49C" : "#F7F5F1"}
+                    stroke={p.excluded ? "var(--color-map-excluded-stroke)" : "var(--color-paper)"}
                     strokeWidth={1.6}
                   />
-                  <text y={-14} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={500} fontSize={11.5} fill="#1a2630">
+                  <text y={-14} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={500} fontSize={11.5} fill="var(--color-ink)">
                     {p.name}
                   </text>
                   <text
@@ -308,7 +314,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                     fontFamily="'IBM Plex Mono',monospace"
                     fontWeight={500}
                     fontSize={11}
-                    fill={p.excluded ? "#879196" : "#4E5A60"}
+                    fill={p.excluded ? "var(--color-ink-3)" : "var(--color-ink-2)"}
                   >
                     {p.excluded ? "excluded" : moneyShort(p.net)}
                   </text>
@@ -323,17 +329,17 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                 fontWeight={500}
                 fontSize={10.5}
                 letterSpacing="0.06em"
-                fill="#4E5A60"
+                fill="var(--color-ink-2)"
               >
                 NET BENEFIT
               </text>
               {[0, 1, 2, 3].map((i) => (
                 <rect aria-hidden key={i} x={i * 26} y={0} width={26} height={7} fill={netColor(lo + ((hi - lo) * i) / 3, lo, hi)} />
               ))}
-              <text x={0} y={20} fontFamily="'IBM Plex Mono',monospace" fontSize={10.5} fill="#879196">
+              <text x={0} y={20} fontFamily="'IBM Plex Mono',monospace" fontSize={10.5} fill="var(--color-ink-3)">
                 lower
               </text>
-              <text x={104} y={20} textAnchor="end" fontFamily="'IBM Plex Mono',monospace" fontSize={10.5} fill="#879196">
+              <text x={104} y={20} textAnchor="end" fontFamily="'IBM Plex Mono',monospace" fontSize={10.5} fill="var(--color-ink-3)">
                 higher
               </text>
             </g>
@@ -425,25 +431,42 @@ export function RelocationStrip({
       <line x1={hx} y1={hy} x2={dx} y2={dy} stroke="var(--color-teal-accent)" strokeWidth={1.4} opacity={0.8} />
 
       <g transform={`translate(${hx},${hy})`}>
-        <rect x={-4} y={-4} width={8} height={8} fill="#F7F5F1" stroke="#1a2630" strokeWidth={1.6} transform="rotate(45)" />
-        <text y={-10} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="#1a2630">
+        <rect
+          x={-4}
+          y={-4}
+          width={8}
+          height={8}
+          fill="var(--color-paper)"
+          stroke="var(--color-ink)"
+          strokeWidth={1.6}
+          transform="rotate(45)"
+        />
+        <text y={-10} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="var(--color-ink)">
           {homeLabel}
         </text>
       </g>
 
       <g transform={`translate(${dx},${dy})`}>
-        <circle r={5.5} fill="var(--color-teal-accent)" stroke="#F7F5F1" strokeWidth={1.4} />
-        <text y={-11} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="#1a2630">
+        <circle r={5.5} fill="var(--color-teal-accent)" stroke="var(--color-paper)" strokeWidth={1.4} />
+        <text y={-11} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="var(--color-ink)">
           {destLabel}
         </text>
       </g>
 
       {label && (
         <g transform={`translate(${mx},${my}) rotate(${angle})`}>
-          <text y={-4} textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize={9.5} stroke="#FBFAF7" strokeWidth={3} strokeLinejoin="round">
+          <text
+            y={-4}
+            textAnchor="middle"
+            fontFamily="'IBM Plex Mono',monospace"
+            fontSize={9.5}
+            stroke="var(--color-map-label-halo)"
+            strokeWidth={3}
+            strokeLinejoin="round"
+          >
             {label}
           </text>
-          <text y={-4} textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize={9.5} fill="#57534C">
+          <text y={-4} textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize={9.5} fill="var(--color-text-muted-2)">
             {label}
           </text>
         </g>

@@ -116,7 +116,7 @@ export function ManualForm({
             onClick={() => onSubmit(budget)}
             disabled={blocked}
             title={blocked ? `Negative spend on ${negativeFields.map((f) => f.label).join(", ")}` : undefined}
-            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-all hover:-translate-y-px hover:bg-[#091318] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-ink disabled:hover:shadow-none"
+            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-all hover:-translate-y-px hover:bg-[var(--color-ink-deep)] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-ink disabled:hover:shadow-none"
           >
             RUN COMPARISON
           </button>
@@ -130,7 +130,7 @@ export function ManualForm({
           </div>
           <ul className="flex flex-col gap-1">
             {warnings.map((w, i) => (
-              <li key={i} className="font-sans text-[12.5px] leading-relaxed text-[#57534c]">
+              <li key={i} className="font-sans text-[12.5px] leading-relaxed text-[var(--color-text-muted-2)]">
                 {w}
               </li>
             ))}
@@ -145,7 +145,7 @@ export function ManualForm({
             {MONEY_FIELDS.map((f) => (
               <label key={f.key} className="block">
                 <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                  <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">{f.label}</span>
+                  <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">{f.label}</span>
                   <span className="font-mono text-[10.5px] text-ink-3">USD</span>
                 </div>
                 <div className="flex items-center border border-border-2 bg-card-2">
@@ -174,7 +174,7 @@ export function ManualForm({
 
             <label className="block">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Shoot days</span>
+                <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">Shoot days</span>
                 <span className="font-mono text-[10.5px] text-ink-3">days</span>
               </div>
               <div className="flex items-center border border-border-2 bg-card-2">
@@ -190,7 +190,7 @@ export function ManualForm({
 
             <label className="block">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Crew headcount</span>
+                <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">Crew headcount</span>
                 <span className="font-mono text-[10.5px] text-ink-3">people</span>
               </div>
               <div className="flex items-center border border-border-2 bg-card-2">
@@ -206,7 +206,7 @@ export function ManualForm({
 
             <label className="block">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Fringes / payroll burden</span>
+                <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">Fringes / payroll burden</span>
                 <span className="font-mono text-[10.5px] text-ink-3">% of wages</span>
               </div>
               <div className="flex items-center border border-border-2 bg-card-2">
@@ -232,7 +232,7 @@ export function ManualForm({
 
             <label className="block">
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Resident labor share</span>
+                <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">Resident labor share</span>
                 <span className="font-mono text-[10.5px] text-ink-3">% of BTL labor</span>
               </div>
               <div className="flex items-center border border-border-2 bg-card-2">
@@ -262,7 +262,7 @@ export function ManualForm({
             </div>
           )}
 
-          <div className="mt-4.5 flex justify-between gap-3.5 border-t border-[#eae8e1] pt-3.5">
+          <div className="mt-4.5 flex justify-between gap-3.5 border-t border-[var(--color-hairline)] pt-3.5">
             <div className="font-mono text-[12px] text-ink-2">CATEGORY SUM</div>
             <div className={`font-mono text-[12px] font-medium ${reconciles ? "text-teal" : "text-amber"}`}>
               {reconciles
@@ -314,7 +314,7 @@ export function ManualForm({
                   >
                     <span
                       className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${
-                        on ? "border-ink" : "border-[#bfbab1]"
+                        on ? "border-ink" : "border-[var(--color-checkbox-border)]"
                       }`}
                     >
                       {on ? "■" : ""}

@@ -448,7 +448,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       {state.status === "error" && (
         <div className="mt-6 border border-red/30 border-t-2 border-t-red bg-card p-6">
           <div className="mb-1.5 font-sans text-[15px] font-semibold text-red">Couldn't compute results</div>
-          <p className="font-sans text-[13.5px] leading-relaxed text-[#57534c]">{state.message}</p>
+          <p className="font-sans text-[13.5px] leading-relaxed text-[var(--color-text-muted-2)]">{state.message}</p>
         </div>
       )}
 
@@ -761,16 +761,16 @@ function ReadyResults({
             <span className="font-sans text-[12.5px] text-ink-2">Discretionary or unverifiable programs. Not scored, not hidden.</span>
           </button>
           {expandUnverified && (
-            <div className="border-t border-[#eae8e1]">
+            <div className="border-t border-[var(--color-hairline)]">
               {unverified.map(({ rule, benefit }) => {
                 const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
                 return (
-                  <div key={rule.jurisdiction} className="grid grid-cols-1 gap-3 border-b border-[#efede7] p-4 sm:grid-cols-[1.1fr_2fr_1.2fr]">
+                  <div key={rule.jurisdiction} className="grid grid-cols-1 gap-3 border-b border-[var(--color-hairline-2)] p-4 sm:grid-cols-[1.1fr_2fr_1.2fr]">
                     <div>
                       <div className="font-sans text-[13.5px] font-semibold">{rule.jurisdiction}</div>
                       <div className="mt-0.5 font-mono text-[11.5px] text-ink-4">{rule.program_name}</div>
                     </div>
-                    <div className="font-sans text-[13px] leading-relaxed text-[#57534c]">
+                    <div className="font-sans text-[13px] leading-relaxed text-[var(--color-text-muted-2)]">
                       {benefit.non_computable_reason}
                     </div>
                     {src && (
@@ -866,7 +866,7 @@ function SensitivityPanel({
 
   return (
     <div className="mt-5 border border-border-3 bg-card">
-      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[var(--color-hairline)] bg-card-2 px-5.5 py-3.5">
         <div className="font-sans text-[13.5px] font-semibold">Sensitivity</div>
         <div className="font-sans text-[12.5px] text-ink-2">Drag to recompute. Ranking reorders live.</div>
       </div>
@@ -874,7 +874,7 @@ function SensitivityPanel({
       <div className="grid grid-cols-1 gap-6 p-5.5 sm:grid-cols-2">
         <div>
           <div className="mb-0.5 flex items-baseline justify-between gap-3">
-            <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">ATL spend (cast + non-cast)</span>
+            <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">ATL spend (cast + non-cast)</span>
             <span className="font-mono text-[15px] font-semibold">{moneyShort(atlNow)}</span>
           </div>
           <input
@@ -894,7 +894,7 @@ function SensitivityPanel({
 
         <div>
           <div className="mb-0.5 flex items-baseline justify-between gap-3">
-            <span className="font-sans text-[12.5px] font-medium text-[#3d3a34]">Resident labor share of BTL</span>
+            <span className="font-sans text-[12.5px] font-medium text-[var(--color-text-muted)]">Resident labor share of BTL</span>
             <span className="font-mono text-[15px] font-semibold">{Math.round(liveBudget.resident_labor_pct * 100)}%</span>
           </div>
           <input
@@ -930,7 +930,7 @@ function ConstraintsPanel({ constraints, onChange }: { constraints: string[]; on
 
   return (
     <div className="mt-5 border border-border-3 bg-card">
-      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[var(--color-hairline)] bg-card-2 px-5.5 py-3.5">
         <div className="font-sans text-[13.5px] font-semibold">Constraints</div>
         <div className="font-sans text-[12.5px] text-ink-2">Enabling one greys out jurisdictions that can't meet it — never removes them.</div>
       </div>
@@ -946,7 +946,7 @@ function ConstraintsPanel({ constraints, onChange }: { constraints: string[]; on
                   on ? "border-ink bg-card-2" : "border-border-2 bg-card hover:border-ink"
                 }`}
               >
-                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[#bfbab1]"}`}>
+                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[var(--color-checkbox-border)]"}`}>
                   {on ? "■" : ""}
                 </span>
                 {c.label}
@@ -1025,7 +1025,7 @@ function RelocationAssumptionsPanel({
             const raw = f.isPercent ? assumptions[f.key] * 100 : assumptions[f.key];
             return (
               <label key={f.key} className="block">
-                <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[#3d3a34]">{f.label}</div>
+                <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[var(--color-text-muted)]">{f.label}</div>
                 <div className="flex items-center border border-border-2 bg-card-2">
                   {f.prefix && <span className="pl-2 font-mono text-[12px] text-ink-3">{f.prefix}</span>}
                   <input
@@ -1118,7 +1118,7 @@ function CreditTimingPanel({
               const raw = f.isPercent ? timing[f.key] * 100 : timing[f.key];
               return (
                 <label key={f.key} className="block">
-                  <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[#3d3a34]">{f.label}</div>
+                  <div className="mb-1.5 font-sans text-[11.5px] font-medium text-[var(--color-text-muted)]">{f.label}</div>
                   <div className="flex items-center border border-border-2 bg-card-2">
                     {f.prefix && <span className="pl-2 font-mono text-[12px] text-ink-3">{f.prefix}</span>}
                     <input
@@ -1208,7 +1208,7 @@ function ConflictList({ conflicts }: { conflicts: string[] }) {
           ))}
         </div>
       )}
-      <div className="mt-2 font-sans text-[11.5px] leading-relaxed text-[#7d3529]">
+      <div className="mt-2 font-sans text-[11.5px] leading-relaxed text-[var(--color-red-text)]">
         Figures above are unchanged — this tool surfaces the disagreement rather than picking a side.
         Confirm with the film office before relying on this jurisdiction.
       </div>
@@ -1307,7 +1307,7 @@ function HeroCard({
   return (
     <div
       title={failing ?? undefined}
-      className={`border border-[#bdbab2] border-t-[3px] border-t-teal-accent bg-card ${failing ? "opacity-55" : ""}`}
+      className={`border border-[var(--color-hero-border)] border-t-[3px] border-t-teal-accent bg-card ${failing ? "opacity-55" : ""}`}
     >
       <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.1fr_1fr]">
         <div>
@@ -1355,12 +1355,12 @@ function HeroCard({
               {runnerUp.rule.jurisdiction}, the next best option.
             </div>
           )}
-          <div className="print-block border-b border-[#eae8e1] pb-4">
+          <div className="print-block border-b border-[var(--color-hairline)] pb-4">
             <Waterfall row={row} />
           </div>
 
           {runnerUp && (
-            <div className="print-block border-b border-[#eae8e1] py-4">
+            <div className="print-block border-b border-[var(--color-hairline)] py-4">
               <WhyItWins winner={row} rival={runnerUp} />
             </div>
           )}
@@ -1377,7 +1377,7 @@ function HeroCard({
           )}
         </div>
 
-        <div className="border-l border-[#eae8e1] pl-7">
+        <div className="border-l border-[var(--color-hairline)] pl-7">
           <div className="flex flex-col gap-3.5">
             <Fact k="HEADLINE RATE" v={`${(rule.base_rate * 100).toFixed(1)}%`} />
             <Fact k="PAYOUT" v={(rule.credit_type ?? "unknown").replace("_", "-")} />
@@ -1390,12 +1390,12 @@ function HeroCard({
             <Fact k="FILM OFFICE" v={rule.film_office_contact ?? "not listed in sources"} />
           </div>
 
-          <div className="print-block mt-4.5 border-t border-[#eae8e1] pt-3.5">
+          <div className="print-block mt-4.5 border-t border-[var(--color-hairline)] pt-3.5">
             <FundingAvailability rule={rule} />
           </div>
 
           {benefit.caps_applied.length > 0 && (
-            <div className="print-block mt-3.5 flex flex-col gap-1.5 border-t border-[#eae8e1] pt-3.5">
+            <div className="print-block mt-3.5 flex flex-col gap-1.5 border-t border-[var(--color-hairline)] pt-3.5">
               <div className="font-mono text-[10px] font-medium tracking-wide text-ink-3">WHAT LIMITED THIS</div>
               {benefit.caps_applied.map((note, i) => (
                 <div key={i} className="font-mono text-[11.5px] leading-relaxed text-ink-2">
@@ -1406,7 +1406,7 @@ function HeroCard({
           )}
 
           {benefit.distance_km != null && (
-            <div className="print-block mt-3.5 border-t border-[#eae8e1] pt-3.5">
+            <div className="print-block mt-3.5 border-t border-[var(--color-hairline)] pt-3.5">
               <div className="mb-2 flex items-baseline justify-between gap-2">
                 <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">RELOCATION</div>
                 <button
@@ -1430,7 +1430,7 @@ function HeroCard({
             </div>
           )}
 
-          <div className="mt-4.5 border-t border-[#eae8e1] pt-3.5">
+          <div className="mt-4.5 border-t border-[var(--color-hairline)] pt-3.5">
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>
               <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} error={refreshError} />
@@ -1505,7 +1505,7 @@ function RunnerUpCard({
         </div>
       </div>
       {src && (
-        <div className="flex items-baseline justify-between gap-1.5 border-t border-[#efede7] bg-card-2 px-4 py-2 font-mono text-[11.5px] text-ink-4">
+        <div className="flex items-baseline justify-between gap-1.5 border-t border-[var(--color-hairline-2)] bg-card-2 px-4 py-2 font-mono text-[11.5px] text-ink-4">
           <span className="flex items-baseline gap-1.5">
             <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
               {hostOf(src.url)}

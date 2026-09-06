@@ -23,7 +23,7 @@ export function OpenQuestions({ questions, jurisdiction }: { questions: OpenQues
 
   return (
     <div className="print-block mt-5 border border-border-3 bg-card">
-      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[#eae8e1] bg-card-2 px-5.5 py-3.5">
+      <div className="flex flex-wrap items-baseline gap-3.5 border-b border-[var(--color-hairline)] bg-card-2 px-5.5 py-3.5">
         <div className="font-sans text-[13.5px] font-semibold">Before you commit to {jurisdiction}</div>
         <div className="font-sans text-[12.5px] text-ink-2">
           {questions.length} unresolved {questions.length === 1 ? "question" : "questions"}, ranked by
@@ -36,7 +36,7 @@ export function OpenQuestions({ questions, jurisdiction }: { questions: OpenQues
         {questions.map((q, i) => (
           <div
             key={i}
-            className="grid grid-cols-1 gap-2 border-b border-[#efede7] px-5.5 py-3.5 last:border-b-0 sm:grid-cols-[1fr_auto]"
+            className="grid grid-cols-1 gap-2 border-b border-[var(--color-hairline-2)] px-5.5 py-3.5 last:border-b-0 sm:grid-cols-[1fr_auto]"
           >
             <div>
               <div className="font-sans text-[13.5px] font-medium leading-relaxed text-ink">
@@ -62,7 +62,7 @@ export function OpenQuestions({ questions, jurisdiction }: { questions: OpenQues
         ))}
       </div>
 
-      <div className="border-t border-[#eae8e1] bg-card-2 px-5.5 py-3 font-mono text-[10.5px] leading-relaxed text-ink-3">
+      <div className="border-t border-[var(--color-hairline)] bg-card-2 px-5.5 py-3 font-mono text-[10.5px] leading-relaxed text-ink-3">
         Each figure is this jurisdiction's net benefit recomputed with the question answered the other
         way, so it's a difference between two runs of the same calculator — not an estimate.
       </div>

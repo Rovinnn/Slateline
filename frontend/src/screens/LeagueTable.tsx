@@ -90,7 +90,7 @@ export function LeagueTable() {
       </p>
 
       <div className="border border-border-3 bg-card">
-        <div className="grid grid-cols-[1.4fr_repeat(3,minmax(0,0.7fr))] gap-3 border-b border-[#eae8e1] bg-card-2 px-4 py-2.5 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
+        <div className="grid grid-cols-[1.4fr_repeat(3,minmax(0,0.7fr))] gap-3 border-b border-[var(--color-hairline)] bg-card-2 px-4 py-2.5 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
           <div>JURISDICTION</div>
           <div className="text-right">ADVERTISED</div>
           <div className="text-right">ACTUAL</div>
@@ -98,7 +98,7 @@ export function LeagueTable() {
         </div>
 
         {priced.map((r) => (
-          <div key={r.jurisdiction} className="border-b border-[#efede7] px-4 py-3 last:border-b-0">
+          <div key={r.jurisdiction} className="border-b border-[var(--color-hairline-2)] px-4 py-3 last:border-b-0">
             <div className="grid grid-cols-[1.4fr_repeat(3,minmax(0,0.7fr))] items-baseline gap-3">
               <div>
                 <div className="font-sans text-[14px] font-semibold">{r.jurisdiction}</div>
@@ -129,8 +129,8 @@ export function LeagueTable() {
               </div>
             </div>
             {/* The bar is the argument: advertised in outline, actual filled. */}
-            <div className="mt-2 h-[5px] w-full bg-[#ecebe5]">
-              <div className="h-full bg-[#d8d4cb]" style={{ width: `${(r.advertised / widest) * 100}%` }}>
+            <div className="mt-2 h-[5px] w-full bg-[var(--color-track)]">
+              <div className="h-full bg-[var(--color-border-tint)]" style={{ width: `${(r.advertised / widest) * 100}%` }}>
                 <div
                   className="h-full bg-teal"
                   style={{ width: `${Math.max(0, (r.effective! / r.advertised) * 100)}%` }}
@@ -143,11 +143,11 @@ export function LeagueTable() {
 
       {unpriceable.length > 0 && (
         <div className="mt-5 border border-border bg-card">
-          <div className="border-b border-[#eae8e1] bg-card-2 px-4 py-2.5 font-sans text-[13px] font-semibold">
+          <div className="border-b border-[var(--color-hairline)] bg-card-2 px-4 py-2.5 font-sans text-[13px] font-semibold">
             {unpriceable.length} measured and found not priceable
           </div>
           {unpriceable.map((r) => (
-            <div key={r.jurisdiction} className="border-b border-[#efede7] px-4 py-2.5 last:border-b-0">
+            <div key={r.jurisdiction} className="border-b border-[var(--color-hairline-2)] px-4 py-2.5 last:border-b-0">
               <span className="font-sans text-[13px] font-semibold">{r.jurisdiction}</span>{" "}
               <span className="font-sans text-[12.5px] text-ink-2">{r.reason}</span>
             </div>

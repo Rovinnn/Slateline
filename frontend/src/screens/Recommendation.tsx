@@ -29,20 +29,20 @@ export function Waterfall({ row }: { row: Row }) {
             <div className="flex items-baseline justify-between gap-3">
               <span
                 className={`font-sans text-[12.5px] ${
-                  isNet ? "font-semibold text-ink" : step.kind === "deduction" ? "text-ink-2" : "text-[#3d3a34]"
+                  isNet ? "font-semibold text-ink" : step.kind === "deduction" ? "text-ink-2" : "text-[var(--color-text-muted)]"
                 }`}
               >
                 {step.label}
               </span>
               <span
                 className={`shrink-0 font-mono ${
-                  isNet ? "text-[15px] font-semibold text-ink" : "text-[12.5px] text-[#3d3a34]"
+                  isNet ? "text-[15px] font-semibold text-ink" : "text-[12.5px] text-[var(--color-text-muted)]"
                 }`}
               >
                 {money(step.value)}
               </span>
             </div>
-            <div className="mt-1 h-[3px] w-full bg-[#ecebe5]">
+            <div className="mt-1 h-[3px] w-full bg-[var(--color-track)]">
               <div
                 className={`h-full ${
                   isNet ? "bg-ink" : step.kind === "deduction" ? "bg-amber" : "bg-teal"
@@ -126,7 +126,7 @@ export function EffectiveRate({ row, totalBudget }: { row: Row; totalBudget: num
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
   return (
-    <div className="print-block mb-5 flex flex-wrap items-end gap-x-8 gap-y-3 border-b border-[#eae8e1] pb-4">
+    <div className="print-block mb-5 flex flex-wrap items-end gap-x-8 gap-y-3 border-b border-[var(--color-hairline)] pb-4">
       <div>
         <div className="mb-1 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
           {rate.advertisedIncludesUplifts ? "ADVERTISED AS UP TO" : "ADVERTISED RATE"}

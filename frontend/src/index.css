@@ -33,6 +33,88 @@
   --color-amber-accent: #fbbf24;
   --color-red: #b45309;
   --color-red-bg: #ffe4df;
+
+  /* Promoted out of one-off `text-[#..]`/`border-[#..]`/`bg-[#..]` arbitrary
+     values so dark mode (below) can override them too — light values here
+     are exactly the hex literals those classes used to hardcode. */
+  --color-hairline: #eae8e1;
+  --color-hairline-2: #efede7;
+  --color-text-muted: #3d3a34;
+  --color-text-muted-2: #57534c;
+  --color-checkbox-border: #bfbab1;
+  --color-surface-tint: #f1f5f2;
+  --color-track: #ecebe5;
+  --color-ink-deep: #091318;
+  --color-amber-text: #7d5a29;
+  --color-red-text: #7d3529;
+  --color-hero-border: #bdbab2;
+  --color-border-tint: #d8d4cb;
+
+  /* MapView's SVG — the rest of its colors already match an existing token
+     exactly (e.g. its "#1a2630" pin text is literally --color-ink) and were
+     switched to reuse those directly rather than duplicating a new one. */
+  --color-map-land: #f0eeea;
+  --color-map-border: #dddbd4;
+  --color-map-excluded-line: #c0bdb6;
+  --color-map-excluded-stroke: #a7a49c;
+  --color-map-label-halo: #fbfaf7;
+}
+
+/*
+  Dark mode. Wrapped in `@media screen` so a print/PDF export always falls
+  back to the plain `:root` (light) values above regardless of the on-screen
+  theme — otherwise "Export PDF" while in dark mode could print near-invisible
+  light text on the forced-white print background (see the `@media print`
+  block further down).
+
+  `--color-ink` and `--color-paper` are a literal swap of each other: several
+  accent elements (the splash screen, the "Best take" badge, the primary
+  RUN COMPARISON button) pair `bg-ink` with `text-paper` for a solid dark
+  fill with light text. Swapping the two values keeps that exact contrast
+  relationship intact — the fill becomes light and the text becomes dark,
+  still readable, rather than both ends going light and disappearing.
+*/
+@media screen {
+  :root[data-theme="dark"] {
+    --color-ink: #f4f1ea;
+    --color-ink-2: #a39c8f;
+    --color-ink-3: #6b6459;
+    --color-ink-4: #857e72;
+    --color-paper: #1a2630;
+    --color-card: #212e3a;
+    --color-card-2: #1c2833;
+    --color-border: #33424f;
+    --color-border-2: #3a4854;
+    --color-border-3: #46545f;
+    --color-teal: #2dd4bf;
+    --color-teal-hover: #5eead4;
+    --color-teal-bg: #113c39;
+    --color-teal-accent: #5eead4;
+    --color-amber: #fbbf24;
+    --color-amber-bg: #3a2a0a;
+    --color-amber-accent: #fde68a;
+    --color-red: #f0a875;
+    --color-red-bg: #3d1f14;
+
+    --color-hairline: #33424f;
+    --color-hairline-2: #3a4854;
+    --color-text-muted: #d8d2c5;
+    --color-text-muted-2: #b6afa2;
+    --color-checkbox-border: #4a5560;
+    --color-surface-tint: #1e2b35;
+    --color-track: #2a3540;
+    --color-ink-deep: #ddd6c9;
+    --color-amber-text: #f3c98a;
+    --color-red-text: #f0b49a;
+    --color-hero-border: #46545f;
+    --color-border-tint: #3a4854;
+
+    --color-map-land: #26333f;
+    --color-map-border: #3a4854;
+    --color-map-excluded-line: #5c6670;
+    --color-map-excluded-stroke: #6b7480;
+    --color-map-label-halo: #212e3a;
+  }
 }
 
 /* Splash screen (App.tsx) — two soft glow blobs drifting behind the mark,
@@ -78,6 +160,30 @@ body {
 *:focus-visible {
   outline: 2px solid var(--color-teal-accent);
   outline-offset: 2px;
+}
+
+/*
+  A global round instead of touching every card/button/input individually —
+  almost every "box" in this app carries Tailwind's literal `border` utility
+  class (cards, panels, badges, tabs, inputs), so targeting that class name
+  directly catches them all in one place. `button`/`input`/`select`/`textarea`
+  are added on top for the few solid-fill controls (e.g. the primary "RUN
+  COMPARISON" button) that have a background but no border class.
+*/
+.border,
+.border-2,
+button,
+input,
+select,
+textarea {
+  border-radius: 6px;
+}
+
+/* Loading spinners and the header mark's dots use Tailwind's `rounded-full`
+   alongside `.border`/`.border-2` — restore true circles over the 6px above,
+   since this rule loads after Tailwind's own utilities in the cascade. */
+.rounded-full {
+  border-radius: 9999px;
 }
 
 /*

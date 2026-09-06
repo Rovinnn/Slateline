@@ -29,11 +29,32 @@ type UploadState =
  * pre-filled and annotated — never straight on results, since an unchecked
  * parsed figure is exactly what this tool exists to stop people trusting.
  */
+type Theme = "light" | "dark";
+
+function initialTheme(): Theme {
+  const saved = localStorage.getItem("iv-theme");
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function App() {
   const [screen, setScreen] = useState<Screen>("splash");
   const [splashOut, setSplashOut] = useState(false);
   const [budget, setBudget] = useState<BudgetVector | null>(null);
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
+  // No preference saved -> follows the OS setting; a manual toggle below
+  // pins it and remembers the choice across visits.
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("iv-theme", next);
+  }
   // Parse output lives outside NavState: history.pushState structured-clones
   // its argument, and this is only meaningful for the form we're navigating
   // to right now anyway.
@@ -127,19 +148,30 @@ function App() {
       {screen === "splash" && <SplashScreen splashOut={splashOut} onSkip={skipSplash} />}
 
       {screen !== "splash" && (
-        <header className="sticky top-0 z-30 flex items-baseline gap-[18px] border-b border-border bg-paper px-7 py-3.5">
-          <Mark size={16} spin />
+        <header className="sticky top-0 z-30 flex items-center gap-[18px] border-b border-border bg-paper px-7 py-3.5">
+          <Mark size={26} spin />
           <div className="font-sans text-[15px] font-bold tracking-tight">Slateline</div>
           <div className="font-sans text-[12.5px] text-ink-2">Jurisdiction comparison, net of relocation</div>
-          {screen !== "home" && (
+          <div className="ml-auto flex items-center gap-2.5 print:hidden">
+            {screen !== "home" && (
+              <button
+                type="button"
+                onClick={reset}
+                className="border border-border-2 bg-paper px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink hover:-translate-y-px"
+              >
+                START OVER
+              </button>
+            )}
             <button
               type="button"
-              onClick={reset}
-              className="ml-auto border border-border-2 bg-paper px-2.5 py-1.5 font-mono text-[11px] font-medium tracking-wide text-ink transition-colors hover:border-ink hover:-translate-y-px print:hidden"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="flex items-center justify-center border border-border-2 bg-paper p-1.5 text-ink transition-colors hover:border-ink hover:-translate-y-px"
             >
-              START OVER
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
             </button>
-          )}
+          </div>
           {/* Film-perforation strip: a nod to the "shooting locations" subject
               without a photo or icon anywhere — a dash pattern, not a texture. */}
           <div
@@ -292,7 +324,7 @@ function HomeScreen({
             <p className="mb-4 font-sans text-[13px] leading-[1.45] text-ink-2">
               Everything derived is shown.
             </p>
-            <div className="mb-4 flex flex-1 flex-col gap-1.5 border border-[#eae8e1] bg-card-2 p-3.5">
+            <div className="mb-4 flex flex-1 flex-col gap-1.5 border border-[var(--color-hairline)] bg-card-2 p-3.5">
               {["Total budget", "ATL cast / non-cast", "BTL labor / non-labor", "Post / VFX", "Shoot days / crew", "Resident labor share"].map(
                 (label) => (
                   <div key={label} className="flex justify-between gap-3 font-mono text-[11.5px] text-ink-2">
@@ -305,7 +337,7 @@ function HomeScreen({
             <button
               type="button"
               onClick={onOpenForm}
-              className="mt-auto w-full bg-ink px-0 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-paper transition-all hover:-translate-y-px hover:bg-[#091318]"
+              className="mt-auto w-full bg-ink px-0 py-2.5 font-mono text-[11.5px] font-medium tracking-wide text-paper transition-all hover:-translate-y-px hover:bg-[var(--color-ink-deep)]"
             >
               OPEN BLANK FORM
             </button>
@@ -330,10 +362,10 @@ function HomeScreen({
                 handleFiles(e.dataTransfer.files);
               }}
               className={`flex h-[148px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 border border-dashed text-center transition-colors ${
-                dragging ? "border-teal bg-[#f1f5f2]" : "border-border-2 bg-card-2 hover:border-teal hover:bg-[#f1f5f2]"
+                dragging ? "border-teal bg-[var(--color-surface-tint)]" : "border-border-2 bg-card-2 hover:border-teal hover:bg-[var(--color-surface-tint)]"
               }`}
             >
-              <div className="font-mono text-[12px] font-medium tracking-wide text-[#57534c]">DROP PDF HERE</div>
+              <div className="font-mono text-[12px] font-medium tracking-wide text-[var(--color-text-muted-2)]">DROP PDF HERE</div>
               <div className="font-sans text-[12px] text-ink-3">or click to browse · max 25 MB</div>
             </button>
             <input
@@ -391,7 +423,7 @@ function UploadError({
     <div className="mx-auto max-w-[560px] px-7 pt-28">
       <div className="border border-border border-t-[3px] border-t-red bg-card p-7">
         <div className="mb-2 font-sans text-[15px] font-semibold text-red">Could not read {fileName}</div>
-        <p className="mb-5 font-sans text-[13.5px] leading-relaxed text-[#57534c]">
+        <p className="mb-5 font-sans text-[13.5px] leading-relaxed text-[var(--color-text-muted-2)]">
           {message} Nothing was inferred and no figures were carried forward.
         </p>
         <div className="flex gap-2.5">
@@ -453,6 +485,23 @@ function CardLabel({ index, title, stripe }: { index: string; title: string; str
       <span className="font-mono text-[11px] font-medium text-ink-3">{index}</span>
       <span className="font-sans text-[15px] font-semibold">{title}</span>
     </div>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z" />
+    </svg>
   );
 }
 

@@ -99,7 +99,7 @@ export function ComparisonTable({
       <div className="overflow-x-auto border border-border-3 bg-card">
         <table className="w-full min-w-180 border-collapse">
           <thead>
-            <tr className="border-b border-[#eae8e1] bg-card-2">
+            <tr className="border-b border-[var(--color-hairline)] bg-card-2">
               <th className="px-4 py-2.5 text-left font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
                 JURISDICTION
               </th>
@@ -143,7 +143,7 @@ export function ComparisonTable({
                     tabIndex={0}
                     aria-expanded={open}
                     title={failing ?? "Click for sources"}
-                    className={`cursor-pointer border-b border-[#efede7] transition-colors hover:bg-card-2 ${
+                    className={`cursor-pointer border-b border-[var(--color-hairline-2)] transition-colors hover:bg-card-2 ${
                       failing ? "opacity-55" : ""
                     }`}
                   >
@@ -196,7 +196,7 @@ export function ComparisonTable({
                     </td>
                   </tr>
                   {open && (
-                    <tr className="border-b border-[#efede7] bg-card-2">
+                    <tr className="border-b border-[var(--color-hairline-2)] bg-card-2">
                       <td colSpan={7} className="px-4 py-4">
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.4fr]">
                           <div className="flex flex-col gap-3">
@@ -235,7 +235,7 @@ export function ComparisonTable({
 
       {unverified.length > 0 && (
         <div className="mt-4 border border-border bg-card">
-          <div className="border-b border-[#eae8e1] bg-card-2 px-4 py-2.5">
+          <div className="border-b border-[var(--color-hairline)] bg-card-2 px-4 py-2.5">
             <span className="font-sans text-[13px] font-semibold">
               Not ranked — {unverified.length} {unverified.length === 1 ? "program" : "programs"} we won't guess at
             </span>
@@ -243,12 +243,12 @@ export function ComparisonTable({
           {unverified.map(({ rule, benefit }) => {
             const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
             return (
-              <div key={rule.jurisdiction} className="border-b border-[#efede7] px-4 py-3 last:border-b-0">
+              <div key={rule.jurisdiction} className="border-b border-[var(--color-hairline-2)] px-4 py-3 last:border-b-0">
                 <div className="flex flex-wrap items-baseline gap-2.5">
                   <span className="font-sans text-[13.5px] font-semibold">{rule.jurisdiction}</span>
                   <span className="font-mono text-[11px] text-ink-4">{rule.program_name}</span>
                 </div>
-                <div className="mt-1 font-sans text-[12.5px] leading-relaxed text-[#57534c]">
+                <div className="mt-1 font-sans text-[12.5px] leading-relaxed text-[var(--color-text-muted-2)]">
                   {benefit.non_computable_reason}
                 </div>
                 {src && (

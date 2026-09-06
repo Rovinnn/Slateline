@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="mx-auto max-w-[640px] px-7 pt-16">
           <div className="border border-red/30 border-t-2 border-t-red bg-card p-6">
             <div className="mb-1.5 font-sans text-[15px] font-semibold text-red">Something went wrong</div>
-            <p className="mb-4 font-sans text-[13.5px] leading-relaxed text-[#57534c]">
+            <p className="mb-4 font-sans text-[13.5px] leading-relaxed text-[var(--color-text-muted-2)]">
               {this.state.error.message || "The screen hit an unexpected error and couldn't continue."}
             </p>
             <button
