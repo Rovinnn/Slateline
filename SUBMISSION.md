@@ -115,11 +115,17 @@ can perform.
 - **Parallel Search API** — three discovery queries plus four falsification
   queries per jurisdiction.
 - **Google Maps Distance Matrix** — real routed distance and travel time.
+- **Google Cloud Agent Builder / ADK** — an `LlmAgent` over six tools
+  (`set_budget`, `search_jurisdiction`, `get_travel_distance`,
+  `compute_benefit_for`, `compare_jurisdictions`, `challenge_jurisdiction`),
+  routed through Vertex. Tools address jurisdictions **by name**: the model
+  chooses what to compute and in what order, and never carries a figure
+  between steps, so its planning cannot corrupt a number in transit.
 - **Backend** — FastAPI on Cloud Run, stdlib dataclasses as the wire contract,
   keys in Secret Manager.
 - **Frontend** — React 19 + Vite + TypeScript + Tailwind v4 on Firebase
   Hosting; d3-geo + TopoJSON vector map (no tile API, no key in the browser).
-- **Tests** — 235 backend, 55 frontend, run in CI on every push.
+- **Tests** — 267 backend, 68 frontend, run in CI on every push.
 
 ## Data sources
 
@@ -188,7 +194,16 @@ The lesson is uncomfortable and worth stating: a well-tested pipeline computing
 from unverified inputs is a confident wrong answer, and no amount of testing
 the arithmetic finds it.
 
-**8. Live extraction is not deterministic.** The same jurisdiction returns
+**8. One library, two Google products, one confusing error.** ADK builds its
+own genai client and defaults to the Gemini *Developer* API, so the agent
+failed with "No API key was provided" and a link to ai.google.dev — while
+every other part of Layer 1 was authenticating to Vertex with
+application-default credentials and no API key anywhere. The fix is one
+environment variable (`GOOGLE_GENAI_USE_VERTEXAI`), but the failure reads like
+a missing secret rather than a missing setting, and we only found it by
+running the thing rather than by reading about it.
+
+**9. Live extraction is not deterministic.** The same jurisdiction returns
 different names between runs ("New Mexico", "USA-NM", "NM"), and occasionally
 different computability. Inherent to live retrieval, and the strongest
 argument for why hand-verification and conflict detection matter.
@@ -221,6 +236,11 @@ argument for why hand-verification and conflict detection matter.
 - **US-specific constraint data.** The "ocean coastline" filter knows US state
   geography and nothing else, so it makes no claim either way about a non-US
   jurisdiction rather than guessing.
-- **We use `google-genai` directly, not the ADK agent framework.**
+- **The ADK agent's own planning has never run against live Vertex.** Its
+  tools are tested against the real calculator, its declarations are checked,
+  and the CLI wiring is verified up to the credential boundary — but nobody
+  could authenticate on the machine it was written on, so the model's actual
+  tool-selection behaviour is unobserved. The REST pipeline, which is what the
+  deployed frontend uses, is unaffected by this and unchanged.
 
 Not tax advice. Figures are estimates for comparison, and the tool says so.

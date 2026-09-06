@@ -107,7 +107,28 @@ years stale. Read O.C.G.A. § 48-7-40.26, NMSA 7-2F and Louisiana's program
 rules, compare field by field, fix what's wrong, and record genuinely verified
 golden values. This is the work most likely to expose real bugs.
 
-### 2.4 ADK agent wrapper — ~half a day
+### 2.4 ADK agent wrapper — ✅ done (6 Sep 2026)
+
+`app/agent/` — an ADK `LlmAgent` over six tools, routed through Vertex.
+Additive: `app/main.py` and the three-layer pipeline are untouched and remain
+what the deployed frontend uses.
+
+The design decision worth keeping: **tools address jurisdictions by name, never
+by value.** A tool signature like `compute_benefit(budget={...}, rule={...})`
+would make the model re-emit every figure on every call, and a model restating
+`base_rate: 0.20` can restate it as `0.30` with nothing downstream able to
+tell. Forced function calling stops the model *computing* a number; it does
+nothing to stop it *transcribing* one wrongly. Values live in
+`agent/session.py`; a test asserts no tool parameter can carry a figure.
+
+This also closes BUILD_BRIEF §4's "the agent must invoke the calculator tool",
+which the REST pipeline satisfied only in spirit.
+
+**Not verified live** — the model's own tool-selection behaviour has never run
+against Vertex, because no credentials existed on this machine. Tools are
+tested against the real calculator; see VERIFY_LIVE.md §3b.
+
+### 2.4b Original note — ADK agent wrapper
 Universal requirements say *"Powered by Gemini **and Google Cloud Agent
 Builder**"*, and track map §4 is titled *"Build on ADK, Not Wrapper
 Libraries"*. We call `google-genai` directly; `google-adk` is in

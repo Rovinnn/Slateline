@@ -157,7 +157,31 @@ Response has `rule` (annotated) and `report`
       wrong conflict flag makes the product look less trustworthy, not more,
       which is the opposite of what the feature is for.
 
-### 3b. New extraction fields
+### 3b. The ADK agent 🟡
+
+Never run against live Vertex — no credentials existed on the machine it was
+written on. Its tools are tested against the real calculator and the CLI is
+verified up to the credential boundary, but the model's actual tool-selection
+behaviour is unobserved.
+
+```bash
+cd backend && python scripts/run_agent.py   "We have a $2M drama shooting 22 days out of LA with 45 crew. Georgia or New Mexico?"
+```
+
+Every tool call prints as it happens.
+
+- [ ] It calls `set_budget` first, then `search_jurisdiction` per jurisdiction,
+      then `compare_jurisdictions`.
+- [ ] 🔴 **Read the final answer against the tool output printed above it.**
+      Every figure the agent states must appear verbatim in a tool result. If
+      it states a number that isn't there — a percentage it worked out, a
+      difference it subtracted — the instruction in `agent.py` has failed.
+      That's the one failure that would matter, because it's the claim the
+      whole project rests on.
+- [ ] 🟢 This is additive. `app/main.py` and the deployed frontend don't use
+      it, so a problem here doesn't block submitting.
+
+### 3c. New extraction fields
 
 `months_to_payment`, `audit_required`, `currency`, `credit_type` and
 `fringes_qualify` are in the schema; some have never been extracted live.
@@ -170,7 +194,7 @@ Response has `rule` (annotated) and `report`
       with suspiciously round numbers, the model is inventing them despite
       being told not to. Record it.
 
-### 3c. Input validation against real extraction
+### 3d. Input validation against real extraction
 
 - [ ] 🟢 Watch for any jurisdiction landing in "can't verify" with a message
       about a rate being "outside the possible 0-100% range". That means the
