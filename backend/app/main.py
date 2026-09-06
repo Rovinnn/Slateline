@@ -27,6 +27,7 @@ from .models import (
     BenefitBreakdown,
     BudgetVector,
     CreditTimingAssumptions,
+    CurrencyAssumptions,
     JurisdictionRule,
     RelocationAssumptions,
 )
@@ -98,6 +99,9 @@ def compute(
     # `assumptions` is: it changes the answer, so it can't be a hidden
     # constant (BUILD_BRIEF.md section 6).
     timing: Optional[CreditTimingAssumptions] = None,
+    # Exchange rates, editable for the same reason: a production with its own
+    # treasury rate should use it rather than ours.
+    currency: Optional[CurrencyAssumptions] = None,
     # Both were computed but unreachable from any client. The transfer
     # discount decides what a transferable credit is worth, and cast_count
     # drives the per-person wage cap off an 8%-of-crew guess — consequential
@@ -124,6 +128,7 @@ def compute(
         cast_count=cast_count,
         transfer_discount=transfer_discount,
         timing=timing,
+        currency=currency,
     )
 
 

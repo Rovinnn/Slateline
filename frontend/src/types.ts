@@ -114,6 +114,15 @@ export const DEFAULT_CREDIT_TIMING: CreditTimingAssumptions = {
   audit_cost: 15000,
 };
 
+/** Exchange rates, treated as an assumption rather than a fact — this tool has
+ *  no FX feed and doesn't pretend to. Mirrors backend/app/models.py. */
+export interface CurrencyAssumptions {
+  /** Units of USD per 1 unit of the foreign currency. */
+  rates_to_usd: Record<string, number>;
+  /** Shown beside every converted figure, so a stale rate is visible. */
+  as_of: string;
+}
+
 export interface RelocationAssumptions {
   flight_threshold_km: number;
   /** Base airfare, before distance. */

@@ -82,6 +82,7 @@ SHARED_MODELS = [
     ("BudgetVector", models.BudgetVector),
     ("RelocationAssumptions", models.RelocationAssumptions),
     ("CreditTimingAssumptions", models.CreditTimingAssumptions),
+    ("CurrencyAssumptions", models.CurrencyAssumptions),
     ("BenefitBreakdown", models.BenefitBreakdown),
 ]
 

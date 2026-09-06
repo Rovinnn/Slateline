@@ -214,16 +214,78 @@ def test_discretionary_short_circuits_regardless_of_other_fields():
     assert result.relocation_cost == 0  # nothing to net against, so nothing is claimed
 
 
-# ---------- currency guard ----------
+# ---------- currency ----------
+#
+# This used to refuse every non-USD jurisdiction outright, which was right
+# while there was no honest way to convert. There is one: a stated, dated,
+# editable rate (CurrencyAssumptions). The guarantee is unchanged — nothing is
+# compared across currencies without a visible conversion — but the answer to
+# "what if we shoot in Tokyo" is now a number instead of a shrug.
 
-def test_non_usd_rule_is_not_computable_rather_than_silently_treated_as_usd():
+
+def test_a_non_usd_rule_converts_against_a_stated_rate():
     rule = make_rule(currency="EUR", base_rate=0.32, minimum_spend=None)
-    result = compute_benefit(make_budget(atl_cast=1_000_000), rule, distance_km=1000, assumptions=ASSUMPTIONS)
+    result = compute_benefit(
+        make_budget(atl_cast=1_000_000), rule, distance_km=1000, assumptions=ASSUMPTIONS
+    )
+    assert result.computable is True
+    assert result.gross_credit > 0
+    # The conversion is never silent: it is stated with its rate and its date.
+    assert any("converted from EUR" in note for note in result.caps_applied)
+    assert any("confirm before relying on it" in note for note in result.caps_applied)
+
+
+def test_a_currency_with_no_supplied_rate_is_still_refused():
+    """The original guarantee, kept.
+
+    Inventing a rate would be exactly the confidently-wrong number this whole
+    tool exists to avoid, so an unknown currency is refused and says what
+    would fix it.
+    """
+    rule = make_rule(currency="XYZ", base_rate=0.30, minimum_spend=None)
+    result = compute_benefit(make_budget(), rule, assumptions=ASSUMPTIONS)
     assert result.computable is False
+    assert "no XYZ exchange rate supplied" in result.caps_applied[0]
+    assert "currency assumptions" in result.non_computable_reason
+
+
+def test_only_amounts_convert_never_rates():
+    """A rate is a ratio and has no currency.
+
+    Converting base_rate would multiply every credit by the exchange rate — a
+    category error that produces a plausible-looking number two orders of
+    magnitude wrong for a currency like JPY.
+    """
+    budget = make_budget(fringe_rate=0)
+    yen = make_rule(currency="JPY", base_rate=0.30, minimum_spend=None, fringes_qualify=False)
+    usd = make_rule(currency="USD", base_rate=0.30, minimum_spend=None, fringes_qualify=False)
+
+    converted = compute_benefit(budget, yen, assumptions=ASSUMPTIONS)
+    plain = compute_benefit(budget, usd, assumptions=ASSUMPTIONS)
+    assert converted.gross_credit == pytest.approx(plain.gross_credit)
+
+
+def test_a_converted_minimum_spend_cliff_bites_in_usd_terms():
+    # 100,000,000 JPY at 0.0067 is about $670,000, so a $500k budget is under
+    # it — the cliff has to be evaluated after conversion, not before.
+    budget = make_budget(atl_cast=500_000, atl_noncast=0, btl_labor=0, btl_nonlabor=0, post_vfx=0)
+    rule = make_rule(currency="JPY", base_rate=0.30, minimum_spend=100_000_000)
+    result = compute_benefit(budget, rule, assumptions=ASSUMPTIONS)
     assert result.gross_credit == 0
-    assert result.net_benefit == 0
-    assert "EUR" in result.non_computable_reason
+    assert any("cliff" in note for note in result.caps_applied)
 
 
-def test_usd_rule_is_unaffected_by_the_currency_guard():
-    assert compute_benefit(make_budget(), make_rule(currency="USD"), assumptions=ASSUMPTIONS).computable is True
+def test_a_custom_rate_overrides_the_default():
+    # The point of the panel: a production with its own treasury rate uses it.
+    from app.models import CurrencyAssumptions
+
+    rule = make_rule(currency="EUR", base_rate=0.30, minimum_spend=1_000_000)
+    generous = CurrencyAssumptions(rates_to_usd={"EUR": 2.0})
+    result = compute_benefit(make_budget(), rule, assumptions=ASSUMPTIONS, currency=generous)
+    assert any("at 2 USD per EUR" in note for note in result.caps_applied)
+
+
+def test_usd_rules_are_untouched_by_any_of_this():
+    result = compute_benefit(make_budget(), make_rule(currency="USD"), assumptions=ASSUMPTIONS)
+    assert result.computable is True
+    assert not any("converted" in note for note in result.caps_applied)
