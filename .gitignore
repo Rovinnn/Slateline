@@ -21,6 +21,9 @@ frontend/dist/
 frontend/.vite/
 npm-debug.log*
 
+# Firebase CLI's local deploy cache — machine-specific, not config
+.firebase/
+
 # Editor / OS
 .DS_Store
 .vscode/*
