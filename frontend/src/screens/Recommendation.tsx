@@ -1,4 +1,4 @@
-import { buildWaterfall, explainWin, type Row } from "../lib/explain";
+import { buildWaterfall, effectiveRate, explainWin, type Row } from "../lib/explain";
 import { money, moneyShort } from "../lib/format";
 
 /**
@@ -105,6 +105,54 @@ export function WhyItWins({ winner, rival }: { winner: Row; rival: Row }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * The product's thesis, as two numbers side by side.
+ *
+ * Everything else on this card explains the *mechanism* by which an
+ * advertised rate collapses. This states the collapse itself, which is the
+ * part a producer feels without reading anything: Georgia is sold as 30% and
+ * returns 8.8% of the budget.
+ *
+ * The gap is the product. Without it a reader has to divide the net benefit
+ * by their own budget in their head to discover there was ever a story here.
+ */
+export function EffectiveRate({ row, totalBudget }: { row: Row; totalBudget: number }) {
+  const rate = effectiveRate(row, totalBudget);
+  if (!rate) return null;
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+
+  return (
+    <div className="mb-5 flex flex-wrap items-end gap-x-8 gap-y-3 border-b border-[#eae8e1] pb-4">
+      <div>
+        <div className="mb-1 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
+          {rate.advertisedIncludesUplifts ? "ADVERTISED AS UP TO" : "ADVERTISED RATE"}
+        </div>
+        <div className="font-mono text-[30px] font-semibold leading-none tracking-tight text-ink-3 line-through decoration-1">
+          {pct(rate.advertised)}
+        </div>
+      </div>
+      <div className="font-mono text-[20px] leading-none text-ink-4">→</div>
+      <div>
+        <div className="mb-1 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
+          YOU ACTUALLY KEEP
+        </div>
+        <div
+          className={`font-mono text-[30px] font-semibold leading-none tracking-tight ${
+            rate.effective < 0 ? "text-red" : "text-ink"
+          }`}
+        >
+          {pct(rate.effective)}
+        </div>
+      </div>
+      <div className="max-w-70 font-sans text-[12px] leading-relaxed text-ink-2">
+        of your total budget, after qualification rules, how the credit pays out, the wait to be
+        paid{rate.effective < 0 ? "" : ","} and relocation.
+        {rate.effective < 0 && " This jurisdiction costs more to reach than its credit is worth."}
+      </div>
     </div>
   );
 }
