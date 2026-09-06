@@ -5,12 +5,16 @@ import {
   ApiError,
   challengeJurisdiction,
   computeBenefit,
+  computeQuestions,
   computeSplit,
   getDistance,
+  getSuggestedJurisdictions,
   searchJurisdiction,
   type DistanceInfo,
 } from "../lib/api";
 import { challengeState } from "../lib/challenge";
+import { LeagueTable } from "./LeagueTable";
+import { OpenQuestions } from "./OpenQuestions";
 import { SplitRecommendation } from "./SplitPlan";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import { useHeroGlow } from "../lib/heroGlow";
@@ -21,7 +25,9 @@ import type {
   BudgetVector,
   ChallengeReport,
   CreditTimingAssumptions,
+  OpenQuestion,
   SplitResponse,
+  SuggestedJurisdiction,
   JurisdictionRule,
   PoolStatus,
   RelocationAssumptions,
@@ -55,10 +61,11 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [assumptions, setAssumptions] = useState<RelocationAssumptions>(DEFAULT_RELOCATION_ASSUMPTIONS);
   const [timing, setTiming] = useState<CreditTimingAssumptions>(DEFAULT_CREDIT_TIMING);
   const [split, setSplit] = useState<SplitResponse | null>(null);
+  const [questions, setQuestions] = useState<OpenQuestion[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
-  const [tab, setTab] = useState<"memo" | "compare" | "map">("memo");
+  const [tab, setTab] = useState<"memo" | "compare" | "map" | "gap">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
   const [challenges, setChallenges] = useState<Record<string, ChallengeReport | "checking" | "failed">>({});
@@ -247,6 +254,30 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   // coarser sweep than the main recompute above, so it rides the same
   // debounced trigger (state.status flips to "ready" after each recompute)
   // rather than firing its own independent request storm on every drag tick.
+  // The leader's unresolved questions, priced. Rides the same trigger as the
+  // split sweep, and only for the top jurisdiction — asking this of every
+  // runner-up would be four more round trips for advice about a place the
+  // producer isn't going.
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    const ranked = state.rows
+      .filter((r) => r.benefit.computable)
+      .sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
+    if (ranked.length === 0) return;
+    const top = ranked[0];
+    let cancelled = false;
+    computeQuestions(liveBudget, top.rule, {
+      distance_km: distances[top.rule.jurisdiction]?.distance_km,
+      assumptions,
+      timing,
+    })
+      .then((q) => !cancelled && setQuestions(q))
+      .catch(() => !cancelled && setQuestions([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [state, distances]);
+
   // Shoot/post pairings, computed off the same trigger as the breakeven sweep
   // so it rides that debounce rather than firing on every slider tick. Failure
   // is silent by design: this is an additional recommendation, and the ranking
@@ -351,6 +382,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
           <TabButton active={tab === "compare"} onClick={() => setTab("compare")}>COMPARE</TabButton>
           <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
+          <TabButton active={tab === "gap"} onClick={() => setTab("gap")}>THE GAP</TabButton>
         </div>
         <div className="font-sans text-[12.5px] text-ink-2">
           {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
@@ -432,6 +464,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           onTimingChange={setTiming}
           breakeven={breakeven}
           split={split}
+          questions={questions}
           printing={printing}
           showAll={showAll}
           setShowAll={setShowAll}
@@ -452,6 +485,10 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       )}
 
       {state.status === "ready" && tab === "map" && <MapView rows={state.rows} homeBaseLabel={liveBudget.home_base} />}
+
+      {/* Precomputed and budget-independent, so it renders whether or not the
+          live comparison above it succeeded. */}
+      {tab === "gap" && <LeagueTable />}
       </div>
     </div>
   );
@@ -488,17 +525,57 @@ function JurisdictionSearch({ existing, onFound }: { existing: string[]; onFound
     }
   }
 
+  // A curated starting set, grouped by region. Emphatically not an allowlist:
+  // extraction takes any name, so free text still works and the datalist only
+  // stops the box from reading as "type one of the four we hard-coded".
+  const [suggested, setSuggested] = useState<SuggestedJurisdiction[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getSuggestedJurisdictions().then(
+      (list) => !cancelled && setSuggested(list),
+      () => {
+        /* free-text search is unaffected; no need to surface this */
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const unused = suggested.filter(
+    (j) => !existing.some((n) => n.toLowerCase() === j.name.toLowerCase()),
+  );
+  const byRegion = unused.reduce<Record<string, SuggestedJurisdiction[]>>((acc, j) => {
+    (acc[j.region] ??= []).push(j);
+    return acc;
+  }, {});
+
   return (
     <form onSubmit={submit} className="flex items-center gap-2">
       <input
         type="text"
+        list="jurisdiction-suggestions"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="search another jurisdiction…"
+        placeholder={
+          unused.length ? `add a jurisdiction — ${unused.length} suggested, or type any` : "add a jurisdiction…"
+        }
         aria-label="Search another jurisdiction"
         disabled={pending}
-        className="w-[210px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
+        className="w-[260px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
       />
+      {/* A datalist rather than a <select>: it suggests without constraining,
+          which is exactly the relationship this list has to the pipeline. */}
+      <datalist id="jurisdiction-suggestions">
+        {Object.entries(byRegion).map(([region, members]) =>
+          members.map((j) => (
+            <option key={j.name} value={j.name}>
+              {region} · {j.advertised_hint}
+              {j.currency !== "USD" ? ` · ${j.currency}` : ""}
+            </option>
+          )),
+        )}
+      </datalist>
       <button
         type="submit"
         disabled={pending || !value.trim()}
@@ -537,6 +614,7 @@ function ReadyResults({
   onTimingChange,
   breakeven,
   split,
+  questions,
   printing,
   showAll,
   setShowAll,
@@ -558,6 +636,8 @@ function ReadyResults({
   breakeven: BreakevenResult | "loading" | "error" | null;
   /** Shoot/post pairings; null while in flight or if the call failed. */
   split: SplitResponse | null;
+  /** Unresolved questions about the leader, priced and ranked. */
+  questions: OpenQuestion[];
   printing: boolean;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
@@ -608,6 +688,8 @@ function ReadyResults({
         refreshError={refreshError[hero.rule.jurisdiction]}
         challenge={challenges[hero.rule.jurisdiction]}
       />
+
+      <OpenQuestions questions={questions} jurisdiction={hero.rule.jurisdiction} />
 
       {split && <SplitRecommendation split={split} />}
 

@@ -45,19 +45,33 @@ Mexico, Louisiana, Texas.
 
 ## 0:45–1:15 — The hero result and what it's made of
 
-**[VISUAL]** Results screen loads: New Mexico hero card, net benefit figure large,
-"$X more than [runner-up]" line, the compact map strip showing LA → Albuquerque with
-routed distance labelled next to the relocation line item.
+**[VISUAL]** Results screen loads. **Hold on the two figures at the top of the hero
+card for a full beat before scrolling** — this is the strongest frame in the video and
+it needs no narration to land:
+
+```
+ADVERTISED AS UP TO        YOU ACTUALLY KEEP
+30.0%              →       8.8%
+```
+
+Then scroll to the waterfall beneath it, which walks that collapse stage by stage, and
+the map strip showing LA → Albuquerque with the routed distance labelled on the line.
 
 **VO:**
-> "New Mexico wins here — but the headline rate was never the deciding number. Net
-> benefit nets out four things nobody else prices: whether the funding pool has money
-> left this year, how much of the budget actually qualifies under residency and
-> per-person caps, what it costs in flights and per diems to relocate the crew — that's
-> this line, tied to a real routed distance — and what the credit is worth once you
-> account for how and when it's actually paid out."
+> "Every state advertises a number like thirty percent. This is what a producer
+> actually keeps on a two-million-dollar film — and the gap isn't one deduction, it's
+> five. How much of the budget qualifies. Whether the credit is paid in cash or has to
+> be sold to a taxpayer at a discount. A mandatory audit. Eighteen months of waiting to
+> be paid. And what it costs to fly and house the crew. The waterfall shows every one
+> of them."
 
-**on-screen text:** *"gross − relocation − timing discount = net"*
+**on-screen text:** *"advertised rate → qualifying spend → monetisation → audit → the
+wait → relocation → what you keep"*
+
+> **Accuracy note:** don't say "gross minus relocation equals net" on screen. The real
+> chain is `gross + monetisation discount − audit + timing loss − relocation`, and the
+> waterfall renders exactly that. A simplified equation that doesn't match what's
+> visible is the one thing a finance-literate judge will catch.
 
 ---
 
@@ -89,6 +103,18 @@ excluded from the ranking with the reason (discretionary program, not modelable)
 > isn't."
 
 **on-screen text:** *"Can't verify — excluded from the ranking, not guessed"*
+
+**[VISUAL]** Scroll up slightly to **"Before you commit to [jurisdiction]"** — the
+priced unknowns, sorted with the risk at the top.
+
+**VO:**
+> "And where it can't be certain, it prices the uncertainty. These aren't disclaimers —
+> they're the highest-value phone calls this producer can make, ranked by what turns on
+> them. The funding pool question is worth the entire benefit, because a credit you
+> can't be allocated is worth nothing. Each figure is the same calculation re-run with
+> that question answered the other way. Nothing here is estimated."
+
+**on-screen text:** *"−$260,215 at risk · +$151,861 if confirmed"*
 
 ---
 

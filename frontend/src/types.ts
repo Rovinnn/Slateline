@@ -114,6 +114,15 @@ export const DEFAULT_CREDIT_TIMING: CreditTimingAssumptions = {
   audit_cost: 15000,
 };
 
+/** Exchange rates, treated as an assumption rather than a fact — this tool has
+ *  no FX feed and doesn't pretend to. Mirrors backend/app/models.py. */
+export interface CurrencyAssumptions {
+  /** Units of USD per 1 unit of the foreign currency. */
+  rates_to_usd: Record<string, number>;
+  /** Shown beside every converted figure, so a stale rate is visible. */
+  as_of: string;
+}
+
 export interface RelocationAssumptions {
   flight_threshold_km: number;
   /** Base airfare, before distance. */
@@ -165,6 +174,29 @@ export interface BenefitBreakdown {
   /** What the credit is worth today. net_benefit nets this, not face value. */
   present_value: number;
   timing_note: string | null;
+}
+
+/** A curated suggestion, not an allowlist — anything typed still works.
+ *  Mirrors backend/app/jurisdictions.py SuggestedJurisdiction. */
+export interface SuggestedJurisdiction {
+  name: string;
+  region: string;
+  /** What the programme publishes in. Non-USD converts against a stated rate. */
+  currency: string;
+  /** Roughly what it advertises. Display only — never used in a calculation. */
+  advertised_hint: string;
+}
+
+/** Something still unresolved about a jurisdiction, and what it's worth.
+ *  Mirrors backend/app/questions.py OpenQuestion. */
+export interface OpenQuestion {
+  question: string;
+  /** Signed dollars: positive is upside if confirmed, negative is at risk. */
+  worth: number;
+  /** How the figure was derived, so it can be argued with. */
+  basis: string;
+  /** Who actually answers this. */
+  ask: string;
 }
 
 /** One way to run the production: single-location, or shoot here and post there.

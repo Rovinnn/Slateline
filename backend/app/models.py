@@ -170,6 +170,57 @@ class CreditTimingAssumptions:
 
 
 @dataclass
+class CurrencyAssumptions:
+    """Exchange rates, treated as an assumption rather than a fact.
+
+    The tool refused non-USD jurisdictions entirely until now, on the correct
+    grounds that comparing euros against dollars with no unit anywhere would
+    be a confidently wrong number. But refusing is only the right answer while
+    there is no honest way to convert, and there is one: state the rate, date
+    it, put it on screen, and let the producer change it.
+
+    That is the same treatment relocation and payment timing already get. The
+    figures below are *defaults to be checked*, not live rates — this tool has
+    no FX feed and does not pretend to. A production committing millions on a
+    cross-border shoot will have a treasury rate of its own, and the panel
+    exists so they can enter it.
+
+    A currency with no rate here is still refused, with a message saying so.
+    That keeps the original guarantee intact: nothing is ever compared across
+    currencies without a stated, visible conversion.
+    """
+
+    #: Units of USD per 1 unit of the foreign currency.
+    rates_to_usd: dict[str, float] = field(
+        default_factory=lambda: {
+            "USD": 1.0,
+            "EUR": 1.08,
+            "GBP": 1.27,
+            "CAD": 0.74,
+            "AUD": 0.66,
+            "NZD": 0.61,
+            "JPY": 0.0067,
+            "KRW": 0.00075,
+            "INR": 0.012,
+            "MXN": 0.058,
+            "ZAR": 0.055,
+            "HUF": 0.0028,
+            "CZK": 0.043,
+            "PLN": 0.25,
+            "MNT": 0.00029,
+            "THB": 0.029,
+            "SGD": 0.74,
+            "ILS": 0.27,
+            "COP": 0.00025,
+            "DOP": 0.017,
+        }
+    )
+    #: When these were last reviewed. Shown next to every converted figure so
+    #: a stale rate is visible rather than implied.
+    as_of: str = "2026-09-06"
+
+
+@dataclass
 class BenefitBreakdown:
     jurisdiction: str
     qualifying_spend: float

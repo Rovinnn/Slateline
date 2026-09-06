@@ -32,8 +32,10 @@ from .models import (
     BenefitBreakdown,
     BudgetVector,
     CreditTimingAssumptions,
+    CurrencyAssumptions,
     JurisdictionRule,
     RelocationAssumptions,
+    Tier,
 )
 
 QUALIFYING_KEYS = (
@@ -363,6 +365,30 @@ def _impossible_inputs(
     return None
 
 
+def _in_usd(rule: JurisdictionRule, rate: float) -> JurisdictionRule:
+    """The same rule with its monetary limits restated in USD.
+
+    Only the amounts convert. `base_rate`, tier *rates* and uplift bonuses are
+    ratios and are currency-free — converting them would be a category error
+    that silently multiplies every credit by the exchange rate.
+
+    The budget is already in USD (the producer entered it that way), so
+    converting the rule rather than the budget keeps the output in the
+    currency the comparison is denominated in.
+    """
+    money = lambda v: None if v is None else v * rate  # noqa: E731
+    return replace(
+        rule,
+        per_person_wage_cap=money(rule.per_person_wage_cap),
+        minimum_spend=money(rule.minimum_spend),
+        per_project_cap=money(rule.per_project_cap),
+        annual_pool_total=money(rule.annual_pool_total),
+        annual_pool_remaining=money(rule.annual_pool_remaining),
+        tiers=[Tier(threshold=t.threshold * rate, rate=t.rate) for t in rule.tiers],
+        currency="USD",
+    )
+
+
 def _refuse(
     rule: JurisdictionRule,
     reason: str,
@@ -404,6 +430,7 @@ def compute_benefit(
     cast_count: Optional[int] = None,
     transfer_discount: float = DEFAULT_TRANSFER_DISCOUNT,
     timing: Optional[CreditTimingAssumptions] = None,
+    currency: Optional[CurrencyAssumptions] = None,
     today: Optional[date] = None,
 ) -> BenefitBreakdown:
     """No I/O, no model calls. Deterministic given its arguments — pass
@@ -416,6 +443,7 @@ def compute_benefit(
     """
     assumptions = assumptions or RelocationAssumptions()
     timing = timing or CreditTimingAssumptions()
+    currency = currency or CurrencyAssumptions()
     today = today or date.today()
     caps_applied: list[str] = []
 
@@ -439,14 +467,27 @@ def compute_benefit(
     # below silently would, with no unit anywhere to catch it) would be a
     # confidently wrong number, exactly what this tool exists to avoid.
     if rule.currency != "USD":
-        return _refuse(
-            rule,
-            f"This program's figures are stated in {rule.currency}, not USD, and this tool "
-            "doesn't convert currencies — comparing them directly against USD-denominated "
-            "jurisdictions would be misleading. Confirm the USD-equivalent value with the film office.",
-            f"figures are denominated in {rule.currency}, not USD",
-            distance_km,
-            travel_time_hours,
+        # Converted rather than refused, but only against a rate that is
+        # stated, dated and editable — see CurrencyAssumptions. A currency
+        # with no rate is still refused, which keeps the original guarantee:
+        # nothing is compared across currencies without a visible conversion.
+        rate = currency.rates_to_usd.get(rule.currency.upper())
+        if rate is None or rate <= 0:
+            return _refuse(
+                rule,
+                f"This program's figures are stated in {rule.currency}, and no exchange rate for "
+                f"{rule.currency} has been supplied. Add one in the currency assumptions to include "
+                "this jurisdiction, rather than have it compared against USD figures as though the "
+                "units matched.",
+                f"no {rule.currency} exchange rate supplied",
+                distance_km,
+                travel_time_hours,
+            )
+        original_currency = rule.currency
+        rule = _in_usd(rule, rate)
+        caps_applied.append(
+            f"converted from {original_currency} at {rate:g} USD per {original_currency} "
+            f"(rate as of {currency.as_of} — confirm before relying on it)"
         )
 
     unavailable = _availability_block(rule, today)

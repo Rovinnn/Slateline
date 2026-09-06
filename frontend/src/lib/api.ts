@@ -1,6 +1,8 @@
 import type {
   ChallengeResponse,
   CreditTimingAssumptions,
+  OpenQuestion,
+  SuggestedJurisdiction,
   SplitResponse,
   BenefitBreakdown,
   BudgetVector,
@@ -146,6 +148,36 @@ export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: bool
   const params = new URLSearchParams({ jurisdiction });
   if (opts?.refresh) params.set("refresh", "true");
   return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
+}
+
+/** The curated starting set for the jurisdiction picker. Not an allowlist. */
+export function getSuggestedJurisdictions(): Promise<SuggestedJurisdiction[]> {
+  return getJson<SuggestedJurisdiction[]>("/jurisdictions/suggested");
+}
+
+/**
+ * What's still unresolved about a jurisdiction, priced and ranked.
+ *
+ * Every figure is a difference between two runs of the same calculator that
+ * produced the number on screen — the backend never estimates one, which is
+ * why these can sit next to the verified figures without qualification.
+ */
+export function computeQuestions(
+  budget: BudgetVector,
+  rule: JurisdictionRule,
+  opts?: {
+    distance_km?: number;
+    assumptions?: RelocationAssumptions;
+    timing?: CreditTimingAssumptions;
+  },
+): Promise<OpenQuestion[]> {
+  return postJson<OpenQuestion[]>("/compute/questions", {
+    budget,
+    rule,
+    distance_km: opts?.distance_km ?? null,
+    assumptions: opts?.assumptions ?? null,
+    timing: opts?.timing ?? null,
+  });
 }
 
 /**

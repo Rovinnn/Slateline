@@ -21,11 +21,14 @@ from .extraction.agent import extract_jurisdiction_rule
 from .extraction.challenge import ChallengeReport, apply_challenge, challenge_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
+from .jurisdictions import SUGGESTED, SuggestedJurisdiction, grouped
+from .questions import OpenQuestion, open_questions
 from .split import SplitPlan, analyse_splits
 from .models import (
     BenefitBreakdown,
     BudgetVector,
     CreditTimingAssumptions,
+    CurrencyAssumptions,
     JurisdictionRule,
     RelocationAssumptions,
 )
@@ -97,6 +100,9 @@ def compute(
     # `assumptions` is: it changes the answer, so it can't be a hidden
     # constant (BUILD_BRIEF.md section 6).
     timing: Optional[CreditTimingAssumptions] = None,
+    # Exchange rates, editable for the same reason: a production with its own
+    # treasury rate should use it rather than ours.
+    currency: Optional[CurrencyAssumptions] = None,
     # Both were computed but unreachable from any client. The transfer
     # discount decides what a transferable credit is worth, and cast_count
     # drives the per-person wage cap off an 8%-of-crew guess — consequential
@@ -123,6 +129,7 @@ def compute(
         cast_count=cast_count,
         transfer_discount=transfer_discount,
         timing=timing,
+        currency=currency,
     )
 
 
@@ -202,6 +209,44 @@ class SplitResponse:
     plans: list[SplitPlan]
     splitting_wins: bool
     gain_over_single: float
+
+
+@app.get("/jurisdictions/suggested", response_model=list[SuggestedJurisdiction])
+def suggested_jurisdictions() -> list[SuggestedJurisdiction]:
+    """A curated starting set, grouped by region — not an allowlist.
+
+    Extraction takes any name and searches for it, so this exists purely so
+    the search box stops reading as "type one of the four things we hard-coded".
+    Anything not on this list still works.
+    """
+    return [j for _, members in grouped() for j in members]
+
+
+@app.post("/compute/questions", response_model=list[OpenQuestion])
+def compute_questions(
+    budget: BudgetVector,
+    rule: JurisdictionRule,
+    distance_km: Optional[float] = Body(default=None),
+    assumptions: Optional[RelocationAssumptions] = None,
+    timing: Optional[CreditTimingAssumptions] = None,
+) -> list[OpenQuestion]:
+    """What's still unresolved about this jurisdiction, priced and ranked.
+
+    Layer 2 refuses to guess and leaves a note each time it does. Those notes
+    are the highest-value phone calls a producer can make, and every figure
+    here is a difference between two runs of the same compute_benefit that
+    produced the number on screen — never an estimate of its own.
+
+    Empty list for a jurisdiction that can't be ranked: there's no figure to
+    protect or improve, and listing questions would imply it's a live option.
+    """
+    verified = verify_rule(rule)
+    benefit = compute_benefit(
+        budget, verified, distance_km=distance_km, assumptions=assumptions, timing=timing
+    )
+    return open_questions(
+        budget, verified, benefit, distance_km=distance_km, assumptions=assumptions, timing=timing
+    )
 
 
 @app.post("/compute/split", response_model=SplitResponse)

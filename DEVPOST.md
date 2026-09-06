@@ -104,6 +104,11 @@ Georgia's $400,000 credit is worth $175,722 after selling a transferable
 credit at a discount, an 18-month wait, a mandatory audit and flying 18 people
 3,747 km. Then open the winner's card and let the waterfall walk it down.
 
+**Two beats now compete for strongest.** The effective rate — "advertised up
+to 30%, you actually keep 8.8%" — states the entire thesis in one frame with
+no narration. And the priced unknowns: "-$260,215 at risk: is the funding pool
+still open?" turns the tool from analysis into a to-do list.
+
 **The strongest single beat is the split panel** — "shoot in Louisiana, post
 in New Mexico, $8,347 more than either alone", and beneath it the split that
 *destroys* a credit by dropping post under Georgia's minimum. No competing
