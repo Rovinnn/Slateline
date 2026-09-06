@@ -26,7 +26,13 @@ from __future__ import annotations
 
 from datetime import date
 
+from .extraction.agent import US_STATE_ABBREVIATIONS
 from .models import JurisdictionRule
+
+# The jurisdictions this module can make a coastline claim about at all.
+# Derived from the canonicalisation table rather than retyped, so the two
+# can't drift into disagreeing about what counts as a US state.
+US_STATES_AND_DC: frozenset[str] = frozenset(US_STATE_ABBREVIATIONS.values())
 
 # Ocean/Gulf coastline only — the constraint's label (frontend/src/data/
 # constraints.ts) says "ocean coastline", so Great-Lakes-only states
@@ -71,8 +77,18 @@ def constraint_gaps_for(rule: JurisdictionRule) -> dict[str, str]:
     """
     gaps: dict[str, str] = {}
 
-    if rule.jurisdiction not in COASTAL_STATES:
-        gaps["coastline"] = f"{rule.jurisdiction} has no ocean or Gulf coastline."
+    # Only assertable about US states, because COASTAL_STATES is the only
+    # geography this module has. Absence from that set means "not a coastal US
+    # state", which for Ireland or British Columbia means "we have no data",
+    # not "landlocked" — and this used to render the difference as the flat
+    # falsehood "Ireland has no ocean or Gulf coastline."
+    #
+    # That broke this function's own contract, stated in the docstring above:
+    # an absent key means satisfies-it *or unknown*, never a guess. Staying
+    # silent is what "unknown" is supposed to look like.
+    if rule.jurisdiction in US_STATES_AND_DC:
+        if rule.jurisdiction not in COASTAL_STATES:
+            gaps["coastline"] = f"{rule.jurisdiction} has no ocean or Gulf coastline."
 
     if rule.sunset_date is not None and rule.sunset_date < _SPRING_2027_START:
         gaps["spring_only"] = f"{rule.program_name} sunsets {rule.sunset_date.isoformat()}, before spring 2027."

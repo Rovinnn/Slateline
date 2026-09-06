@@ -210,7 +210,17 @@ argument for why hand-verification and conflict detection matter.
   and per-mechanism waits are ours. They're visible and editable in the UI for
   exactly that reason, and a rule's own stated timeline overrides them.
 - **First load takes 30–60 seconds** on a cold jurisdiction. Cached after.
-- **US-only in practice** — non-USD programs are refused rather than converted.
+- **US-only in practice, by refusal rather than by omission.** Any
+  jurisdiction can be searched and extracted — Ireland's Section 481 comes
+  back correctly at 32% in EUR — but the calculator refuses to rank a non-USD
+  program rather than converting it, because comparing euros against dollars
+  with no unit anywhere would be a confidently wrong number. Non-USD programs
+  land in "can't verify" with the currency named. Supporting them properly
+  means FX rates and a per-jurisdiction currency on every figure, not a
+  one-line change.
+- **US-specific constraint data.** The "ocean coastline" filter knows US state
+  geography and nothing else, so it makes no claim either way about a non-US
+  jurisdiction rather than guessing.
 - **We use `google-genai` directly, not the ADK agent framework.**
 
 Not tax advice. Figures are estimates for comparison, and the tool says so.
