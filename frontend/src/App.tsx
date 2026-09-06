@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { makeBlankBudget } from "./data/blankBudget";
 import { EXAMPLES, type Example } from "./data/examples";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { ApiError, parseBudgetPdf } from "./lib/api";
 import { useHeroGlow } from "./lib/heroGlow";
 import { ManualForm } from "./screens/ManualForm";
@@ -146,29 +147,31 @@ function App() {
         </header>
       )}
 
-      {screen === "form" && (
-        <ManualForm
-          initial={budget ?? makeBlankBudget()}
-          onBack={() => window.history.back()}
-          onSubmit={runComparison}
-          fieldNotes={parsedRef.current?.field_notes}
-          warnings={parsedRef.current?.warnings}
-          sourceLabel={fileNameRef.current ?? undefined}
-        />
-      )}
-      {screen === "results" && budget && <Results budget={budget} onEditInputs={openForm} />}
-      {screen === "home" && upload.status === "parsing" && <UploadProgress fileName={upload.fileName} />}
-      {screen === "home" && upload.status === "error" && (
-        <UploadError
-          fileName={upload.fileName}
-          message={upload.message}
-          onRetry={() => setUpload({ status: "idle" })}
-          onEnterManually={openForm}
-        />
-      )}
-      {screen === "home" && upload.status === "idle" && (
-        <HomeScreen onSelectExample={runComparison} onOpenForm={openForm} onUpload={uploadBudget} />
-      )}
+      <ErrorBoundary>
+        {screen === "form" && (
+          <ManualForm
+            initial={budget ?? makeBlankBudget()}
+            onBack={() => window.history.back()}
+            onSubmit={runComparison}
+            fieldNotes={parsedRef.current?.field_notes}
+            warnings={parsedRef.current?.warnings}
+            sourceLabel={fileNameRef.current ?? undefined}
+          />
+        )}
+        {screen === "results" && budget && <Results budget={budget} onEditInputs={openForm} />}
+        {screen === "home" && upload.status === "parsing" && <UploadProgress fileName={upload.fileName} />}
+        {screen === "home" && upload.status === "error" && (
+          <UploadError
+            fileName={upload.fileName}
+            message={upload.message}
+            onRetry={() => setUpload({ status: "idle" })}
+            onEnterManually={openForm}
+          />
+        )}
+        {screen === "home" && upload.status === "idle" && (
+          <HomeScreen onSelectExample={runComparison} onOpenForm={openForm} onUpload={uploadBudget} />
+        )}
+      </ErrorBoundary>
     </div>
   );
 }
@@ -185,6 +188,15 @@ function SplashScreen({ splashOut, onSkip }: { splashOut: boolean; onSkip: () =>
   return (
     <div
       onClick={onSkip}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+          e.preventDefault();
+          onSkip();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label="Skip intro"
       className="fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-ink"
       style={{ transition: "opacity 260ms ease", opacity: splashOut ? 0 : 1 }}
     >

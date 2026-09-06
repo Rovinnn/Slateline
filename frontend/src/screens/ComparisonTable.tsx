@@ -95,15 +95,20 @@ export function ComparisonTable({
         </div>
       </div>
 
+      <div className="mb-1.5 font-mono text-[10px] text-ink-3 print:hidden">scroll for more columns →</div>
       <div className="overflow-x-auto border border-border-3 bg-card">
-        <table className="w-full min-w-[900px] border-collapse">
+        <table className="w-full min-w-180 border-collapse">
           <thead>
             <tr className="border-b border-[#eae8e1] bg-card-2">
               <th className="px-4 py-2.5 text-left font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
                 JURISDICTION
               </th>
               {COLUMNS.map((col) => (
-                <th key={col.key} className="px-4 py-2.5 text-right">
+                <th
+                  key={col.key}
+                  className="px-4 py-2.5 text-right"
+                  aria-sort={sort !== col.key ? "none" : col.key === "relocation" ? "ascending" : "descending"}
+                >
                   <button
                     type="button"
                     onClick={() => setSort(col.key)}
@@ -128,6 +133,15 @@ export function ComparisonTable({
                 <Fragment key={rule.jurisdiction}>
                   <tr
                     onClick={() => setExpanded(open ? null : rule.jurisdiction)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setExpanded(open ? null : rule.jurisdiction);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={open}
                     title={failing ?? "Click for sources"}
                     className={`cursor-pointer border-b border-[#efede7] transition-colors hover:bg-card-2 ${
                       failing ? "opacity-55" : ""
@@ -245,6 +259,7 @@ export function ComparisonTable({
                     className="mt-1 inline-block font-mono text-[11px] text-teal underline decoration-1 underline-offset-2"
                   >
                     {hostOf(src.url)}
+                    <span className="sr-only"> (opens in new tab)</span>
                   </a>
                 )}
               </div>

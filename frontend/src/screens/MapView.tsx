@@ -181,13 +181,18 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
         )}
 
         {geo && (
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: "block" }}>
-            <g>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            className="w-full"
+            style={{ display: "block" }}
+            aria-label={`Map of net benefit by jurisdiction relative to home base ${home.label}`}
+          >
+            <g aria-hidden>
               {geo.countries.map((f, i) => (
                 <path key={`c${i}`} d={path(f) ?? undefined} fill="#F0EEEA" stroke="#DDDBD4" strokeWidth={0.7} />
               ))}
             </g>
-            <g>
+            <g aria-hidden>
               {geo.states.map((f, i) => (
                 <path key={`s${i}`} d={path(f) ?? undefined} fill="none" stroke="#DDDBD4" strokeWidth={0.5} />
               ))}
@@ -209,6 +214,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
               return (
                 <g key={`line-${p.name}`}>
                   <line
+                    aria-hidden
                     x1={hx}
                     y1={hy}
                     x2={x}
@@ -250,6 +256,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
 
             <g transform={`translate(${hx},${hy})`}>
               <rect
+                aria-hidden
                 x={-6}
                 y={-6}
                 width={12}
@@ -278,14 +285,14 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
             {points.map((p) => {
               const [x, y] = project(p.lat, p.lng);
               const color = p.excluded ? "#F7F5F1" : netColor(p.net, lo, hi);
+              const pointLabel = `${p.name}${
+                p.excluded
+                  ? " — excluded from the ranking"
+                  : ` — net ${moneyShort(p.net)}${p.km != null ? `, ${Math.round(p.km).toLocaleString()} km from ${home.label}` : ""}`
+              }`;
               return (
-                <g key={p.name} transform={`translate(${x},${y})`}>
-                  <title>
-                    {p.name}
-                    {p.excluded
-                      ? " — excluded from the ranking"
-                      : ` — net ${moneyShort(p.net)}${p.km != null ? `, ${Math.round(p.km).toLocaleString()} km from ${home.label}` : ""}`}
-                  </title>
+                <g key={p.name} transform={`translate(${x},${y})`} tabIndex={0} role="img" aria-label={pointLabel}>
+                  <title>{pointLabel}</title>
                   <circle
                     r={p.excluded ? 5 : 8}
                     fill={color}
@@ -321,7 +328,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                 NET BENEFIT
               </text>
               {[0, 1, 2, 3].map((i) => (
-                <rect key={i} x={i * 26} y={0} width={26} height={7} fill={netColor(lo + ((hi - lo) * i) / 3, lo, hi)} />
+                <rect aria-hidden key={i} x={i * 26} y={0} width={26} height={7} fill={netColor(lo + ((hi - lo) * i) / 3, lo, hi)} />
               ))}
               <text x={0} y={20} fontFamily="'IBM Plex Mono',monospace" fontSize={10.5} fill="#879196">
                 lower
