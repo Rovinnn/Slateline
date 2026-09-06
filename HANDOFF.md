@@ -7,10 +7,10 @@ teammate's machine. The code is done and tested; none of it is live.
 
 **DEPLOYED 6 Sep 2026.** Both halves are live and current:
 
-- Backend — Cloud Run revision `incentive-verifier-backend-00005-gqt`
-  (rollback point: `00004-rfw`). Smoke test **6/6**.
-- Frontend — Firebase Hosting release `1788696118287000`, bundle
-  `index-PmB0JqtX.js`, SPA rewrite confirmed on a deep link.
+- Backend — Cloud Run revision `incentive-verifier-backend-00006-cs9`
+  (rollback points: `00005-gqt`, `00004-rfw`). Smoke test **6/6**.
+- Frontend — Firebase Hosting release `1788699625761000`, bundle
+  `index-z4NILZ5G.js`, SPA rewrite confirmed on a deep link.
 
 Verified end to end against production: four jurisdictions extracted live,
 real Maps distances, New Mexico ranked first at $259,952 over Georgia at
