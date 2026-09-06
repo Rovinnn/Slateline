@@ -38,8 +38,17 @@ regardless of how good the product is.
 
 ## 1. Authenticate
 
-`gcloud auth login` authenticates the CLI. `application-default login` is what
-the `google-genai` client actually reads — both are needed.
+**Status as of 6 Sep: ADC is done, the CLI login is NOT.**
+`gcloud auth application-default login` has been run — that's what
+`google-genai` reads, and Parallel, Gemini and Maps all verify OK. But
+`gcloud auth list` reports no credentialed accounts, so **`gcloud run deploy`
+will fail** until someone runs the CLI login. They are separate credentials
+and both are needed.
+
+```bash
+gcloud auth login          # <- this is the one still missing
+gcloud config set project zeta-structure-437412-v7
+```
 
 ```bash
 gcloud auth login
@@ -64,8 +73,8 @@ one real call per service and reports each independently:
 cd backend && python scripts/check_credentials.py
 ```
 
-All three must print OK. As of 6 Sep, Parallel passes and the other two fail
-purely because no one has authenticated on this machine.
+All three print OK as of 6 Sep — Parallel, Gemini via Vertex, and Maps
+(LA → Atlanta, 3,498 km). Re-run it if anything downstream misbehaves.
 
 ---
 

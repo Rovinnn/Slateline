@@ -129,7 +129,7 @@ can perform.
   keys in Secret Manager.
 - **Frontend** — React 19 + Vite + TypeScript + Tailwind v4 on Firebase
   Hosting; d3-geo + TopoJSON vector map (no tile API, no key in the browser).
-- **Tests** — 271 backend, 68 frontend, run in CI on every push.
+- **Tests** — 283 backend, 68 frontend, run in CI on every push.
 
 ## Data sources
 
@@ -218,7 +218,43 @@ the model rather than fixtures. Airfare now has a distance component, and
 there's a test asserting that flying further costs more — which sounds too
 obvious to need testing, and wasn't true for months.
 
-**10. Live extraction is not deterministic.** The same jurisdiction returns
+**10. The model beat us on one field, and we had asked it the wrong question
+on another.** Grading live extraction against the hand-verified statutes:
+Georgia came back 6/6 — including the $500,000 per-person wage cap our own
+hand-curated seed data had missing. New Mexico failed on one field, and it
+turned out we had posed the question badly. The schema asked "is this category
+qualifying spend", and New Mexico's non-resident crew *do* get a credit — a
+separate one, at 15% instead of 25%, capped at a share of the budget. Under
+that reading the model's answer was defensible. Rewriting the field to ask
+what the calculator actually needs — "does this count toward the base the base
+rate multiplies?" — fixed it, and Georgia stayed correct, which is the control
+that mattered: a prompt that merely frightened the model into saying no
+everywhere would have broken it.
+
+**11. A conflict detector's hardest job is staying quiet.** The adversarial
+pass's first live run reported four "material contradictions" for Georgia,
+every one of the form "we have: not stated" against a source saying "no cap"
+or "no sunset clause" — sources that *agree*. It hadn't disobeyed the
+instruction not to treat silence as contradiction; it had treated *our own*
+missing value as a position a source could contradict, which the instruction
+never covered. Fixed in code rather than prompt, because prompting had already
+demonstrated its limits here. Georgia went 4 findings to 1, New Mexico 7 to 2,
+and the survivors are real — New Mexico's annual pool is reported as $140M by
+us and $100M and $130M by others, a genuine disagreement about funding
+availability, which is the whole wedge.
+
+**12. Everything downstream of a bad input is impeccable, which is the
+problem.** The ADK agent's first live run recommended Georgia over New Mexico.
+The reasoning was flawless: New Mexico's extraction had returned a per-project
+cap that reduced a $415,625 credit to $0, the production still paid to
+relocate, so its net benefit went negative. Every step after the bad input was
+computed correctly from it, which is exactly what made the wrong answer
+persuasive. A $0 ceiling describes no real program — it is "no cap" misread —
+and is now refused. The same lesson as finding 3, arriving from a completely
+different direction: keeping a model away from arithmetic protects nothing if
+it supplies the arithmetic's inputs.
+
+**13. Live extraction is not deterministic.** The same jurisdiction returns
 different names between runs ("New Mexico", "USA-NM", "NM"), and occasionally
 different computability. Inherent to live retrieval, and the strongest
 argument for why hand-verification and conflict detection matter.

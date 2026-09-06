@@ -58,9 +58,22 @@ Six checks. **All six must pass after a successful deploy.**
 
 ---
 
-## 2. Does live extraction match the verified statutes?
+## 2. Does live extraction match the verified statutes? — ✅ RUN 6 Sep
 
-**This is the most valuable check on the page, and it's new.**
+**Already done, and it found two things. Re-run only to confirm the deploy
+carried the fixes; the expected values below are still the oracle.**
+
+Results on 6 Sep, against local code with live Parallel + Gemini:
+
+- **Georgia 6/6.** Including `per_person_wage_cap: 500000`, which our
+  hand-curated seed data had missing — extraction beat hand-curation there.
+- **New Mexico initially failed** on `qualifying.btl_labor_nonresident`
+  exactly as predicted below. Root cause was our schema asking "is this
+  qualifying spend" when the calculator needs "does this count at the base
+  rate". Each key now says so, and after the fix New Mexico returns `false`
+  and Georgia still returns `true`.
+
+**This is the most valuable check on the page.**
 
 On 6 Sep we hand-verified Georgia, New Mexico and Louisiana against the
 actual statutes and found three errors. That makes those three a **correctness
@@ -128,7 +141,21 @@ These were written and unit-tested with mocked model responses, because nobody
 could authenticate. **Their first real execution will be on the deployed
 site.**
 
-### 3a. The adversarial challenge pass 🔴 highest risk
+### 3a. The adversarial challenge pass — ✅ RUN 6 Sep, bug found and fixed
+
+**The predicted failure happened.** First live run reported four "material
+contradictions" for Georgia, all of the form "we have: not stated" versus a
+source saying "no cap" — sources that agree. It was treating our own missing
+value as a contradictable position. Fixed with a code guard: a contradiction
+needs a concrete held value to disagree with.
+
+After the fix: Georgia 4 findings → 1 (`under_review`, citing a real source),
+New Mexico 7 → 2 (annual pool reported as $140M by us, $100M and $130M
+elsewhere — a genuine funding-availability disagreement).
+
+Re-run against the deployment to confirm, using the recipe below.
+
+### 3a-bis. Original instructions
 
 ```bash
 curl -s -X POST "$BACKEND/jurisdictions/challenge" \
@@ -157,9 +184,19 @@ Response has `rule` (annotated) and `report`
       wrong conflict flag makes the product look less trustworthy, not more,
       which is the opposite of what the feature is for.
 
-### 3b. The ADK agent 🟡
+### 3b. The ADK agent — ✅ RUN 6 Sep, bug found and fixed
 
-Never run against live Vertex — no credentials existed on the machine it was
+Ran end to end. Correct tool order (`set_budget` → `search_jurisdiction` ×2 →
+`get_travel_distance` ×2 → `compare_jurisdictions` → `challenge_jurisdiction`
+→ `compute_benefit_for`), and **every figure in its answer came from a tool
+result** — the instruction held.
+
+It also caught a real bug by doing so: New Mexico's extraction returned a
+per-project cap that zeroed a $415,625 credit, giving it a negative net
+benefit and handing the ranking to Georgia. A $0 cap is now refused. Re-run
+after deploying and confirm the ranking is sane.
+
+Original note: never run against live Vertex — no credentials existed on the machine it was
 written on. Its tools are tested against the real calculator and the CLI is
 verified up to the credential boundary, but the model's actual tool-selection
 behaviour is unobserved.
