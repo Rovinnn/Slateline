@@ -31,6 +31,8 @@ interface LeagueRow {
   effective?: number;
   gap_points?: number;
   months_to_payment?: number;
+  uplift_count?: number;
+  advertised_is_stacked?: boolean;
   reason?: string;
   sources: string[];
 }
@@ -105,6 +107,16 @@ export function LeagueTable() {
                   {r.currency !== "USD" && ` · converted from ${r.currency}`}
                   {r.months_to_payment ? ` · ~${r.months_to_payment}mo to pay` : ""}
                 </div>
+                {/* Some jurisdictions publish several regional and content
+                    credits that stack on paper. Summing them is what gets
+                    marketed, but one production is unlikely to combine them —
+                    saying so keeps a 104% headline a finding rather than a
+                    number that looks broken. */}
+                {r.advertised_is_stacked && (
+                  <div className="mt-0.5 font-mono text-[10px] leading-relaxed text-amber">
+                    {r.uplift_count} separate uplifts summed — unlikely to all apply to one production
+                  </div>
+                )}
               </div>
               <div className="text-right font-mono text-[14px] text-ink-3 line-through decoration-1">
                 {(r.advertised * 100).toFixed(1)}%

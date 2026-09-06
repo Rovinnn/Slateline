@@ -62,7 +62,18 @@ def measure(name: str) -> dict:
     benefit = compute_benefit(REFERENCE_BUDGET, rule, distance_km=None)
     advertised = rule.base_rate + sum(u.bonus_rate for u in rule.uplifts)
 
+    # Summing every uplift is what a programme *markets* ("up to 40%"), but
+    # some jurisdictions publish several regional and content credits that
+    # stack on paper and cannot all apply to one production. British Columbia
+    # summed to 104.5%, which is not a rate anybody advertises and reads as a
+    # broken number rather than an ambitious one. Flagged rather than capped:
+    # capping would invent a ceiling, and the honest statement is that these
+    # are separate credits a single production is unlikely to combine.
+    stacked = advertised > 0.60 or len(rule.uplifts) > 2
+
     row = {
+        "uplift_count": len(rule.uplifts),
+        "advertised_is_stacked": stacked,
         "jurisdiction": rule.jurisdiction,
         "program": rule.program_name,
         "currency": rule.currency,
@@ -92,10 +103,20 @@ def measure(name: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=len(SUGGESTED))
+    parser.add_argument(
+        "--only",
+        nargs="*",
+        help="measure just these jurisdictions, by name — for a global spread "
+             "rather than the first N, which would be US-only",
+    )
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = parser.parse_args()
 
-    names = [j.name for j in SUGGESTED][: args.limit]
+    names = (
+        args.only
+        if args.only
+        else [j.name for j in SUGGESTED][: args.limit]
+    )
     print(f"measuring {len(names)} jurisdictions against the reference budget\n")
 
     rows, failures = [], []

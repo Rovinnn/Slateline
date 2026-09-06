@@ -343,3 +343,34 @@ def test_suggested_jurisdictions_are_grouped_and_global():
 def test_every_suggestion_carries_what_a_reader_needs_to_choose():
     for j in client.get("/jurisdictions/suggested").json():
         assert j["name"] and j["region"] and j["currency"] and j["advertised_hint"]
+
+
+def test_every_suggested_jurisdiction_can_actually_be_priced():
+    """The invariant that makes the suggestion list a promise rather than a hope.
+
+    Offering a jurisdiction whose currency has no exchange rate would send the
+    user to a "can't verify — no rate supplied" dead end, from a list that
+    implied it was supported. Suggesting it and pricing it must go together.
+    """
+    from app.models import CurrencyAssumptions
+
+    rates = CurrencyAssumptions().rates_to_usd
+    for j in client.get("/jurisdictions/suggested").json():
+        assert j["currency"] in rates, f"{j['name']} publishes in {j['currency']}, which has no rate"
+
+
+def test_the_suggestion_list_is_genuinely_global():
+    body = client.get("/jurisdictions/suggested").json()
+    regions = {j["region"] for j in body}
+    assert len(body) >= 100
+    assert regions >= {"United States", "Canada", "Europe", "Asia-Pacific",
+                       "Latin America", "Africa & Middle East"}
+    # More than half the world's programmes publish in something other than
+    # USD, so a list that couldn't handle them would be a US tool wearing a
+    # globe.
+    assert len({j["currency"] for j in body}) >= 20
+
+
+def test_no_duplicate_jurisdictions_in_the_suggestion_list():
+    names = [j["name"] for j in client.get("/jurisdictions/suggested").json()]
+    assert len(names) == len(set(names))
