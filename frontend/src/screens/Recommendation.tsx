@@ -126,7 +126,7 @@ export function EffectiveRate({ row, totalBudget }: { row: Row; totalBudget: num
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
   return (
-    <div className="mb-5 flex flex-wrap items-end gap-x-8 gap-y-3 border-b border-[#eae8e1] pb-4">
+    <div className="print-block mb-5 flex flex-wrap items-end gap-x-8 gap-y-3 border-b border-[#eae8e1] pb-4">
       <div>
         <div className="mb-1 font-mono text-[10.5px] font-medium tracking-wide text-ink-3">
           {rate.advertisedIncludesUplifts ? "ADVERTISED AS UP TO" : "ADVERTISED RATE"}

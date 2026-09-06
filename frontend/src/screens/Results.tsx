@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CONSTRAINTS } from "../data/constraints";
-import { DEFAULT_JURISDICTIONS } from "../data/examples";
+import { DEFAULT_JURISDICTIONS, HOME_BASES } from "../data/examples";
 import {
   ApiError,
   challengeJurisdiction,
@@ -34,7 +34,7 @@ import type {
 } from "../types";
 import { ComparisonTable } from "./ComparisonTable";
 import { FundingAvailability, RetrievedBadge, SourceEvidence } from "./Evidence";
-import { MapView } from "./MapView";
+import { MapView, RelocationStrip } from "./MapView";
 import { EffectiveRate, Waterfall, WhyItWins } from "./Recommendation";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; rows: Row[] };
@@ -474,6 +474,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           refreshing={refreshing}
           refreshError={refreshError}
           challenges={challenges}
+          onViewMap={() => setTab("map")}
         />
       )}
 
@@ -624,6 +625,7 @@ function ReadyResults({
   refreshing,
   refreshError,
   challenges,
+  onViewMap,
 }: {
   rows: Row[];
   liveBudget: BudgetVector;
@@ -649,6 +651,8 @@ function ReadyResults({
   refreshError: Record<string, string>;
   /** Layer 1b results per jurisdiction; absent means still in flight. */
   challenges: Record<string, ChallengeReport | "checking" | "failed">;
+  /** Switches the results screen to the MAP tab. */
+  onViewMap: () => void;
 }) {
   const computable = rows.filter((r) => r.benefit.computable).sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
   const unverified = rows.filter((r) => !r.benefit.computable);
@@ -668,6 +672,7 @@ function ReadyResults({
   }
 
   const [hero, ...rest] = computable;
+  const home = HOME_BASES.find((h) => h.label === liveBudget.home_base) ?? HOME_BASES[0];
   const runnerUps = expandAll ? rest : rest.slice(0, 3);
 
   return (
@@ -687,6 +692,10 @@ function ReadyResults({
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
         refreshError={refreshError[hero.rule.jurisdiction]}
         challenge={challenges[hero.rule.jurisdiction]}
+        homeLabel={home.label}
+        homeLat={home.lat}
+        homeLng={home.lng}
+        onViewMap={onViewMap}
       />
 
       <OpenQuestions questions={questions} jurisdiction={hero.rule.jurisdiction} />
@@ -1175,19 +1184,30 @@ function ChallengeBadge({ challenge }: { challenge?: ChallengeReport | "checking
 
 /** The specific disagreements, named so they can be adjudicated. */
 function ConflictList({ conflicts }: { conflicts: string[] }) {
+  const [open, setOpen] = useState(false);
   if (conflicts.length === 0) return null;
   return (
     <div className="border border-red/30 bg-red-bg px-3 py-2.5">
-      <div className="mb-1.5 font-mono text-[10.5px] font-medium tracking-wide text-red">
-        SOURCES DISAGREE
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {conflicts.map((c, i) => (
-          <div key={i} className="font-mono text-[11px] leading-relaxed text-red">
-            {c}
-          </div>
-        ))}
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <span className="font-mono text-[11px] text-red">{open ? "−" : "+"}</span>
+        <span className="font-mono text-[10.5px] font-medium tracking-wide text-red">
+          SOURCES DISAGREE — {conflicts.length} {conflicts.length === 1 ? "POINT" : "POINTS"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          {conflicts.map((c, i) => (
+            <div key={i} className="font-mono text-[11px] leading-relaxed text-red">
+              {c}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mt-2 font-sans text-[11.5px] leading-relaxed text-[#7d3529]">
         Figures above are unchanged — this tool surfaces the disagreement rather than picking a side.
         Confirm with the film office before relying on this jurisdiction.
@@ -1260,6 +1280,10 @@ function HeroCard({
   refreshing,
   refreshError,
   challenge,
+  homeLabel,
+  homeLat,
+  homeLng,
+  onViewMap,
 }: {
   row: Row;
   breakeven: BreakevenResult | "loading" | "error" | null;
@@ -1273,14 +1297,19 @@ function HeroCard({
   refreshError?: string;
   /** Layer 1b result; undefined means still in flight. */
   challenge?: ChallengeReport | "checking" | "failed";
+  homeLabel: string;
+  homeLat: number;
+  homeLng: number;
+  /** Switches the results screen to the MAP tab. */
+  onViewMap: () => void;
 }) {
   const { rule, benefit } = row;
   return (
     <div
       title={failing ?? undefined}
-      className={`print-block border border-[#bdbab2] border-t-[3px] border-t-teal-accent bg-card ${failing ? "opacity-55" : ""}`}
+      className={`border border-[#bdbab2] border-t-[3px] border-t-teal-accent bg-card ${failing ? "opacity-55" : ""}`}
     >
-      <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.25fr_1fr]">
+      <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.1fr_1fr]">
         <div>
           <div className="mb-2.5 inline-flex items-center gap-1.5 bg-ink px-2 py-1">
             <span
@@ -1326,27 +1355,13 @@ function HeroCard({
               {runnerUp.rule.jurisdiction}, the next best option.
             </div>
           )}
-          <div className="border-b border-[#eae8e1] pb-4">
+          <div className="print-block border-b border-[#eae8e1] pb-4">
             <Waterfall row={row} />
           </div>
 
           {runnerUp && (
-            <div className="border-b border-[#eae8e1] py-4">
+            <div className="print-block border-b border-[#eae8e1] py-4">
               <WhyItWins winner={row} rival={runnerUp} />
-            </div>
-          )}
-
-          <div className="border-b border-[#eae8e1] py-4">
-            <FundingAvailability rule={rule} />
-          </div>
-
-          {benefit.caps_applied.length > 0 && (
-            <div className="flex flex-col gap-1.5 border-b border-[#eae8e1] py-4">
-              {benefit.caps_applied.map((note, i) => (
-                <div key={i} className="font-mono text-[11.5px] leading-relaxed text-ink-2">
-                  {note}
-                </div>
-              ))}
             </div>
           )}
 
@@ -1374,6 +1389,47 @@ function HeroCard({
                 didn't find one, rather than hiding the row. */}
             <Fact k="FILM OFFICE" v={rule.film_office_contact ?? "not listed in sources"} />
           </div>
+
+          <div className="print-block mt-4.5 border-t border-[#eae8e1] pt-3.5">
+            <FundingAvailability rule={rule} />
+          </div>
+
+          {benefit.caps_applied.length > 0 && (
+            <div className="print-block mt-3.5 flex flex-col gap-1.5 border-t border-[#eae8e1] pt-3.5">
+              <div className="font-mono text-[10px] font-medium tracking-wide text-ink-3">WHAT LIMITED THIS</div>
+              {benefit.caps_applied.map((note, i) => (
+                <div key={i} className="font-mono text-[11.5px] leading-relaxed text-ink-2">
+                  {note}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {benefit.distance_km != null && (
+            <div className="print-block mt-3.5 border-t border-[#eae8e1] pt-3.5">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">RELOCATION</div>
+                <button
+                  type="button"
+                  onClick={onViewMap}
+                  className="font-mono text-[11px] text-teal underline decoration-1 underline-offset-2 print:hidden"
+                >
+                  view full map →
+                </button>
+              </div>
+              <RelocationStrip
+                homeLabel={homeLabel}
+                homeLat={homeLat}
+                homeLng={homeLng}
+                destLabel={rule.jurisdiction}
+                destLat={rule.centroid_lat}
+                destLng={rule.centroid_lng}
+                distanceKm={benefit.distance_km}
+                relocationCost={benefit.relocation_cost}
+              />
+            </div>
+          )}
+
           <div className="mt-4.5 border-t border-[#eae8e1] pt-3.5">
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <div className="font-mono text-[10.5px] font-medium tracking-wide text-ink-3">EVIDENCE</div>

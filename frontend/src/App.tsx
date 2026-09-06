@@ -63,9 +63,12 @@ function App() {
   }, []);
 
   // Auto-advances past the splash so a judge who doesn't click still lands on
-  // the product quickly; skipSplash also runs on a click, whichever is first.
+  // the product eventually; skipSplash also runs on a click or Enter/Space,
+  // whichever is first. Long enough to actually read as a tone-setting beat
+  // (and to hold during a demo recording) rather than a flash before the
+  // real screen.
   useEffect(() => {
-    const timer = setTimeout(() => skipSplash(), 2200);
+    const timer = setTimeout(() => skipSplash(), 6000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only timer
   }, []);
@@ -180,9 +183,10 @@ function App() {
  * A skippable intro, not a loading screen — there's nothing to wait for
  * (the seed jurisdictions/examples are already local data), so it exists
  * purely to set the tone before the working tool takes over. Auto-advances
- * after 2200ms; a click anywhere ends it immediately. `splashOut` drives a
- * 260ms fade rather than an instant unmount, so the transition to the home
- * page isn't a hard cut.
+ * after 6s; a click anywhere, or Enter/Space/Escape, ends it immediately —
+ * both a resting beat for a demo and an escape hatch for anyone in a hurry.
+ * `splashOut` drives a 260ms fade rather than an instant unmount, so the
+ * transition to the home page isn't a hard cut.
  */
 function SplashScreen({ splashOut, onSkip }: { splashOut: boolean; onSkip: () => void }) {
   return (

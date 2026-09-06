@@ -350,6 +350,108 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
   );
 }
 
+/**
+ * Home base → winning jurisdiction, two points, no basemap.
+ *
+ * The full MapView gates its whole render on a ~220KB TopoJSON fetch for
+ * real coastlines — worth it for the MAP tab, wasted for a strip that
+ * renders inline on the memo tab before anyone has necessarily opened MAP.
+ * This draws only what the relocation line item needs: two points, the
+ * line between them, and the same distance/cost text already in the
+ * waterfall — an explanatory diagram, not a second map. Click-through to
+ * the real MAP tab covers anyone who wants the geography.
+ */
+export function RelocationStrip({
+  homeLabel,
+  homeLat,
+  homeLng,
+  destLabel,
+  destLat,
+  destLng,
+  distanceKm,
+  relocationCost,
+}: {
+  homeLabel: string;
+  homeLat: number;
+  homeLng: number;
+  destLabel: string;
+  destLat: number;
+  destLng: number;
+  distanceKm: number;
+  relocationCost: number;
+}) {
+  const W = 220;
+  const H = 110;
+
+  const projection = useMemo(() => {
+    const pad = 3;
+    const box: Feature<Geometry> = {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "MultiPoint",
+        coordinates: [
+          [Math.min(homeLng, destLng) - pad, Math.min(homeLat, destLat) - pad],
+          [Math.max(homeLng, destLng) + pad, Math.max(homeLat, destLat) + pad],
+        ],
+      },
+    };
+    return geoMercator().fitExtent(
+      [
+        [18, 22],
+        [W - 18, H - 30],
+      ],
+      box,
+    );
+  }, [homeLat, homeLng, destLat, destLng]);
+
+  const [hx, hy] = projection([homeLng, homeLat]) ?? [0, 0];
+  const [dx, dy] = projection([destLng, destLat]) ?? [0, 0];
+  const label = relocationLabel(distanceKm, relocationCost, false);
+  const mx = (hx + dx) / 2;
+  const my = (hy + dy) / 2;
+  const angle = labelAngle(dx - hx, dy - hy);
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      width={W}
+      height={H}
+      className="shrink-0"
+      role="img"
+      aria-label={`${homeLabel} to ${destLabel}${label ? `, ${label}` : ""}`}
+      style={{ overflow: "visible" }}
+    >
+      <line x1={hx} y1={hy} x2={dx} y2={dy} stroke="var(--color-teal-accent)" strokeWidth={1.4} opacity={0.8} />
+
+      <g transform={`translate(${hx},${hy})`}>
+        <rect x={-4} y={-4} width={8} height={8} fill="#F7F5F1" stroke="#1a2630" strokeWidth={1.6} transform="rotate(45)" />
+        <text y={-10} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="#1a2630">
+          {homeLabel}
+        </text>
+      </g>
+
+      <g transform={`translate(${dx},${dy})`}>
+        <circle r={5.5} fill="var(--color-teal-accent)" stroke="#F7F5F1" strokeWidth={1.4} />
+        <text y={-11} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={9.5} fill="#1a2630">
+          {destLabel}
+        </text>
+      </g>
+
+      {label && (
+        <g transform={`translate(${mx},${my}) rotate(${angle})`}>
+          <text y={-4} textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize={9.5} stroke="#FBFAF7" strokeWidth={3} strokeLinejoin="round">
+            {label}
+          </text>
+          <text y={-4} textAnchor="middle" fontFamily="'IBM Plex Mono',monospace" fontSize={9.5} fill="#57534C">
+            {label}
+          </text>
+        </g>
+      )}
+    </svg>
+  );
+}
+
 const RED = [174, 69, 56];
 const AMBER = [170, 106, 0];
 const TEAL = [0, 134, 135];
