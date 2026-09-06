@@ -161,12 +161,28 @@ def test_distance_exactly_at_the_flight_threshold_uses_ground_travel():
     expected_ground = travelling * ASSUMPTIONS.flight_threshold_km * ASSUMPTIONS.ground_cost_per_person_per_km
     assert at_threshold.relocation_components["transport"] == pytest.approx(expected_ground)
 
-    just_over = compute_benefit(
-        budget, make_rule(), distance_km=ASSUMPTIONS.flight_threshold_km + 1, assumptions=ASSUMPTIONS
-    )
+    just_over_km = ASSUMPTIONS.flight_threshold_km + 1
+    just_over = compute_benefit(budget, make_rule(), distance_km=just_over_km, assumptions=ASSUMPTIONS)
     assert just_over.relocation_components["transport"] == pytest.approx(
-        travelling * ASSUMPTIONS.flight_cost_per_person
+        travelling * (ASSUMPTIONS.flight_cost_per_person + just_over_km * ASSUMPTIONS.flight_cost_per_person_per_km)
     )
+
+
+def test_flying_further_costs_more_than_flying_less_far():
+    """Airfare was flat above the threshold, so distance stopped mattering.
+
+    Every jurisdiction beyond 800km priced identically — Albuquerque at
+    1,266km cost exactly what Atlanta cost at 3,498km — which made the routed
+    distance the app looks up and draws on its map incapable of changing any
+    number. This is the assertion that keeps the Maps integration load-bearing
+    rather than decorative.
+    """
+    budget = make_budget(crew_headcount=45, shoot_days=10)
+    near = compute_benefit(budget, make_rule(), distance_km=1_266, assumptions=ASSUMPTIONS)
+    far = compute_benefit(budget, make_rule(), distance_km=3_498, assumptions=ASSUMPTIONS)
+
+    assert far.relocation_components["transport"] > near.relocation_components["transport"]
+    assert far.net_benefit < near.net_benefit
 
 
 def test_zero_distance_costs_nothing_to_travel():

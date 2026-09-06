@@ -814,7 +814,8 @@ interface AssumptionField {
 
 const ASSUMPTION_FIELDS: AssumptionField[] = [
   { key: "flight_threshold_km", label: "Flight threshold", suffix: "km", step: 10, note: "below this, ground travel only" },
-  { key: "flight_cost_per_person", label: "Airfare base", prefix: "$", step: 10, note: "per traveller, round trip" },
+  { key: "flight_cost_per_person", label: "Airfare base", prefix: "$", step: 10, note: "per traveller, before distance" },
+  { key: "flight_cost_per_person_per_km", label: "Airfare per km", prefix: "$", suffix: "/km", step: 0.01, note: "added on top of the base, over the threshold" },
   { key: "ground_cost_per_person_per_km", label: "Ground transport", prefix: "$", suffix: "/km", step: 0.01, note: "per traveller-km, under threshold" },
   { key: "per_diem_per_person_per_day", label: "Per diem", prefix: "$", step: 5, note: "per traveller, per shoot day" },
   { key: "hotel_per_person_per_day", label: "Hotel", prefix: "$", step: 5, note: "per traveller, per shoot day" },

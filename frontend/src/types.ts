@@ -116,7 +116,12 @@ export const DEFAULT_CREDIT_TIMING: CreditTimingAssumptions = {
 
 export interface RelocationAssumptions {
   flight_threshold_km: number;
+  /** Base airfare, before distance. */
   flight_cost_per_person: number;
+  /** Distance component of airfare. Without it, every jurisdiction past the
+   *  flight threshold costs the same to reach and the routed distance we look
+   *  up cannot affect the ranking. */
+  flight_cost_per_person_per_km: number;
   ground_cost_per_person_per_km: number;
   per_diem_per_person_per_day: number;
   hotel_per_person_per_day: number;
@@ -126,7 +131,8 @@ export interface RelocationAssumptions {
 
 export const DEFAULT_RELOCATION_ASSUMPTIONS: RelocationAssumptions = {
   flight_threshold_km: 800,
-  flight_cost_per_person: 600,
+  flight_cost_per_person: 250,
+  flight_cost_per_person_per_km: 0.1,
   ground_cost_per_person_per_km: 0.35,
   per_diem_per_person_per_day: 85,
   hotel_per_person_per_day: 140,

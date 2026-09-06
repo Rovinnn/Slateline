@@ -68,17 +68,21 @@ statutes and state regulations rather than taken from a rate table:
 
 | | advertised | net benefit | why |
 |---|---|---|---|
-| **Louisiana** | 25% + 15% = up to **40%** | **$275,552** | transferable at 90% of face, 15-month wait |
-| New Mexico | 25% + 20% = up to **45%** | $266,994 | refundable and fastest, but non-resident crew don't qualify |
-| Georgia | 20% + 10% = up to **30%** | $199,621 | transferable, 18-month wait, mandatory audit |
+| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** | transferable at 90% of face, 15-month wait, 3,049 km away |
+| New Mexico | 25% + 20% = up to **45%** | $260,215 | refundable, fastest, closest — but non-resident crew don't qualify |
+| Georgia | 20% + 10% = up to **30%** | $188,825 | transferable, 18-month wait, mandatory audit, furthest away |
+
+Figures use real Google Maps routed distances from Los Angeles.
 
 **The advertised order and the real order are not the same.** New Mexico
 advertises the highest headline number and does not win. And Louisiana and New
-Mexico advertise the *same* 25% base rate yet differ by $8,558, for reasons no
+Mexico advertise the *same* 25% base rate yet differ by $5,350, for reasons no
 rate table contains: New Mexico's credit excludes non-resident below-the-line
 crew (NMSA 7-2F-15 makes them a separate 15% credit capped at 15% of the BTL
 budget), while Louisiana's is transferred back to the state at 90% of face and
-arrives three months later.
+arrives three months later. New Mexico claws part of the gap back by being
+1,783 km closer to Los Angeles — which the model only registers because
+airfare scales with distance rather than being flat.
 
 The tool shows that reasoning as a walk from advertised rate to cash, and
 decomposes the gap between any two jurisdictions into components that sum
@@ -125,7 +129,7 @@ can perform.
   keys in Secret Manager.
 - **Frontend** — React 19 + Vite + TypeScript + Tailwind v4 on Firebase
   Hosting; d3-geo + TopoJSON vector map (no tile API, no key in the browser).
-- **Tests** — 267 backend, 68 frontend, run in CI on every push.
+- **Tests** — 271 backend, 68 frontend, run in CI on every push.
 
 ## Data sources
 
@@ -203,7 +207,18 @@ environment variable (`GOOGLE_GENAI_USE_VERTEXAI`), but the failure reads like
 a missing secret rather than a missing setting, and we only found it by
 running the thing rather than by reading about it.
 
-**9. Live extraction is not deterministic.** The same jurisdiction returns
+**9. An integration can be live, correct, and still decorative.** Google Maps
+returned real routed distances from day one, and they were drawn on the map
+and shown on the memo. But airfare above the 800 km flight threshold was a
+flat per-person figure, so every jurisdiction beyond it cost exactly the same
+to reach: New Mexico at 1,266 km priced identically to Georgia at 3,498 km,
+$114,900 of relocation for both. The distance was fetched, displayed, and
+changed no number in the ranking. Found only by running real distances through
+the model rather than fixtures. Airfare now has a distance component, and
+there's a test asserting that flying further costs more — which sounds too
+obvious to need testing, and wasn't true for months.
+
+**10. Live extraction is not deterministic.** The same jurisdiction returns
 different names between runs ("New Mexico", "USA-NM", "NM"), and occasionally
 different computability. Inherent to live retrieval, and the strongest
 argument for why hand-verification and conflict detection matter.

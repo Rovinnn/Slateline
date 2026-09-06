@@ -178,12 +178,12 @@ $2M indie drama, because the advertised order and the real order disagree:
 
 | | advertised | net benefit |
 |---|---|---|
-| **Louisiana** | 25% + 15% = up to **40%** | **$275,552** |
-| New Mexico | 25% + 20% = up to **45%** | $266,994 |
-| Georgia | 20% + 10% = up to **30%** | $199,621 |
+| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** |
+| New Mexico | 25% + 20% = up to **45%** | $260,215 |
+| Georgia | 20% + 10% = up to **30%** | $188,825 |
 
 New Mexico advertises the biggest number and loses. Louisiana and New Mexico
-advertise the *same* 25% base and differ by $8,558 — because New Mexico's
+advertise the *same* 25% base and differ by $5,350 — because New Mexico's
 credit excludes non-resident below-the-line crew and Louisiana's pays three
 months later at 90% of face. No rate table contains that.
 

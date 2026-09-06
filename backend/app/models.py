@@ -118,7 +118,17 @@ class BudgetVector:
 @dataclass
 class RelocationAssumptions:
     flight_threshold_km: float = 800.0
-    flight_cost_per_person: float = 600.0
+    # Base airfare, before distance. Was a *flat* 600 until real Maps
+    # distances went through the model and every jurisdiction beyond the
+    # threshold priced identically: Albuquerque at 1,266 km cost exactly what
+    # Atlanta cost at 3,498 km. That made the routed distance we look up
+    # decorative — it appeared on the map and changed no number.
+    flight_cost_per_person: float = 250.0
+    # The distance component. Airfare doesn't scale linearly with distance,
+    # but it isn't flat either, and base + per-km lands close to real US
+    # domestic round trips across the range that matters here (~$377 LA to
+    # Albuquerque, ~$600 LA to Atlanta).
+    flight_cost_per_person_per_km: float = 0.10
     ground_cost_per_person_per_km: float = 0.35
     per_diem_per_person_per_day: float = 85.0
     hotel_per_person_per_day: float = 140.0

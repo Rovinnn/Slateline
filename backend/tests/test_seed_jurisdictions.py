@@ -173,3 +173,72 @@ def test_georgia_caps_qualifying_salary_at_500k_per_person():
     capped = compute_benefit(star_vehicle, GEORGIA, distance_km=None)
     assert any("wage cap" in note.lower() for note in capped.caps_applied)
     assert capped.qualifying_spend < 6_000_000
+
+
+# ---------- with real routed distances, measured 6 Sep 2026 ----------
+#
+# Google Maps Distance Matrix, Los Angeles CA -> each jurisdiction's centroid.
+# Recorded as constants so this stays deterministic and needs no credentials in
+# CI, while still being real measurements rather than invented ones.
+REAL_DISTANCES_KM = {"Georgia": 3_498.0, "New Mexico": 1_266.0, "Louisiana": 3_049.0}
+
+
+def test_travel_distance_actually_changes_the_answer():
+    """The check that caught a decorative Maps integration.
+
+    Airfare was flat above the 800km threshold, so every jurisdiction beyond
+    it cost exactly the same to reach: New Mexico at 1,266km priced
+    identically to Georgia at 3,498km, and all three came out at $114,900 of
+    relocation. The routed distance was fetched, drawn on the map, and then
+    had no effect on any number in the ranking.
+    """
+    costs = {
+        name: compute_benefit(INDIE_DRAMA_BUDGET, rule, distance_km=REAL_DISTANCES_KM[name])
+        .relocation_components["transport"]
+        for name, rule in (("Georgia", GEORGIA), ("New Mexico", NEW_MEXICO), ("Louisiana", LOUISIANA))
+    }
+    # Nearest is cheapest, furthest is dearest, and they genuinely differ.
+    assert costs["New Mexico"] < costs["Louisiana"] < costs["Georgia"]
+    assert costs["Georgia"] - costs["New Mexico"] == pytest.approx(4_017.6, abs=1)
+
+
+def test_the_ranking_with_real_distances():
+    """The figures the deployed app should produce for this budget.
+
+    Hand-verified statutes, real routed distances, and the full walk from
+    advertised rate to cash. Louisiana leads by $5,350 — down from $8,558
+    before travel cost was distance-sensitive, because New Mexico is 1,783km
+    closer and claws some of the gap back.
+    """
+    results = {
+        name: compute_benefit(INDIE_DRAMA_BUDGET, rule, distance_km=REAL_DISTANCES_KM[name])
+        for name, rule in (("Georgia", GEORGIA), ("New Mexico", NEW_MEXICO), ("Louisiana", LOUISIANA))
+    }
+    ranked = sorted(results.items(), key=lambda kv: -kv[1].net_benefit)
+
+    assert [name for name, _ in ranked] == ["Louisiana", "New Mexico", "Georgia"]
+    assert results["Louisiana"].net_benefit == pytest.approx(265_563.61, abs=0.01)
+    assert results["New Mexico"].net_benefit == pytest.approx(260_214.95, abs=0.01)
+    assert results["Georgia"].net_benefit == pytest.approx(188_825.05, abs=0.01)
+
+
+def test_the_advertised_order_and_the_real_order_disagree():
+    """The product's entire thesis, asserted on hand-verified data.
+
+    Ranked by the biggest number each program advertises, New Mexico leads at
+    up to 45%. Ranked by what a producer actually banks, it comes second. A
+    rate table cannot produce this.
+    """
+    advertised = sorted(
+        (("Georgia", GEORGIA), ("New Mexico", NEW_MEXICO), ("Louisiana", LOUISIANA)),
+        key=lambda kv: -(kv[1].base_rate + sum(u.bonus_rate for u in kv[1].uplifts)),
+    )
+    actual = sorted(
+        (("Georgia", GEORGIA), ("New Mexico", NEW_MEXICO), ("Louisiana", LOUISIANA)),
+        key=lambda kv: -compute_benefit(
+            INDIE_DRAMA_BUDGET, kv[1], distance_km=REAL_DISTANCES_KM[kv[0]]
+        ).net_benefit,
+    )
+    assert [n for n, _ in advertised] == ["New Mexico", "Louisiana", "Georgia"]
+    assert [n for n, _ in actual] == ["Louisiana", "New Mexico", "Georgia"]
+    assert advertised != actual

@@ -161,18 +161,19 @@ def test_relocation_cost_uses_flights_over_threshold():
     assumptions = RelocationAssumptions()
     budget = make_budget(crew_headcount=45, shoot_days=22)
     result = compute_benefit(budget, FLAT_RATE_RULE, distance_km=1000, assumptions=assumptions)
-    # travelling_crew = 45 * 0.4 = 18; transport = 18 * 600 = 10_800
+    # travelling_crew = 45 * 0.4 = 18
+    # transport = 18 * (250 base + 1000km * 0.10/km) = 18 * 350 = 6_300
     # lodging = 18 * 22 * (85 + 140) = 89_100; + 15_000 equipment
-    assert result.relocation_components["transport"] == pytest.approx(10_800)
+    assert result.relocation_components["transport"] == pytest.approx(6_300)
     assert result.relocation_components["lodging"] == pytest.approx(89_100)
-    assert result.relocation_cost == pytest.approx(114_900)
+    assert result.relocation_cost == pytest.approx(110_400)
     assert result.gross_credit == pytest.approx(500_000)
     # net is no longer gross - relocation: the credit arrives later than the
     # relocation is paid, so it's discounted first. This rule states no payout
     # mechanism, so timing falls back to months_unknown = 15 at 12%/yr:
     #   500,000 / 1.12^(15/12) = 433,958, less 114,900 relocation.
     assert result.present_value == pytest.approx(433_957.78, abs=0.01)
-    assert result.net_benefit == pytest.approx(319_057.78, abs=0.01)
+    assert result.net_benefit == pytest.approx(323_557.78, abs=0.01)
 
 
 def test_relocation_cost_uses_ground_under_threshold():

@@ -527,7 +527,13 @@ def compute_benefit(
 
     travelling_crew = budget.crew_headcount * assumptions.imported_crew_pct
     if distance_km is not None and distance_km > assumptions.flight_threshold_km:
-        transport = travelling_crew * assumptions.flight_cost_per_person
+        # Base fare plus a distance component. A flat fare here meant every
+        # jurisdiction past the threshold cost the same to reach, so the
+        # Maps lookup couldn't influence the ranking at all.
+        transport = travelling_crew * (
+            assumptions.flight_cost_per_person
+            + distance_km * assumptions.flight_cost_per_person_per_km
+        )
     elif distance_km is not None:
         transport = travelling_crew * distance_km * assumptions.ground_cost_per_person_per_km
     else:
