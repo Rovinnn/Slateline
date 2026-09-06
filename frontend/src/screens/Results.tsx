@@ -15,6 +15,7 @@ import { challengeState } from "../lib/challenge";
 import { OpenQuestions } from "./OpenQuestions";
 import { SplitRecommendation } from "./SplitPlan";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
+import { useHeroGlow } from "../lib/heroGlow";
 import type { Row } from "../lib/explain";
 import { hostOf, money, moneyShort } from "../lib/format";
 import { DEFAULT_CREDIT_TIMING, DEFAULT_RELOCATION_ASSUMPTIONS } from "../types";
@@ -29,7 +30,7 @@ import type {
   RelocationAssumptions,
 } from "../types";
 import { ComparisonTable } from "./ComparisonTable";
-import { FundingAvailability, SourceEvidence } from "./Evidence";
+import { FundingAvailability, RetrievedBadge, SourceEvidence } from "./Evidence";
 import { MapView } from "./MapView";
 import { EffectiveRate, Waterfall, WhyItWins } from "./Recommendation";
 
@@ -72,6 +73,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedDistancesRef = useRef<Set<string>>(new Set());
   const challengedRef = useRef<Set<string>>(new Set());
+  const glow = useHeroGlow();
 
   // Fetched once on mount — DEFAULT_JURISDICTIONS is just a list of names to
   // look up, not data. Each one runs the real Layer 1 pipeline (Parallel
@@ -312,6 +314,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
     // this rides the main recompute's debounce instead of double-firing.
   }, [state, rules, distances]);
 
+
   // Expanding and printing can't happen in one handler: the panels have to be
   // committed and painted first, so this flips state, prints a beat later, and
   // collapses again on `afterprint`. Resetting on a timer instead raced the
@@ -354,7 +357,13 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   }
 
   return (
-    <div className="mx-auto max-w-[1320px] px-7 pb-20">
+    <div
+      className="relative mx-auto min-h-150 max-w-330 overflow-hidden px-7 pb-20"
+      onMouseMove={glow.onMove}
+      onMouseLeave={glow.onLeave}
+    >
+      <div aria-hidden className="pointer-events-none absolute inset-0 print:hidden" style={glow.style} />
+      <div className="relative z-10">
       <div className="flex flex-wrap items-center gap-5 pt-4">
         <div className="flex gap-0.5 print:hidden">
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
@@ -461,6 +470,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       )}
 
       {state.status === "ready" && tab === "map" && <MapView rows={state.rows} homeBaseLabel={liveBudget.home_base} />}
+      </div>
     </div>
   );
 }
@@ -600,7 +610,8 @@ function ReadyResults({
 
   return (
     <div className="pt-5">
-      <div className="mb-2.5 font-mono text-[11px] font-medium tracking-wide text-ink-3">
+      <div className="mb-2.5 flex items-center gap-2 font-mono text-[11px] font-medium tracking-wide text-ink-3">
+        <span aria-hidden className="h-2 w-2 shrink-0 bg-teal" />
         RECOMMENDATION · RANKED BY NET BENEFIT
       </div>
 
@@ -633,7 +644,10 @@ function ReadyResults({
       {rest.length > 0 && (
         <>
           <div className="mb-2.5 mt-7 flex items-baseline gap-3.5">
-            <div className="font-mono text-[11px] font-medium tracking-wide text-ink-3">RUNNERS-UP</div>
+            <div className="flex items-center gap-2 font-mono text-[11px] font-medium tracking-wide text-ink-3">
+              <span aria-hidden className="h-2 w-2 shrink-0 bg-amber" />
+              RUNNERS-UP
+            </div>
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
@@ -667,6 +681,7 @@ function ReadyResults({
             className="flex w-full items-center gap-3 bg-card-2 px-5 py-3.5 text-left"
           >
             <span className="font-mono text-[11px] text-ink-3">{expandUnverified ? "−" : "+"}</span>
+            <span aria-hidden className="h-2 w-2 shrink-0 bg-red" />
             <span className="font-sans text-[13.5px] font-semibold">
               Can't verify — {unverified.length} excluded from the ranking
             </span>
@@ -691,7 +706,9 @@ function ReadyResults({
                           <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
                             {hostOf(src.url)}
                           </a>
-                          <span>· retrieved {src.retrieved}</span>
+                          <span className="inline-flex items-center gap-1">
+                            · retrieved <RetrievedBadge date={src.retrieved} />
+                          </span>
                         </span>
                         <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing[rule.jurisdiction] ?? false} />
                       </div>
@@ -719,7 +736,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2.5 font-mono text-[11.5px] font-medium tracking-wide ${
+      className={`px-4 py-2.5 font-mono text-[11.5px] font-medium tracking-wide transition-transform hover:-translate-y-px ${
         active ? "border border-ink bg-ink text-paper" : "border border-border-2 bg-card text-ink-2"
       }`}
     >
@@ -844,8 +861,8 @@ function ConstraintsPanel({ constraints, onChange }: { constraints: string[]; on
               <button
                 type="button"
                 onClick={() => toggle(c.key)}
-                className={`flex items-center gap-2 border px-3 py-2 font-sans text-[12.5px] transition-colors ${
-                  on ? "border-ink bg-card-2" : "border-border-2 bg-card"
+                className={`flex items-center gap-2 border px-3 py-2 font-sans text-[12.5px] transition-all hover:-translate-y-px ${
+                  on ? "border-ink bg-card-2" : "border-border-2 bg-card hover:border-ink"
                 }`}
               >
                 <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border font-mono text-[9px] ${on ? "border-ink" : "border-[#bfbab1]"}`}>
@@ -1147,9 +1164,9 @@ function BreakevenLine({ breakeven }: { breakeven: BreakevenResult }) {
       <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="shrink-0" style={{ overflow: "visible" }}>
         <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="#D8DFE3" strokeWidth={1} />
         <polyline points={toPolyline(rivalYs)} fill="none" stroke="#919A9F" strokeWidth={1.4} />
-        <polyline points={toPolyline(heroYs)} fill="none" stroke="#008687" strokeWidth={1.8} />
-        <line x1={cx} y1={0} x2={cx} y2={H} stroke="#AE4538" strokeWidth={1} strokeDasharray="2 3" />
-        <circle cx={mx} cy={my} r={3.2} fill="#008687" />
+        <polyline points={toPolyline(heroYs)} fill="none" stroke="#0d9488" strokeWidth={1.8} />
+        <line x1={cx} y1={0} x2={cx} y2={H} stroke="#b45309" strokeWidth={1} strokeDasharray="2 3" />
+        <circle cx={mx} cy={my} r={3.2} fill="#2dd4bf" />
       </svg>
       <div>
         <div className="font-sans text-[13px] font-medium leading-relaxed text-ink">{text}</div>
@@ -1185,12 +1202,23 @@ function HeroCard({
   return (
     <div
       title={failing ?? undefined}
-      className={`print-block border border-[#bdbab2] border-t-[3px] border-t-ink bg-card ${failing ? "opacity-55" : ""}`}
+      className={`print-block border border-[#bdbab2] border-t-[3px] border-t-teal-accent bg-card ${failing ? "opacity-55" : ""}`}
     >
       <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.25fr_1fr]">
         <div>
+          <div className="mb-2.5 inline-flex items-center gap-1.5 bg-ink px-2 py-1">
+            <span
+              aria-hidden
+              className="h-2.5 w-2.5 shrink-0"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, var(--color-teal-accent) 0 2px, var(--color-amber-accent) 2px 4px)",
+              }}
+            />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-paper">Best take</span>
+          </div>
           <div className="mb-0.5 flex flex-wrap items-baseline gap-3">
-            <h2 className="font-sans text-[27px] font-semibold tracking-tight">{rule.jurisdiction}</h2>
+            <h2 className="font-display text-[28px] font-semibold uppercase tracking-[0.01em]">{rule.jurisdiction}</h2>
             <span className={`border px-1.5 py-1 font-mono text-[10.5px] font-medium uppercase tracking-wide ${POOL_STATUS_CLASS[rule.pool_status]}`}>
               {POOL_STATUS_LABEL[rule.pool_status]}
             </span>
@@ -1312,7 +1340,10 @@ function RunnerUpCard({
   const { rule, benefit } = row;
   const src = rule.sources.find((s) => s.is_primary) ?? rule.sources[0];
   return (
-    <div title={failing ?? undefined} className={`print-block border border-border-3 bg-card ${failing ? "opacity-55" : ""}`}>
+    <div
+      title={failing ?? undefined}
+      className={`print-block border border-border-3 bg-card transition-all hover:border-teal hover:shadow-md ${failing ? "opacity-55" : ""}`}
+    >
       <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-[34px_1.6fr_1fr_1fr]">
         <div className="font-mono text-[13px] text-ink-3">{String(rank).padStart(2, "0")}</div>
         <div>
@@ -1345,7 +1376,9 @@ function RunnerUpCard({
             <a href={src.url} target="_blank" rel="noopener" className="text-teal underline decoration-1 underline-offset-2">
               {hostOf(src.url)}
             </a>
-            <span>· retrieved {src.retrieved}</span>
+            <span className="inline-flex items-center gap-1">
+              · retrieved <RetrievedBadge date={src.retrieved} />
+            </span>
           </span>
           <RefreshLink jurisdiction={rule.jurisdiction} onRefresh={onRefresh} refreshing={refreshing} />
         </div>

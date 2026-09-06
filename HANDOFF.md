@@ -7,10 +7,13 @@ teammate's machine. The code is done and tested; none of it is live.
 
 **DEPLOYED 6 Sep 2026.** Both halves are live and current:
 
-- Backend — Cloud Run revision `incentive-verifier-backend-00006-cs9`
-  (rollback points: `00005-gqt`, `00004-rfw`). Smoke test **6/6**.
-- Frontend — Firebase Hosting release `1788699625761000`, bundle
-  `index-z4NILZ5G.js`, SPA rewrite confirmed on a deep link.
+- Backend — Cloud Run revision `incentive-verifier-backend-00008-rpm`
+  (rollback points: `00007`, `00006-cs9`, `00005-gqt`, `00004-rfw`). Smoke
+  test **6/6**.
+- Frontend — Firebase Hosting release `1788708772764000`, bundle
+  `index-B46yLlPn.js`. Carries the cinematic UI refresh, the Slateline
+  rebrand, and the reconciled split-location-allocation feature
+  (`app/split.py`).
 
 Verified end to end against production: four jurisdictions extracted live,
 real Maps distances, New Mexico ranked first at $259,952 over Georgia at

@@ -139,7 +139,9 @@ describe("Evidence", () => {
   it("shows the source host, its retrieved date and the quoted excerpt", () => {
     const body = text(renderToStaticMarkup(<SourceEvidence rule={rule({ sources: [source] })} />));
     expect(body).toContain("law.justia.com");
-    expect(body).toContain("2026-09-06");
+    // Cinematic UI pass: the retrieved date renders as a timecode badge
+    // (dots, not dashes) — see Evidence.tsx's RetrievedBadge.
+    expect(body).toContain("2026·09·06");
     expect(body).toContain("20 percent");
   });
 

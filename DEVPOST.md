@@ -24,7 +24,7 @@ Every field the form asks for, with the answer ready to paste. Written 6 Sep
 ## Elevator pitch (Devpost's short field)
 
 > Producers choose shooting locations on advertised tax-credit rates, and the
-> advertised rate is never what you bank. Incentive Verifier searches each
+> advertised rate is never what you bank. Slateline searches each
 > jurisdiction's statute live, extracts the terms with Gemini, and computes
 > what the credit is actually worth after qualification rules, funding
 > availability, payout mechanism, the wait to be paid, and relocation cost —

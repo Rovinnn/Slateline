@@ -1,4 +1,4 @@
-# Devpost submission — Incentive Verifier
+# Devpost submission — Slateline
 
 Draft copy for the submission form. Sections map to the required fields:
 features, tech, data sources, and "findings and learnings". Numbers here are

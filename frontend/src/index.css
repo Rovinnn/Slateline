@@ -3,14 +3,18 @@
 /*
   Palette and type scale lifted from the design canvas
   (../Incentive Verifier Web App/Incentive Verifier.dc.html) — the visual
-  spec for this app. Muted, no gradients, due-diligence-report tone per
-  BUILD_BRIEF.md section 7.
+  spec for this app. "Cinematic" pass (session 2 of that canvas): deeper ink,
+  a teal/amber pair with its own bright accent shade for highlights/ticks,
+  and Oswald for display type, layered onto the same muted,
+  due-diligence-report base per BUILD_BRIEF.md section 7 — accents, not
+  gradients throughout.
 */
 @theme {
   --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Oswald", "Public Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink: #131f25;
+  --color-ink: #1a2630;
   --color-ink-2: #4e5a60;
   --color-ink-3: #879196;
   --color-ink-4: #606b70;
@@ -20,12 +24,49 @@
   --color-border: #d8dfe3;
   --color-border-2: #d4d1c9;
   --color-border-3: #cdcac3;
-  --color-teal: #008687;
+  --color-teal: #0d9488;
+  --color-teal-hover: #0f766e;
   --color-teal-bg: #d9f1f0;
-  --color-amber: #aa6a00;
+  --color-teal-accent: #2dd4bf;
+  --color-amber: #92660b;
   --color-amber-bg: #f9e8d6;
-  --color-red: #ae4538;
+  --color-amber-accent: #fbbf24;
+  --color-red: #b45309;
   --color-red-bg: #ffe4df;
+}
+
+/* Splash screen (App.tsx) — two soft glow blobs drifting behind the mark,
+   the only motion on an otherwise static ink screen. */
+@keyframes iv-glow1 {
+  0%,
+  100% {
+    transform: translate(-10%, -10%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(6%, 4%) scale(1.15);
+    opacity: 0.8;
+  }
+}
+@keyframes iv-glow2 {
+  0%,
+  100% {
+    transform: translate(8%, 6%) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate(-6%, -8%) scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+/* The header mark — the only logo on screen once the home page's own copy
+   of it is removed — turns slowly and continuously, an ambient idle
+   animation rather than an attention grab. */
+@keyframes iv-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 html,

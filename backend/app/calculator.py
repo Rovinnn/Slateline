@@ -610,3 +610,4 @@ def sensitivity_sweep(
             compute_benefit(swept_budget, rule, distance_km, travel_time_hours, assumptions)
         )
     return results
+
