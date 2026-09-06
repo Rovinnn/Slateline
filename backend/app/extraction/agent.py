@@ -93,7 +93,14 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
             },
             "qualifying": {
                 "type": "object",
-                "description": "Whether each budget category is qualifying spend under this program's statute.",
+                "description": (
+                    "For each budget category: does this spend count toward the qualifying base "
+                    "that the program's BASE RATE is applied to? Answer false if the category is "
+                    "excluded, and also false if the statute covers it only through a SEPARATE "
+                    "credit at a different rate, or only up to a capped share of the budget, or "
+                    "only for a limited number of people. Those are narrower credits, not part of "
+                    "the base, and marking them true overstates the benefit."
+                ),
                 # Without explicit properties+required here, a live run against
                 # Oklahoma came back with qualifying={} — an empty object still
                 # satisfies "qualifying" being a required top-level key, and
@@ -109,13 +116,55 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
                     "btl_nonlabor",
                     "post_vfx",
                 ],
+                # Bare booleans with no descriptions until a live run graded
+                # against hand-verified statutes: New Mexico came back true for
+                # btl_labor_nonresident, which overstated it by $67,500 on a $2M
+                # budget and put it top of the ranking. NMSA 7-2F-15 does give
+                # non-resident crew a credit — at 15% rather than 25%, on at most
+                # 15% of the BTL budget, across a capped number of positions. So
+                # "does it qualify?" is a badly-posed question and true was a
+                # defensible answer to it. The question calculator.py actually
+                # needs answering is "does it count toward the base-rate
+                # qualifying spend", and each key now asks that.
                 "properties": {
-                    "atl_cast": {"type": "boolean"},
-                    "atl_noncast": {"type": "boolean"},
-                    "btl_labor_resident": {"type": "boolean"},
-                    "btl_labor_nonresident": {"type": "boolean"},
-                    "btl_nonlabor": {"type": "boolean"},
-                    "post_vfx": {"type": "boolean"},
+                    "atl_cast": {
+                        "type": "boolean",
+                        "description": "Cast salaries count toward the base-rate qualifying spend.",
+                    },
+                    "atl_noncast": {
+                        "type": "boolean",
+                        "description": (
+                            "Above-the-line non-cast (director, producers, writers) counts toward the "
+                            "base-rate qualifying spend."
+                        ),
+                    },
+                    "btl_labor_resident": {
+                        "type": "boolean",
+                        "description": "Wages of crew resident in the jurisdiction count at the base rate.",
+                    },
+                    "btl_labor_nonresident": {
+                        "type": "boolean",
+                        "description": (
+                            "Wages of crew who are NOT residents count at the same base rate as resident "
+                            "crew. False if non-residents are excluded; false also if they are covered "
+                            "only by a separate lower-rate credit, only up to a capped share of the "
+                            "labour budget, or only for a limited number of positions. Some states test "
+                            "where the work was performed (non-residents qualify normally); others test "
+                            "the worker's residency (they do not)."
+                        ),
+                    },
+                    "btl_nonlabor": {
+                        "type": "boolean",
+                        "description": (
+                            "Non-labour spend (rentals, materials, facilities) counts at the base rate."
+                        ),
+                    },
+                    "post_vfx": {
+                        "type": "boolean",
+                        "description": (
+                            "Post-production and VFX performed in the jurisdiction count at the base rate."
+                        ),
+                    },
                 },
             },
             "per_person_wage_cap": {"type": ["number", "null"]},
