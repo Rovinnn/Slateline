@@ -76,7 +76,7 @@ partner) and has the lowest infrastructure burden of the five.
 
 ---
 
-## 3. Our idea: **Incentive Verifier**
+## 3. Our idea: **Slateline**
 
 > **A producer with a finished budget is choosing which state to shoot in. The
 > advertised tax-credit number is never the real number. This tool computes the

@@ -154,7 +154,10 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
   return (
     <div className="mt-5">
       <div className="mb-3 flex flex-wrap items-baseline gap-4">
-        <div className="font-mono text-[11px] font-medium tracking-wide text-ink-3">GEOGRAPHY · SUPPORTING VIEW</div>
+        <div className="flex items-center gap-2 font-mono text-[11px] font-medium tracking-wide text-ink-3">
+          <span aria-hidden className="h-2 w-2 shrink-0 bg-teal" />
+          GEOGRAPHY · SUPPORTING VIEW
+        </div>
         <div className="font-sans text-[12.5px] text-ink-2">
           Ranking is unchanged by this view — see the memo tab for net benefit.
         </div>
@@ -252,11 +255,11 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                 width={12}
                 height={12}
                 fill="#F7F5F1"
-                stroke="#131F25"
+                stroke="#1a2630"
                 strokeWidth={2}
                 transform="rotate(45)"
               />
-              <text y={-16} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={12} fill="#131F25">
+              <text y={-16} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={600} fontSize={12} fill="#1a2630">
                 {home.label}
               </text>
               <text
@@ -289,7 +292,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
                     stroke={p.excluded ? "#A7A49C" : "#F7F5F1"}
                     strokeWidth={1.6}
                   />
-                  <text y={-14} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={500} fontSize={11.5} fill="#131F25">
+                  <text y={-14} textAnchor="middle" fontFamily="'Public Sans',sans-serif" fontWeight={500} fontSize={11.5} fill="#1a2630">
                     {p.name}
                   </text>
                   <text

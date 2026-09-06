@@ -1,4 +1,4 @@
-# Incentive Verifier — Build Brief
+# Slateline — Build Brief
 
 You are building a production-ready web application for a hackathon submission. Read this entire brief before writing code. Ask me before deviating from any hard constraint.
 
@@ -6,7 +6,7 @@ You are building a production-ready web application for a hackathon submission. 
 
 ## 1. What we're building and why
 
-**Incentive Verifier** tells film producers not just what a jurisdiction's film tax incentive rate is, but whether the funding is still available right now, and what the incentive actually nets after the cost of relocating cast and crew there.
+**Slateline** tells film producers not just what a jurisdiction's film tax incentive rate is, but whether the funding is still available right now, and what the incentive actually nets after the cost of relocating cast and crew there.
 
 **The problem.** Incentive comparison tools already exist (Entertainment Partners, Wrapbook, GreenSlate, Cast & Crew). They share three weaknesses:
 1. Manually curated databases lag legislative changes.

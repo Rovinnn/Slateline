@@ -18,6 +18,20 @@ import type { JurisdictionRule } from "../types";
  * the single most convincing thing on screen.
  */
 
+/**
+ * A timecode-style badge for a source's retrieved date — ink background,
+ * dots instead of dashes ("2026·08·24") — in place of plain
+ * "· retrieved YYYY-MM-DD" text. A nod to the film-production subject
+ * matter without a photo or icon anywhere on screen.
+ */
+export function RetrievedBadge({ date }: { date: string }) {
+  return (
+    <span className="inline-flex items-center bg-ink px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wide text-teal-accent">
+      {date.replaceAll("-", "·")}
+    </span>
+  );
+}
+
 export function FundingAvailability({ rule }: { rule: JurisdictionRule }) {
   const facts: string[] = [];
 
@@ -80,7 +94,9 @@ export function SourceEvidence({ rule, max = 2 }: { rule: JurisdictionRule; max?
             >
               {hostOf(src.url)}
             </a>
-            <span>· retrieved {src.retrieved}</span>
+            <span className="inline-flex items-center gap-1">
+              · retrieved <RetrievedBadge date={src.retrieved} />
+            </span>
           </div>
         ))}
       </div>
@@ -103,7 +119,9 @@ export function SourceEvidence({ rule, max = 2 }: { rule: JurisdictionRule; max?
             >
               {hostOf(src.url)}
             </a>
-            <span>· retrieved {src.retrieved}</span>
+            <span className="inline-flex items-center gap-1">
+              · retrieved <RetrievedBadge date={src.retrieved} />
+            </span>
             {src.is_primary && <span className="text-ink-3">· statute or regulation</span>}
           </figcaption>
         </figure>

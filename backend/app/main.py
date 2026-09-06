@@ -54,7 +54,7 @@ class ChallengeResponse:
     report: ChallengeReport
 
 
-app = FastAPI(title="Incentive Verifier API")
+app = FastAPI(title="Slateline API")
 
 # Firebase Hosting serves the deployed frontend on both domains below; local
 # dev (`npm run dev`) needs its own origin too. FRONTEND_ORIGINS lets a

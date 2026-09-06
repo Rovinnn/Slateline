@@ -111,7 +111,7 @@ export function ManualForm({
             onClick={() => onSubmit(budget)}
             disabled={blocked}
             title={blocked ? `Negative spend on ${negativeFields.map((f) => f.label).join(", ")}` : undefined}
-            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-colors hover:bg-[#091318] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink"
+            className="bg-ink px-5 py-2.5 font-mono text-[12px] font-medium tracking-wide text-paper transition-all hover:-translate-y-px hover:bg-[#091318] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-ink disabled:hover:shadow-none"
           >
             RUN COMPARISON
           </button>
@@ -289,8 +289,8 @@ export function ManualForm({
                     key={c.key}
                     type="button"
                     onClick={() => toggleConstraint(c.key)}
-                    className={`flex w-full items-center gap-2.5 border px-3 py-2.5 text-left font-sans text-[12.5px] transition-colors ${
-                      on ? "border-ink bg-card-2" : "border-border-2 bg-card"
+                    className={`flex w-full items-center gap-2.5 border px-3 py-2.5 text-left font-sans text-[12.5px] transition-all hover:-translate-y-px ${
+                      on ? "border-ink bg-card-2" : "border-border-2 bg-card hover:border-ink"
                     }`}
                   >
                     <span

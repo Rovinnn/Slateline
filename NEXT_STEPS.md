@@ -299,7 +299,25 @@ reorder rankings, which makes it load-bearing rather than cosmetic.
 **Cost:** Three fields on `JurisdictionRule`, one chained calculation, one
 display line. Half a day. Best value-per-hour on this list by a wide margin.
 
-### 6.2 Split-location allocation
+### 6.2 Split-location allocation — ✅ done
+**Outcome:** `app/split.py` — `evaluate_plan` prices one shoot/post pairing
+by running each leg through the same `compute_benefit` every program's rules
+already go through (its own minimum spend, qualifying flags, payout timing),
+with relocation charged once, to the shoot leg only — post is vendor work,
+so it carries no travel/lodging/shipping. `SplitAnalysis`/`analyse_splits`
+search every jurisdiction pair and expose `best`, `best_single`,
+`splitting_wins` and `gain_over_single` so the client never re-derives
+whether splitting helped. `_cliff_warning` specifically detects the case
+this module exists to catch: a leg earning nothing *because* splitting
+pushed it under its own minimum spend, distinct from a leg that was never
+going to earn anything. `POST /compute/split` endpoint; the Results screen
+(`SplitPlan.tsx`) shows the recommendation when splitting wins.
+
+(An earlier, independently-built version of this feature — integrated
+directly into `calculator.py` with its own `/compute/split` route — was
+reconciled out in favor of this one when the two were merged; same core
+insight, arrived at twice in parallel.)
+
 **What:** Stop assuming one answer. Principal photography in one
 jurisdiction, post and VFX in another. Solve for the allocation subject to
 each program's minimum spend and qualifying rules.
