@@ -176,6 +176,17 @@ export interface BenefitBreakdown {
   timing_note: string | null;
 }
 
+/** A curated suggestion, not an allowlist — anything typed still works.
+ *  Mirrors backend/app/jurisdictions.py SuggestedJurisdiction. */
+export interface SuggestedJurisdiction {
+  name: string;
+  region: string;
+  /** What the programme publishes in. Non-USD converts against a stated rate. */
+  currency: string;
+  /** Roughly what it advertises. Display only — never used in a calculation. */
+  advertised_hint: string;
+}
+
 /** Something still unresolved about a jurisdiction, and what it's worth.
  *  Mirrors backend/app/questions.py OpenQuestion. */
 export interface OpenQuestion {

@@ -8,6 +8,7 @@ import {
   computeQuestions,
   computeSplit,
   getDistance,
+  getSuggestedJurisdictions,
   searchJurisdiction,
   type DistanceInfo,
 } from "../lib/api";
@@ -25,6 +26,7 @@ import type {
   CreditTimingAssumptions,
   OpenQuestion,
   SplitResponse,
+  SuggestedJurisdiction,
   JurisdictionRule,
   PoolStatus,
   RelocationAssumptions,
@@ -506,16 +508,56 @@ function JurisdictionSearch({ existing, onFound }: { existing: string[]; onFound
     }
   }
 
+  // A curated starting set, grouped by region. Emphatically not an allowlist:
+  // extraction takes any name, so free text still works and the datalist only
+  // stops the box from reading as "type one of the four we hard-coded".
+  const [suggested, setSuggested] = useState<SuggestedJurisdiction[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getSuggestedJurisdictions().then(
+      (list) => !cancelled && setSuggested(list),
+      () => {
+        /* free-text search is unaffected; no need to surface this */
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const unused = suggested.filter(
+    (j) => !existing.some((n) => n.toLowerCase() === j.name.toLowerCase()),
+  );
+  const byRegion = unused.reduce<Record<string, SuggestedJurisdiction[]>>((acc, j) => {
+    (acc[j.region] ??= []).push(j);
+    return acc;
+  }, {});
+
   return (
     <form onSubmit={submit} className="flex items-center gap-2">
       <input
         type="text"
+        list="jurisdiction-suggestions"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="search another jurisdiction…"
+        placeholder={
+          unused.length ? `add a jurisdiction — ${unused.length} suggested, or type any` : "add a jurisdiction…"
+        }
         disabled={pending}
-        className="w-[210px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
+        className="w-[260px] border border-border-3 bg-card px-2.5 py-1 font-mono text-[11.5px] outline-none focus:border-ink disabled:opacity-60"
       />
+      {/* A datalist rather than a <select>: it suggests without constraining,
+          which is exactly the relationship this list has to the pipeline. */}
+      <datalist id="jurisdiction-suggestions">
+        {Object.entries(byRegion).map(([region, members]) =>
+          members.map((j) => (
+            <option key={j.name} value={j.name}>
+              {region} · {j.advertised_hint}
+              {j.currency !== "USD" ? ` · ${j.currency}` : ""}
+            </option>
+          )),
+        )}
+      </datalist>
       <button
         type="submit"
         disabled={pending || !value.trim()}

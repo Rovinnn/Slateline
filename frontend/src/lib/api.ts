@@ -2,6 +2,7 @@ import type {
   ChallengeResponse,
   CreditTimingAssumptions,
   OpenQuestion,
+  SuggestedJurisdiction,
   SplitResponse,
   BenefitBreakdown,
   BudgetVector,
@@ -115,6 +116,11 @@ export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: bool
   const params = new URLSearchParams({ jurisdiction });
   if (opts?.refresh) params.set("refresh", "true");
   return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
+}
+
+/** The curated starting set for the jurisdiction picker. Not an allowlist. */
+export function getSuggestedJurisdictions(): Promise<SuggestedJurisdiction[]> {
+  return getJson<SuggestedJurisdiction[]>("/jurisdictions/suggested");
 }
 
 /**

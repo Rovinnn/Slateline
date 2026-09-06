@@ -319,3 +319,27 @@ def test_challenge_endpoint_does_not_populate_the_cache_for_an_unsearched_rule(m
     client.post("/jurisdictions/challenge", json=jsonable_encoder(make_rule(jurisdiction="Nowhere")))
 
     assert cache.get("Nowhere") is None
+
+
+# ---------- the suggestion list ----------
+
+def test_suggested_jurisdictions_are_grouped_and_global():
+    resp = client.get("/jurisdictions/suggested")
+    assert resp.status_code == 200
+    body = resp.json()
+
+    regions = {j["region"] for j in body}
+    # A US-only list would misrepresent what the tool can now do, since
+    # non-USD programmes convert rather than being refused.
+    assert "United States" in regions
+    assert len(regions) >= 4
+    assert any(j["currency"] != "USD" for j in body)
+    # Hand-verified jurisdictions must be offered, since they're the ones
+    # whose figures we can actually vouch for.
+    names = {j["name"] for j in body}
+    assert {"Georgia", "New Mexico", "Louisiana"} <= names
+
+
+def test_every_suggestion_carries_what_a_reader_needs_to_choose():
+    for j in client.get("/jurisdictions/suggested").json():
+        assert j["name"] and j["region"] and j["currency"] and j["advertised_hint"]

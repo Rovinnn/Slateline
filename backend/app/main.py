@@ -21,6 +21,7 @@ from .extraction.agent import extract_jurisdiction_rule
 from .extraction.challenge import ChallengeReport, apply_challenge, challenge_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
+from .jurisdictions import SUGGESTED, SuggestedJurisdiction, grouped
 from .questions import OpenQuestion, open_questions
 from .split import SplitPlan, analyse_splits
 from .models import (
@@ -208,6 +209,17 @@ class SplitResponse:
     plans: list[SplitPlan]
     splitting_wins: bool
     gain_over_single: float
+
+
+@app.get("/jurisdictions/suggested", response_model=list[SuggestedJurisdiction])
+def suggested_jurisdictions() -> list[SuggestedJurisdiction]:
+    """A curated starting set, grouped by region — not an allowlist.
+
+    Extraction takes any name and searches for it, so this exists purely so
+    the search box stops reading as "type one of the four things we hard-coded".
+    Anything not on this list still works.
+    """
+    return [j for _, members in grouped() for j in members]
 
 
 @app.post("/compute/questions", response_model=list[OpenQuestion])
