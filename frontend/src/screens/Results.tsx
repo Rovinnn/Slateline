@@ -13,6 +13,7 @@ import {
   type DistanceInfo,
 } from "../lib/api";
 import { challengeState } from "../lib/challenge";
+import { LeagueTable } from "./LeagueTable";
 import { OpenQuestions } from "./OpenQuestions";
 import { SplitRecommendation } from "./SplitPlan";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
@@ -64,7 +65,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
-  const [tab, setTab] = useState<"memo" | "compare" | "map">("memo");
+  const [tab, setTab] = useState<"memo" | "compare" | "map" | "gap">("memo");
   const [breakeven, setBreakeven] = useState<BreakevenResult | "loading" | "error" | null>(null);
   const [distances, setDistances] = useState<Record<string, DistanceInfo | null>>({});
   const [challenges, setChallenges] = useState<Record<string, ChallengeReport | "checking" | "failed">>({});
@@ -371,6 +372,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>
           <TabButton active={tab === "compare"} onClick={() => setTab("compare")}>COMPARE</TabButton>
           <TabButton active={tab === "map"} onClick={() => setTab("map")}>MAP</TabButton>
+          <TabButton active={tab === "gap"} onClick={() => setTab("gap")}>THE GAP</TabButton>
         </div>
         <div className="font-sans text-[12.5px] text-ink-2">
           {moneyShort(liveBudget.total)} budget · {liveBudget.shoot_days} days · {liveBudget.crew_headcount} crew
@@ -472,6 +474,10 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
       )}
 
       {state.status === "ready" && tab === "map" && <MapView rows={state.rows} homeBaseLabel={liveBudget.home_base} />}
+
+      {/* Precomputed and budget-independent, so it renders whether or not the
+          live comparison above it succeeded. */}
+      {tab === "gap" && <LeagueTable />}
       </div>
     </div>
   );
