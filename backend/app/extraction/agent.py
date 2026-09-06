@@ -167,9 +167,41 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
                     },
                 },
             },
-            "per_person_wage_cap": {"type": ["number", "null"]},
-            "minimum_spend": {"type": ["number", "null"]},
-            "per_project_cap": {"type": ["number", "null"]},
+            # All three were bare types until a live sweep showed the model
+            # representing "there is no such limit" as 0 rather than null.
+            # That is catastrophic rather than cosmetic: a per-project cap of
+            # 0 ceilings the credit at nothing, so calculator.py refuses the
+            # jurisdiction outright (see _impossible_inputs). It cost Oklahoma
+            # a ranking, and it had already made a live agent run recommend
+            # the wrong state when New Mexico came back the same way.
+            #
+            # Null and zero mean opposite things here and the difference was
+            # never stated. Same omission, and same fix, as the `qualifying`
+            # keys above.
+            "per_person_wage_cap": {
+                "type": ["number", "null"],
+                "description": (
+                    "Maximum salary per person that counts toward qualifying spend. Null if the "
+                    "program caps no individual salary — never 0, which would mean no salary "
+                    "qualifies at all."
+                ),
+            },
+            "minimum_spend": {
+                "type": ["number", "null"],
+                "description": (
+                    "Minimum qualifying spend needed to claim anything, as a hard cliff. Null or 0 "
+                    "if the program has no minimum."
+                ),
+            },
+            "per_project_cap": {
+                "type": ["number", "null"],
+                "description": (
+                    "Maximum credit a single production may receive. Null if the program caps no "
+                    "individual project — never 0, which would mean the program pays nothing. An "
+                    "annual or program-wide pool is NOT a per-project cap; record that in "
+                    "annual_pool_total instead."
+                ),
+            },
             "tiers": {
                 "type": "array",
                 "items": {"type": "object", "properties": {"threshold": {"type": "number"}, "rate": {"type": "number"}}},
