@@ -68,7 +68,33 @@ runner-up, and Can't-verify cards), and the initial load now shows
 per-jurisdiction progress ("Georgia — searching statute and film-office
 pages" → "— extracted") instead of one generic spinner.
 
-### 2.3 Statute hand-verification — ~half a day
+### 2.3 Statute hand-verification — ✅ done for 3 of 4 (6 Sep 2026)
+
+Georgia, New Mexico and Louisiana were read field by field against
+O.C.G.A. § 48-7-40.26, its regulation 560-7-8-.45, NMSA 7-2F-15 and Louisiana
+Entertainment's program page. **Three real errors, and the ranking changed.**
+
+| finding | effect |
+|---|---|
+| Georgia's $500k per-person salary cap was missing | overstated any production paying an individual >$500k |
+| New Mexico's non-resident BTL crew treated as fully qualifying | overstated NM by $67,500; it had been ranked #1 |
+| Louisiana's `credit_type` left `"unknown"` | scored at face value, so the caution *flattered* it |
+
+Top recommendation moved from New Mexico to Louisiana. All of it passed 239
+tests beforehand, because those tests recorded our own output.
+
+**Still open:** Texas is unverified, and every live-extracted jurisdiction is
+unchecked. Three of three checked had errors, so assume a similar rate.
+
+**New modelling gap found here.** `qualifying` is a boolean per spend
+category, which cannot express New Mexico's actual rule: non-resident BTL crew
+qualify at a *different rate* (15% vs 25%), capped at 15% of the BTL budget,
+across a limited number of positions. We currently exclude them, understating
+NM by $16,875 rather than overstating by $67,500. Fixing properly needs
+per-category rates and caps on `JurisdictionRule.qualifying` — a schema
+change, and the right next correctness project after the ones below.
+
+### 2.3b Original note — statute hand-verification
 Build order step 3 says *"verify a few by hand against the actual statutes"*
 and section 9 wants *"hand-verified"* golden values. **This has never been
 done.** Our golden numbers were produced by running our own code and recording

@@ -97,3 +97,79 @@ def test_new_mexico_indie_drama_no_minimum_spend_cliff():
     )
     result = compute_benefit(tiny_budget, NEW_MEXICO, distance_km=None)
     assert result.gross_credit == pytest.approx(0.25)
+
+
+# ---------- hand-verified against the statutes, 2026-09-06 ----------
+#
+# Everything above this line was a regression test: the expected values were
+# produced by running our own code and recording its output. These were
+# checked field by field against the statute and the state's own regulation,
+# and two of them changed the answer.
+
+
+def test_new_mexico_indie_drama_golden_value():
+    """The golden test whose absence let a real error through.
+
+    New Mexico was the top recommendation and had no value assertion at all —
+    only a no-minimum-spend edge case. So when its qualifying rules turned out
+    to be wrong, all 235 tests still passed and the ranking silently changed.
+    A winner with no golden value is the worst thing to leave untested.
+    """
+    result = compute_benefit(INDIE_DRAMA_BUDGET, NEW_MEXICO, distance_km=None)
+
+    # $2M budget less the $337,500 of non-resident BTL wages that don't
+    # qualify at the base rate (see below).
+    assert result.qualifying_spend == pytest.approx(1_662_500)
+    assert result.gross_credit == pytest.approx(415_625)
+    # Refundable, so no broker discount — the whole face value is realizable.
+    assert result.realizable_credit == pytest.approx(415_625)
+    assert result.months_to_payment == 12
+    assert result.net_benefit == pytest.approx(266_993.75, abs=0.01)
+
+
+def test_new_mexico_excludes_nonresident_below_the_line_crew():
+    """NMSA 7-2F-15 makes these a separate, much narrower credit.
+
+    Non-resident BTL crew get 15% rather than the base 25%, on at most 15% of
+    the BTL budget, across a capped number of positions. Treating them as
+    ordinary qualifying spend overstated New Mexico by $67,500 on this budget
+    and put it top of the ranking; excluding them understates by $16,875.
+    """
+    assert NEW_MEXICO.qualifying["btl_labor_nonresident"] is False
+    assert NEW_MEXICO.qualifying["btl_labor_resident"] is True
+    # Non-payroll spend and post are unaffected by the residency rule.
+    assert NEW_MEXICO.qualifying["btl_nonlabor"] is True
+    assert NEW_MEXICO.qualifying["post_vfx"] is True
+
+
+def test_georgia_qualifies_nonresident_crew_where_new_mexico_does_not():
+    """Two states, opposite answers, and the difference decides the ranking.
+
+    Georgia's exclusion is territorial — "work or services not conducted or
+    rendered in Georgia" (Rule 560-7-8-.45(6)(c)1.(ii)) — so a non-resident
+    gaffer working in Atlanta qualifies. New Mexico's test is residency. This
+    contrast is the reason a per-jurisdiction qualifying map exists at all,
+    and it's worth asserting so neither side drifts to match the other.
+    """
+    assert GEORGIA.qualifying["btl_labor_nonresident"] is True
+    assert NEW_MEXICO.qualifying["btl_labor_nonresident"] is False
+
+
+def test_georgia_caps_qualifying_salary_at_500k_per_person():
+    """O.C.G.A. § 48-7-40.26's "total aggregate payroll" definition.
+
+    Doesn't bite on a $2M indie drama, which is exactly why it went unnoticed:
+    the cap was None and every seeded test budget was too small to reveal it.
+    """
+    assert GEORGIA.per_person_wage_cap == 500_000
+
+    # A budget where it does bite: cast_count is assumed at 4 for a small
+    # crew, so the ceiling is 4 x $500k = $2M against $3M of cast salary.
+    star_vehicle = BudgetVector(
+        total=6_000_000, atl_cast=3_000_000, atl_noncast=500_000, btl_labor=1_500_000,
+        btl_nonlabor=750_000, post_vfx=250_000, shoot_days=30, crew_headcount=50,
+        resident_labor_pct=0.6, home_base="Los Angeles, CA", constraints=[],
+    )
+    capped = compute_benefit(star_vehicle, GEORGIA, distance_km=None)
+    assert any("wage cap" in note.lower() for note in capped.caps_applied)
+    assert capped.qualifying_spend < 6_000_000

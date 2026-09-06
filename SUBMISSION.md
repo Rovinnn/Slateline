@@ -63,26 +63,28 @@ vector map, and PDF export of the whole memo.
 
 ### The result it exists to produce
 
-On a $2M indie drama, Georgia advertises 30%:
+Three jurisdictions, a $2M indie drama, and figures hand-verified against the
+statutes and state regulations rather than taken from a rate table:
 
-```
-Qualifying spend                    $1,904,000
-Credit at 30.0%                       $571,200
-Monetisation discount                 −$57,120   transferable, sold at ~90% of face
-Realizable in cash                    $514,080
-Audit and compliance                  −$15,000
-Waiting 18 months to be paid          −$78,021
-Worth today                           $421,059
-Relocation cost                      −$114,900
-Net benefit                           $306,159
-```
+| | advertised | net benefit | why |
+|---|---|---|---|
+| **Louisiana** | 25% + 15% = up to **40%** | **$275,552** | transferable at 90% of face, 15-month wait |
+| New Mexico | 25% + 20% = up to **45%** | $266,994 | refundable and fastest, but non-resident crew don't qualify |
+| Georgia | 20% + 10% = up to **30%** | $199,621 | transferable, 18-month wait, mandatory audit |
 
-New Mexico — advertising **25%** — wins, and the tool shows exactly why, in
-components that sum to the gap: −$71k gross credit, +$57k on payout mechanism,
-+$15k compliance, +$24k paid sooner, +$11k relocation = **+$36k**.
+**The advertised order and the real order are not the same.** New Mexico
+advertises the highest headline number and does not win. And Louisiana and New
+Mexico advertise the *same* 25% base rate yet differ by $8,558, for reasons no
+rate table contains: New Mexico's credit excludes non-resident below-the-line
+crew (NMSA 7-2F-15 makes them a separate 15% credit capped at 15% of the BTL
+budget), while Louisiana's is transferred back to the state at 90% of face and
+arrives three months later.
 
-**A jurisdiction with a lower headline rate is the better choice.** That is
-the entire product in one screen, and no rate table can produce it.
+The tool shows that reasoning as a walk from advertised rate to cash, and
+decomposes the gap between any two jurisdictions into components that sum
+exactly to it — gross credit, monetisation, compliance cost, payout speed and
+relocation. Nothing in that explanation is written by a model; every line is a
+subtraction between two computed breakdowns.
 
 ## The core architectural bet
 
@@ -173,17 +175,37 @@ jurisdiction, or readers learn to ignore the flag that mattered.
 the same.** The most dangerous state in a verification feature is the one that
 looks reassuring because it's empty.
 
-**7. Live extraction is not deterministic.** The same jurisdiction returns
+**7. Hand-verifying the statutes changed which jurisdiction wins.** Every
+number had passed 235 tests, because those tests recorded our own output — a
+regression test, not a correctness test. Reading O.C.G.A. § 48-7-40.26, its
+implementing regulation 560-7-8-.45, and NMSA 7-2F-15 directly turned up three
+real errors in a day: Georgia's $500,000 per-person salary cap was missing;
+New Mexico's exclusion of non-resident below-the-line crew was not modelled,
+overstating it by $67,500; and Louisiana's payout mechanism was recorded as
+"unknown", which is scored at face value, so the caution *flattered* it. The
+first correction moved the top recommendation from New Mexico to Louisiana.
+The lesson is uncomfortable and worth stating: a well-tested pipeline computing
+from unverified inputs is a confident wrong answer, and no amount of testing
+the arithmetic finds it.
+
+**8. Live extraction is not deterministic.** The same jurisdiction returns
 different names between runs ("New Mexico", "USA-NM", "NM"), and occasionally
 different computability. Inherent to live retrieval, and the strongest
 argument for why hand-verification and conflict detection matter.
 
 ### Known limitations, stated plainly
 
-- **The statutes have not been hand-verified.** Golden values were produced by
-  running our own code and recording its output — a regression test, not a
-  correctness test. The machinery is well tested; whether Gemini reads
-  Georgia's tax code correctly is genuinely unconfirmed.
+- **Only three jurisdictions have been hand-verified** (Georgia, New Mexico,
+  Louisiana, on 6 Sep 2026, against the statutes and regulations cited in
+  `seed_jurisdictions.py`). Every other jurisdiction the tool can search is
+  live-extracted and unchecked, and the three that were checked yielded three
+  real errors — so the base rate for errors in the unchecked ones should be
+  assumed to be similar, not zero.
+- **The qualifying model is a boolean per spend category**, which cannot
+  express New Mexico's real rule (non-resident crew at a *different rate*,
+  capped at a share of the budget). We exclude them, which understates New
+  Mexico by $16,875 on a $2M drama rather than overstating it by $67,500.
+  Rounding toward the smaller error is a choice, and it is stated on the card.
 - **Timing defaults are assumptions, not sourced facts** — the discount rate
   and per-mechanism waits are ours. They're visible and editable in the UI for
   exactly that reason, and a rule's own stated timeline overrides them.

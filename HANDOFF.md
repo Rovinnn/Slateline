@@ -176,25 +176,27 @@ license" rather than nothing.
 The brief is explicit: *"a demo showing your agent functioning as built, not a
 cinematic trailer."* Impact is scored on what's demonstrated, not claimed.
 
-**Open on the payoff, not on setup.** The single strongest shot is the hero
-card for a $2M indie drama:
+**Open on the payoff, not on setup.** The strongest shot is the ranking for a
+$2M indie drama, because the advertised order and the real order disagree:
 
-```
-Qualifying spend                    $1,904,000
-Credit at 30.0%                       $571,200
-Monetisation discount                 −$57,120
-Realizable in cash                    $514,080
-Audit and compliance                  −$15,000
-Waiting 18 months to be paid          −$78,021
-Worth today                           $421,059
-Relocation cost                      −$114,900
-Net benefit                           $306,159
-```
+| | advertised | net benefit |
+|---|---|---|
+| **Louisiana** | 25% + 15% = up to **40%** | **$275,552** |
+| New Mexico | 25% + 20% = up to **45%** | $266,994 |
+| Georgia | 20% + 10% = up to **30%** | $199,621 |
 
-Georgia advertises **30%**. New Mexico advertises **25%** and wins by $36k —
-and "why it wins" shows exactly why, in components that sum to the gap.
-**A lower headline rate is the better deal.** That is the whole product, it
-needs no narration, and no rate table on the internet can produce it.
+New Mexico advertises the biggest number and loses. Louisiana and New Mexico
+advertise the *same* 25% base and differ by $8,558 — because New Mexico's
+credit excludes non-resident below-the-line crew and Louisiana's pays three
+months later at 90% of face. No rate table contains that.
+
+Then open the winner's card: the waterfall walks the advertised rate down to
+cash, and "why it wins" splits the gap into components that sum exactly to it.
+
+> These figures are the **hand-verified seed set** as of 6 Sep. The deployed
+> app ranks off *live* extraction, so re-check the on-screen numbers before
+> recording and use whatever it actually shows — do not narrate these from
+> memory.
 
 Suggested beats: that screen (20s) → sliders reordering the ranking live
 (20s) → click a source link and the retrieved date (20s) → the challenge badge

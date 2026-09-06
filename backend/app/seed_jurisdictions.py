@@ -37,8 +37,26 @@ GEORGIA = JurisdictionRule(
     jurisdiction="Georgia",
     program_name="Georgia Entertainment Industry Investment Act",
     base_rate=0.20,
+    # Non-resident crew DO qualify here, unlike New Mexico below: the
+    # regulation's exclusion is "any expenditure for work or services not
+    # conducted or rendered in Georgia" (560-7-8-.45(6)(c)1.(ii)) — a test of
+    # where the work happened, not of where the worker lives.
     qualifying=dict(_ALL_QUALIFYING),
-    per_person_wage_cap=None,
+    # O.C.G.A. § 48-7-40.26, definition of "total aggregate payroll": "with
+    # respect to a single employee, the portion of any salary which exceeds
+    # $500,000.00 for a single production shall not be included when
+    # calculating total aggregate payroll, and all payments to a single
+    # employee and any legal entity in which the employee has any direct or
+    # indirect ownership interest shall be considered as having been paid to
+    # the employee and shall be aggregated regardless of the means of payment
+    # or distribution."
+    #
+    # Found by hand-verification on 2026-09-06; it had been None since this
+    # file was written, which silently overstated Georgia for any production
+    # paying an individual more than $500k. The aggregation clause is the
+    # part worth reading twice — routing a star's fee through a loan-out does
+    # not escape the cap.
+    per_person_wage_cap=500_000,
     minimum_spend=500_000,
     per_project_cap=None,
     tiers=[],
@@ -94,7 +112,28 @@ NEW_MEXICO = JurisdictionRule(
     jurisdiction="New Mexico",
     program_name="New Mexico Film Production Tax Credit",
     base_rate=0.25,
-    qualifying=dict(_ALL_QUALIFYING),
+    # NOT _ALL_QUALIFYING, and this is the correction that mattered most.
+    #
+    # New Mexico's base 25% covers non-payroll spend, resident labour and
+    # non-resident performing artists. Non-resident BELOW-THE-LINE crew are a
+    # separate, much narrower credit (NMSA 7-2F-15): 15% rather than 25%,
+    # claimable on at most 15% of the total BTL budget, across a capped number
+    # of positions (5-20 by budget size), and subject to a 2.5% giveback.
+    #
+    # This field is a boolean, so it can express "qualifies" or "doesn't" and
+    # nothing in between. On the $2M indie drama the two errors are not
+    # symmetric: treating these wages as fully qualifying overstates the
+    # credit by $67,500, while treating them as non-qualifying understates it
+    # by $16,875. For a tool whose whole claim is that it would rather show a
+    # gap than a confident wrong number, understating by a quarter as much is
+    # the only defensible way to round.
+    #
+    # Modelling the real rule needs per-category rates, which the schema
+    # doesn't have. Logged in NEXT_STEPS.md rather than bodged in here.
+    qualifying={**_ALL_QUALIFYING, "btl_labor_nonresident": False},
+    # The $5,000,000 per-production ceiling on non-resident performing artists
+    # is a per-production aggregate, not the per-person cap this field means,
+    # so it stays None rather than being forced into the wrong shape.
     per_person_wage_cap=None,
     minimum_spend=None,  # source: "no minimum spend requirement"
     per_project_cap=None,
@@ -104,7 +143,10 @@ NEW_MEXICO = JurisdictionRule(
         Uplift(condition="TV pilot or television series", bonus_rate=0.05, machine_checkable=False),
         Uplift(condition="production uses a qualified production facility", bonus_rate=0.05, machine_checkable=False),
     ],
-    annual_pool_total=140_000_000,
+    # FY27 (began 1 July 2026, so this is the year in force as of Sept 2026);
+    # the $140M figure this file previously carried was the FY26 cap, correct
+    # when it was written and stale now. Scheduled to rise to $160M in FY28.
+    annual_pool_total=150_000_000,
     annual_pool_remaining=None,
     pool_status="unknown",  # total cap found, live remaining balance was not
     application_deadline=None,
@@ -174,11 +216,20 @@ LOUISIANA = JurisdictionRule(
     sunset_date=None,
     under_review=False,
     is_discretionary=False,
-    # Left unknown deliberately: the retrieved excerpt establishes only that
-    # credits "may be used to offset personal or corporate income tax
-    # liability in Louisiana", which doesn't settle refundable vs transferable.
-    # Guessing here is exactly what the rest of the tool refuses to do.
-    credit_type="unknown",
+    # Was "unknown" until hand-verification on 2026-09-06, on the grounds that
+    # the retrieved excerpt only established credits "may be used to offset
+    # personal or corporate income tax liability in Louisiana". That refusal
+    # to guess was right at the time, but it left the field unresolved on what
+    # is now the top-ranked jurisdiction, and "unknown" is scored at face
+    # value — so the caution flattered Louisiana rather than penalising it.
+    #
+    # Louisiana Entertainment states credits may be transferred back to the
+    # State for 90% of face value, less a 2% transfer fee (88% net). That is a
+    # transfer at a discount, which is what this enum means, even though the
+    # counterparty is the state rather than a broker. The default 90% discount
+    # is very close to the real 88%; the residual 2% is not worth a per-rule
+    # override the schema doesn't have.
+    credit_type="transferable",
     film_office_contact=None,
     centroid_lat=29.951,
     centroid_lng=-90.072,  # New Orleans hub
