@@ -246,3 +246,63 @@ def test_two_challenges_in_a_row_do_not_duplicate_the_same_source():
     twice = apply_challenge(once, report_with(material()), today=TODAY)
 
     assert len(twice.sources) == len(once.sources)
+
+
+# ---------- absence is not a position a source can contradict ----------
+#
+# Every case below came from the first live run. Georgia produced four
+# "material contradictions", all of the shape "we have: not stated" against a
+# source saying "no cap" / "None" / "no sunset clause" — sources that agree.
+# It would have rendered "4 sources disagree with this program's terms" on the
+# strength of four sources confirming it.
+
+
+@pytest.mark.parametrize(
+    "current,says",
+    [
+        ("not stated", "no cap"),
+        ("not stated", "None"),
+        ("not stated", "no sunset clause"),
+        ("not stated", "$130M"),
+        ("None", "no annual cap"),
+    ],
+)
+def test_a_source_filling_a_gap_is_not_a_source_disagreeing(current, says):
+    report = run_challenge(
+        {"contradictions": [contradiction("annual_pool_total", current_value=current, source_says=says)],
+         "corroborations": []}
+    )
+    assert report.material_findings == []
+    assert report.challenged_cleanly is True
+
+
+def test_the_information_is_kept_rather_than_silently_dropped():
+    # A source supplying a value we lack is useful — New Mexico's "payouts
+    # typically arrive 6 to 18 months" is exactly what months_to_payment
+    # wants. It just isn't a conflict.
+    report = run_challenge(
+        {"contradictions": [contradiction("months_to_payment", current_value="not stated",
+                                          source_says="6 to 18 months")],
+         "corroborations": []}
+    )
+    assert "months_to_payment" in report.corroborated_fields
+
+
+def test_a_real_disagreement_between_two_stated_values_still_lands():
+    # The one genuine finding from the live run: New Mexico's pool reported as
+    # $140M by us, $130M and $120M by two other sources.
+    report = run_challenge(
+        {"contradictions": [contradiction("annual_pool_total", current_value="140000000",
+                                          source_says="$130M")],
+         "corroborations": []}
+    )
+    assert len(report.material_findings) == 1
+    assert report.challenged_cleanly is False
+
+
+def test_both_sides_saying_nothing_in_different_words_is_agreement():
+    report = run_challenge(
+        {"contradictions": [contradiction("sunset_date", current_value="not stated", source_says="None")],
+         "corroborations": []}
+    )
+    assert report.material_findings == []

@@ -196,6 +196,49 @@ class ChallengeReport:
         return self.sources_checked > 0 and not self.material_findings
 
 
+# What the held value looks like when we don't hold one. _held_values renders
+# a None as "not stated", and the model echoes that back in current_value.
+_ABSENCE = frozenset({"not stated", "none", "null", "unknown", "", "not found", "n/a"})
+
+
+def _is_absence(current_value: str) -> bool:
+    return current_value.strip().lower() in _ABSENCE
+
+
+def _contradicts(current_value: str, source_says: str) -> bool:
+    """Whether a reported disagreement is one at all.
+
+    The first live run of this pass produced four "material contradictions"
+    for Georgia, every one of the shape "we have: not stated" against "source
+    says: no cap" / "None" / "no sunset clause". Those agree. Georgia would
+    have rendered "4 sources disagree with this program's terms" on the
+    strength of four sources confirming it.
+
+    The prompt already forbids treating silence as contradiction, and the
+    model followed it in the direction it was written — it didn't invent a
+    disagreement out of a *source's* silence. What it did was treat *our own*
+    missing value as a position that a source could contradict, which the
+    instruction never covered and which reads as a difference because the two
+    strings genuinely differ.
+
+    So this is a code guard rather than more prompt. A contradiction needs a
+    concrete held value for the source to disagree with; where we hold
+    nothing, a source can supplement us but cannot contradict us. Filtering
+    here also means a future prompt edit can't quietly reintroduce it.
+
+    The information isn't worthless — New Mexico's "payouts typically arrive 6
+    to 18 months after a final certified audit" is exactly what
+    months_to_payment wants. But a gap being filled is not a disagreement, and
+    presenting it as one is what would cost this feature its credibility.
+    Surfacing supplements as their own category is worth doing and is logged
+    in NEXT_STEPS.md rather than bolted on here.
+    """
+    if _is_absence(current_value):
+        return False
+    # Both sides asserting absence in different words is agreement, not conflict.
+    return not (_is_absence(source_says) and _is_absence(current_value))
+
+
 def _severity_of(field_name: str) -> Severity:
     return "material" if field_name in MATERIAL_FIELDS else "minor"
 
@@ -315,6 +358,9 @@ def challenge_rule(rule: JurisdictionRule) -> ChallengeReport:
     raw = _challenge_with_forced_function_call(rule, search_results)
 
     findings = []
+    #: Fields where a source stated something we hold no value for. Counted so
+    #: a caller can see the pass did work, not discarded silently.
+    supplements: list[str] = []
     for item in raw.get("contradictions", []):
         field_name = item.get("field", "")
         # An enum-constrained field can still arrive as something unexpected —
@@ -323,11 +369,17 @@ def challenge_rule(rule: JurisdictionRule) -> ChallengeReport:
         # finding nothing can be attributed to.
         if field_name not in CHALLENGEABLE_FIELDS:
             continue
+        current_value = str(item.get("current_value", ""))
+        source_says = str(item.get("source_says", ""))
+        # A source filling a gap is not a source disagreeing with us.
+        if not _contradicts(current_value, source_says):
+            supplements.append(field_name)
+            continue
         findings.append(
             ChallengeFinding(
                 field_name=field_name,
-                current_value=str(item.get("current_value", "")),
-                source_says=str(item.get("source_says", "")),
+                current_value=current_value,
+                source_says=source_says,
                 url=str(item.get("url", "")),
                 excerpt=str(item.get("excerpt", "")),
                 severity=_severity_of(field_name),
@@ -338,7 +390,7 @@ def challenge_rule(rule: JurisdictionRule) -> ChallengeReport:
         c["field"]
         for c in raw.get("corroborations", [])
         if c.get("field") in CHALLENGEABLE_FIELDS
-    ]
+    ] + supplements
 
     return ChallengeReport(
         jurisdiction=rule.jurisdiction,
