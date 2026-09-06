@@ -1,6 +1,7 @@
 import type {
   ChallengeResponse,
   CreditTimingAssumptions,
+  SplitResponse,
   BenefitBreakdown,
   BudgetVector,
   JurisdictionRule,
@@ -113,6 +114,32 @@ export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: bool
   const params = new URLSearchParams({ jurisdiction });
   if (opts?.refresh) params.set("refresh", "true");
   return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
+}
+
+/**
+ * Shoot in one jurisdiction, post in another — every pairing, ranked.
+ *
+ * The question a rate table structurally cannot answer, because a table has
+ * one row per place and this needs combinations of them. Throws ApiError(404)
+ * when nothing could be computed at all, which is different from "no split
+ * helps" — that returns 200 with splitting_wins false.
+ */
+export function computeSplit(
+  budget: BudgetVector,
+  rules: JurisdictionRule[],
+  opts?: {
+    distances?: Record<string, number>;
+    assumptions?: RelocationAssumptions;
+    timing?: CreditTimingAssumptions;
+  },
+): Promise<SplitResponse> {
+  return postJson<SplitResponse>("/compute/split", {
+    budget,
+    rules,
+    distances: opts?.distances ?? null,
+    assumptions: opts?.assumptions ?? null,
+    timing: opts?.timing ?? null,
+  });
 }
 
 /**

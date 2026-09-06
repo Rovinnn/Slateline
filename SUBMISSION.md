@@ -90,6 +90,31 @@ exactly to it — gross credit, monetisation, compliance cost, payout speed and
 relocation. Nothing in that explanation is written by a model; every line is a
 subtraction between two computed breakdowns.
 
+### The thing no rate table can answer
+
+**Shoot in one jurisdiction, post in another.** Every incentive comparison
+tool assumes a single destination, because a table has one row per place and
+this needs combinations of them. Real productions split constantly — post-only
+and VFX-specific credits exist precisely to attract that spend separately.
+
+On the hand-verified seed set: **shoot in Louisiana, post in New Mexico —
+$273,911, or $8,347 more than any single location.** It works because New
+Mexico has no minimum spend, so a $250k post budget still earns its full 25%
+refundable.
+
+The more interesting output is when splitting *loses*. Minimum spend is a
+cliff, not a ramp, so dividing the budget can drop a leg under its threshold
+and destroy a credit that would have been earned whole:
+
+> Shoot Louisiana, post Georgia: splitting drops post and VFX in Georgia below
+> its minimum spend, so that leg earns nothing — it would have qualified as
+> part of a single-location shoot.
+
+That trap is invisible to any single-destination ranking, and a producer who
+split on instinct would discover it at audit. The panel renders in both
+directions on purpose: one that only appeared when splitting won would teach
+nothing on the runs it stayed silent.
+
 ## The core architectural bet
 
 **The language model never does arithmetic.** It reads and quotes; all
@@ -129,7 +154,7 @@ can perform.
   keys in Secret Manager.
 - **Frontend** — React 19 + Vite + TypeScript + Tailwind v4 on Firebase
   Hosting; d3-geo + TopoJSON vector map (no tile API, no key in the browser).
-- **Tests** — 283 backend, 68 frontend, run in CI on every push.
+- **Tests** — 297 backend, 76 frontend, run in CI on every push.
 
 ## Data sources
 

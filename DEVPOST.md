@@ -104,7 +104,13 @@ Georgia's $400,000 credit is worth $175,722 after selling a transferable
 credit at a discount, an 18-month wait, a mandatory audit and flying 18 people
 3,747 km. Then open the winner's card and let the waterfall walk it down.
 
-Suggested beats: that ranking (20s) → the waterfall (20s) → sliders reordering
+**The strongest single beat is the split panel** — "shoot in Louisiana, post
+in New Mexico, $8,347 more than either alone", and beneath it the split that
+*destroys* a credit by dropping post under Georgia's minimum. No competing
+tool can produce either statement.
+
+Suggested beats: that ranking (20s) → the split recommendation (25s) → the
+waterfall (20s) → sliders reordering
 live (20s) → click a source link and its retrieved date (20s) → the challenge
 badge finding New Mexico's pool reported three different ways (20s) → the
 "can't verify" list, refusing rather than guessing (20s) → PDF export (10s).

@@ -21,6 +21,7 @@ from .extraction.agent import extract_jurisdiction_rule
 from .extraction.challenge import ChallengeReport, apply_challenge, challenge_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
+from .split import SplitPlan, analyse_splits
 from .models import (
     BenefitBreakdown,
     BudgetVector,
@@ -184,6 +185,58 @@ def search_jurisdictions(jurisdiction: str, refresh: bool = False) -> Jurisdicti
     result = _verify_and_annotate(rule)
     cache.set(jurisdiction, result)
     return result
+
+
+@dataclass
+class SplitResponse:
+    """Best plan, best single location, and everything considered.
+
+    `splitting_wins` and `gain_over_single` are properties on SplitAnalysis and
+    wouldn't survive serialisation, so they're materialised here — the client
+    must not have to re-derive whether splitting helped by comparing two
+    figures itself.
+    """
+
+    best: SplitPlan
+    best_single: SplitPlan
+    plans: list[SplitPlan]
+    splitting_wins: bool
+    gain_over_single: float
+
+
+@app.post("/compute/split", response_model=SplitResponse)
+def compute_split(
+    budget: BudgetVector,
+    rules: list[JurisdictionRule],
+    distances: Optional[dict[str, float]] = Body(default=None),
+    assumptions: Optional[RelocationAssumptions] = None,
+    timing: Optional[CreditTimingAssumptions] = None,
+) -> "SplitResponse":
+    """Shoot in one jurisdiction, post in another — every pairing, ranked.
+
+    The one question a rate table structurally cannot answer, because a table
+    has one row per place and this needs combinations of them. Same pure
+    calculator as /compute, called across pairings; no new arithmetic.
+
+    404 when nothing at all could be computed, which is different from "no
+    split helps" — that comes back 200 with splitting_wins false.
+    """
+    verified = [verify_rule(r) for r in rules]
+    analysis = analyse_splits(
+        budget, verified, distances=distances, assumptions=assumptions, timing=timing
+    )
+    if analysis is None:
+        raise HTTPException(
+            status_code=404,
+            detail="None of the jurisdictions supplied could be computed, so there is nothing to split.",
+        )
+    return SplitResponse(
+        best=analysis.best,
+        best_single=analysis.best_single,
+        plans=analysis.plans,
+        splitting_wins=analysis.splitting_wins,
+        gain_over_single=analysis.gain_over_single,
+    )
 
 
 @app.post("/jurisdictions/challenge", response_model=ChallengeResponse)

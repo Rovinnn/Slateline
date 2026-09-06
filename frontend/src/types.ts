@@ -167,6 +167,29 @@ export interface BenefitBreakdown {
   timing_note: string | null;
 }
 
+/** One way to run the production: single-location, or shoot here and post there.
+ *  Mirrors backend/app/split.py SplitPlan. */
+export interface SplitPlan {
+  shoot_in: string;
+  post_in: string;
+  shoot_leg: BenefitBreakdown;
+  /** Null for a single-location plan — there is no second leg. */
+  post_leg: BenefitBreakdown | null;
+  net_benefit: number;
+  /** Why this plan is worth less than it looks, in the producer's words. */
+  warnings: string[];
+}
+
+/** Response from POST /compute/split. */
+export interface SplitResponse {
+  best: SplitPlan;
+  best_single: SplitPlan;
+  plans: SplitPlan[];
+  /** Materialised server-side so the client never re-derives it. */
+  splitting_wins: boolean;
+  gain_over_single: number;
+}
+
 /** One point where a challenge source disagrees with a held figure.
  *  Mirrors backend/app/extraction/challenge.py ChallengeFinding. */
 export interface ChallengeFinding {

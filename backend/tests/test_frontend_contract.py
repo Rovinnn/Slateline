@@ -162,6 +162,14 @@ def test_parsed_budget_shape_is_declared(ts_source):
     assert _interface_fields(ts_source, "ParsedBudget") == _dataclass_fields(ParsedBudget)
 
 
+def test_split_plan_shape_is_declared(ts_source):
+    # Crosses the boundary via /compute/split. Lives in app/split.py rather
+    # than models.py, so it sits outside SHARED_MODELS above.
+    from app.split import SplitPlan
+
+    assert _interface_fields(ts_source, "SplitPlan") == _dataclass_fields(SplitPlan)
+
+
 @pytest.mark.parametrize("ts_name", ["ChallengeFinding", "ChallengeReport"])
 def test_challenge_shapes_are_declared(ts_name):
     # Same boundary, via /jurisdictions/challenge. These live in

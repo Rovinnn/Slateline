@@ -5,11 +5,13 @@ import {
   ApiError,
   challengeJurisdiction,
   computeBenefit,
+  computeSplit,
   getDistance,
   searchJurisdiction,
   type DistanceInfo,
 } from "../lib/api";
 import { challengeState } from "../lib/challenge";
+import { SplitRecommendation } from "./SplitPlan";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import type { Row } from "../lib/explain";
 import { hostOf, money, moneyShort } from "../lib/format";
@@ -18,6 +20,7 @@ import type {
   BudgetVector,
   ChallengeReport,
   CreditTimingAssumptions,
+  SplitResponse,
   JurisdictionRule,
   PoolStatus,
   RelocationAssumptions,
@@ -50,6 +53,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [liveBudget, setLiveBudget] = useState<BudgetVector>(initialBudget);
   const [assumptions, setAssumptions] = useState<RelocationAssumptions>(DEFAULT_RELOCATION_ASSUMPTIONS);
   const [timing, setTiming] = useState<CreditTimingAssumptions>(DEFAULT_CREDIT_TIMING);
+  const [split, setSplit] = useState<SplitResponse | null>(null);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
@@ -241,6 +245,24 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   // coarser sweep than the main recompute above, so it rides the same
   // debounced trigger (state.status flips to "ready" after each recompute)
   // rather than firing its own independent request storm on every drag tick.
+  // Shoot/post pairings, computed off the same trigger as the breakeven sweep
+  // so it rides that debounce rather than firing on every slider tick. Failure
+  // is silent by design: this is an additional recommendation, and the ranking
+  // above it stands on its own without it.
+  useEffect(() => {
+    if (state.status !== "ready" || !rules) return;
+    let cancelled = false;
+    const km = Object.fromEntries(
+      Object.entries(distances).filter(([, d]) => d != null).map(([k, d]) => [k, d!.distance_km]),
+    );
+    computeSplit(liveBudget, rules, { distances: km, assumptions, timing })
+      .then((r) => !cancelled && setSplit(r))
+      .catch(() => !cancelled && setSplit(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [state, rules, distances]);
+
   useEffect(() => {
     if (state.status !== "ready" || !rules) return;
     const computable = state.rows.filter((r) => r.benefit.computable);
@@ -390,6 +412,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           timing={timing}
           onTimingChange={setTiming}
           breakeven={breakeven}
+          split={split}
           printing={printing}
           showAll={showAll}
           setShowAll={setShowAll}
@@ -491,6 +514,7 @@ function ReadyResults({
   timing,
   onTimingChange,
   breakeven,
+  split,
   printing,
   showAll,
   setShowAll,
@@ -509,6 +533,8 @@ function ReadyResults({
   timing: CreditTimingAssumptions;
   onTimingChange: (t: CreditTimingAssumptions) => void;
   breakeven: BreakevenResult | "loading" | "error" | null;
+  /** Shoot/post pairings; null while in flight or if the call failed. */
+  split: SplitResponse | null;
   printing: boolean;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
@@ -555,6 +581,8 @@ function ReadyResults({
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
         challenge={challenges[hero.rule.jurisdiction]}
       />
+
+      {split && <SplitRecommendation split={split} />}
 
       <SensitivityPanel liveBudget={liveBudget} initialBudget={initialBudget} onChange={onBudgetChange} />
 
