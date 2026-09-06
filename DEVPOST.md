@@ -70,20 +70,20 @@ them, each with the number attached. The four that land hardest:
 - [x] **MIT license detected by GitHub** (confirmed via the API: `"license": "MIT"`)
 - [x] Run instructions in [README.md](README.md) §Setup
 - [x] Description incl. features, tech, data sources, findings and learnings
-- [ ] **Demo video ≤3 min, public** ← the only code-complete blocker left
+- [ ] **Demo video ≤3 min, public** ← the only remaining blocker
 - [ ] **Devpost form submitted**
 - [ ] One track selected on the form
 
-## GitHub About sidebar — 30 seconds, do this
+## GitHub About sidebar — ✅ done 6 Sep
 
-The repo's `description` and `homepage` are both empty. A judge landing on the
-repo sees no one-liner and no link to the live app.
+Set via the API and verified from an unauthenticated view:
 
-Repo homepage → **⚙️ next to "About"**:
-
-- **Description:** `Computes what a film tax incentive is actually worth — live statute search, deterministic maths, and a second pass that tries to disprove the first.`
-- **Website:** `https://zeta-structure-437412-v7.web.app`
-- **Topics:** `gemini` `google-cloud` `parallel-search` `film-production` `tax-incentives` `agent` `adk` `fastapi` `react`
+- **description** — "Computes what a film tax incentive is actually worth — live
+  statute search, deterministic maths, and a second pass that tries to disprove
+  the first."
+- **homepage** — https://zeta-structure-437412-v7.web.app
+- **topics** — 10, incl. `gemini` `google-cloud` `parallel-search` `adk` `vertex-ai`
+- **license** — MIT, detected by GitHub
 
 ---
 
