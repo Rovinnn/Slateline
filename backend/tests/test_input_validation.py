@@ -204,3 +204,46 @@ def test_the_boundary_values_zero_and_one_pass_for_every_share():
                    make_budget(fringe_rate=0.0), make_budget(fringe_rate=1.0)):
         assert compute(budget=budget).computable is True
     assert compute(transfer_discount=1.0).computable is True
+
+
+# ---------- a ceiling of zero, found by a live agent run ----------
+
+
+def test_a_zero_per_project_cap_is_refused_rather_than_zeroing_the_credit():
+    """The bug that made a live agent recommend the wrong state.
+
+    New Mexico came back from extraction with a per-project cap that zeroed a
+    $415,625 credit. The production then still paid to relocate, so the net
+    benefit went *negative* and Georgia won a comparison it should have lost —
+    reported with complete confidence, and internally consistent at every
+    step. Extraction is non-deterministic, so the same jurisdiction had
+    returned None minutes earlier.
+
+    A $0 ceiling means the program awards nothing at all, which describes no
+    real incentive; it almost always means "no cap" was misread.
+    """
+    rule = make_rule(minimum_spend=None, per_project_cap=0)
+    result = compute(rule=rule)
+    assert_refused(result, mentioning="no program offers")
+    assert result.net_benefit == 0, "a bad cap must never produce a negative recommendation"
+
+
+def test_a_zero_per_person_wage_cap_is_refused():
+    # Would silently disqualify every dollar of cast salary.
+    assert_refused(compute(rule=make_rule(minimum_spend=None, per_person_wage_cap=0)),
+                   mentioning="no program offers")
+
+
+def test_a_zero_minimum_spend_is_allowed_because_no_minimum_is_a_real_rule():
+    # New Mexico's actual statute. The exception that makes the others safe to
+    # reject.
+    result = compute(rule=make_rule(minimum_spend=0))
+    assert result.computable is True
+    assert result.gross_credit > 0
+
+
+def test_a_real_per_project_cap_still_ceilings_the_credit():
+    # The guard filters the impossible, not the restrictive.
+    result = compute(rule=make_rule(minimum_spend=None, per_project_cap=100_000))
+    assert result.computable is True
+    assert result.gross_credit == pytest.approx(100_000)

@@ -283,21 +283,34 @@ def _impossible_inputs(
                 f"{label} of {rate:.1%} is outside the possible 0-100% range",
             )
 
-    negative_caps = [
-        (name, value)
-        for name, value in (
-            ("per-person wage cap", rule.per_person_wage_cap),
-            ("minimum spend", rule.minimum_spend),
-            ("per-project cap", rule.per_project_cap),
+    # A ceiling of zero is as impossible as a negative one, and far more
+    # likely: "no cap" misread as 0. A live agent run hit exactly this — New
+    # Mexico came back with a per-project cap that zeroed a $415,625 credit,
+    # producing a *negative* net benefit and handing the ranking to Georgia,
+    # all reported with total confidence. Extraction is non-deterministic, so
+    # the same jurisdiction had returned None minutes earlier; the guard has
+    # to be here rather than in a hope about the model.
+    #
+    # minimum_spend is the exception: zero legitimately means "no minimum",
+    # which is New Mexico's actual rule.
+    bad_caps = [
+        (name, value, floor)
+        for name, value, floor in (
+            ("per-person wage cap", rule.per_person_wage_cap, 0.0),
+            ("per-project cap", rule.per_project_cap, 0.0),
+            ("minimum spend", rule.minimum_spend, -1.0),
         )
-        if value is not None and value < 0
+        if value is not None and value <= floor
     ]
-    if negative_caps:
-        name, value = negative_caps[0]
+    if bad_caps:
+        name, value, _ = bad_caps[0]
+        descriptor = "zero" if value == 0 else f"negative (${value:,.0f})"
         return (
-            f"The extracted {name} is negative (${value:,.0f}), which isn't a meaningful statutory "
-            "limit. This program is left out of the ranking rather than computed against it.",
-            f"negative {name} (${value:,.0f}) in the extracted rule",
+            f"The extracted {name} is {descriptor}, which no program offers — a cap of $0 would "
+            "award nothing at all, and usually means \"no cap\" was misread. Rather than compute a "
+            "credit against it, this program is left out of the ranking; re-run the search to try "
+            "again.",
+            f"{name} of ${value:,.0f} cannot describe a real program",
         )
 
     spend_lines = {
