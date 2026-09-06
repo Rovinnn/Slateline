@@ -5,12 +5,14 @@ import {
   ApiError,
   challengeJurisdiction,
   computeBenefit,
+  computeQuestions,
   computeSplit,
   getDistance,
   searchJurisdiction,
   type DistanceInfo,
 } from "../lib/api";
 import { challengeState } from "../lib/challenge";
+import { OpenQuestions } from "./OpenQuestions";
 import { SplitRecommendation } from "./SplitPlan";
 import { scanBreakeven, type BreakevenResult } from "../lib/breakeven";
 import type { Row } from "../lib/explain";
@@ -20,6 +22,7 @@ import type {
   BudgetVector,
   ChallengeReport,
   CreditTimingAssumptions,
+  OpenQuestion,
   SplitResponse,
   JurisdictionRule,
   PoolStatus,
@@ -54,6 +57,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   const [assumptions, setAssumptions] = useState<RelocationAssumptions>(DEFAULT_RELOCATION_ASSUMPTIONS);
   const [timing, setTiming] = useState<CreditTimingAssumptions>(DEFAULT_CREDIT_TIMING);
   const [split, setSplit] = useState<SplitResponse | null>(null);
+  const [questions, setQuestions] = useState<OpenQuestion[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [showAll, setShowAll] = useState(false);
   const [showUnverified, setShowUnverified] = useState(false);
@@ -245,6 +249,30 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
   // coarser sweep than the main recompute above, so it rides the same
   // debounced trigger (state.status flips to "ready" after each recompute)
   // rather than firing its own independent request storm on every drag tick.
+  // The leader's unresolved questions, priced. Rides the same trigger as the
+  // split sweep, and only for the top jurisdiction — asking this of every
+  // runner-up would be four more round trips for advice about a place the
+  // producer isn't going.
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    const ranked = state.rows
+      .filter((r) => r.benefit.computable)
+      .sort((a, b) => b.benefit.net_benefit - a.benefit.net_benefit);
+    if (ranked.length === 0) return;
+    const top = ranked[0];
+    let cancelled = false;
+    computeQuestions(liveBudget, top.rule, {
+      distance_km: distances[top.rule.jurisdiction]?.distance_km,
+      assumptions,
+      timing,
+    })
+      .then((q) => !cancelled && setQuestions(q))
+      .catch(() => !cancelled && setQuestions([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [state, distances]);
+
   // Shoot/post pairings, computed off the same trigger as the breakeven sweep
   // so it rides that debounce rather than firing on every slider tick. Failure
   // is silent by design: this is an additional recommendation, and the ranking
@@ -413,6 +441,7 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
           onTimingChange={setTiming}
           breakeven={breakeven}
           split={split}
+          questions={questions}
           printing={printing}
           showAll={showAll}
           setShowAll={setShowAll}
@@ -515,6 +544,7 @@ function ReadyResults({
   onTimingChange,
   breakeven,
   split,
+  questions,
   printing,
   showAll,
   setShowAll,
@@ -535,6 +565,8 @@ function ReadyResults({
   breakeven: BreakevenResult | "loading" | "error" | null;
   /** Shoot/post pairings; null while in flight or if the call failed. */
   split: SplitResponse | null;
+  /** Unresolved questions about the leader, priced and ranked. */
+  questions: OpenQuestion[];
   printing: boolean;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
@@ -582,6 +614,8 @@ function ReadyResults({
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
         challenge={challenges[hero.rule.jurisdiction]}
       />
+
+      <OpenQuestions questions={questions} jurisdiction={hero.rule.jurisdiction} />
 
       {split && <SplitRecommendation split={split} />}
 

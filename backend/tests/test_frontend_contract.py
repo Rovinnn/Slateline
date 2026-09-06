@@ -162,6 +162,13 @@ def test_parsed_budget_shape_is_declared(ts_source):
     assert _interface_fields(ts_source, "ParsedBudget") == _dataclass_fields(ParsedBudget)
 
 
+def test_open_question_shape_is_declared(ts_source):
+    # Crosses the boundary via /compute/questions.
+    from app.questions import OpenQuestion
+
+    assert _interface_fields(ts_source, "OpenQuestion") == _dataclass_fields(OpenQuestion)
+
+
 def test_split_plan_shape_is_declared(ts_source):
     # Crosses the boundary via /compute/split. Lives in app/split.py rather
     # than models.py, so it sits outside SHARED_MODELS above.

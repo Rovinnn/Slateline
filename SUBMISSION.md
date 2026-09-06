@@ -90,6 +90,32 @@ exactly to it — gross credit, monetisation, compliance cost, payout speed and
 relocation. Nothing in that explanation is written by a model; every line is a
 subtraction between two computed breakdowns.
 
+### From analysis to advice
+
+Two numbers open the recommendation, because the collapse is the product:
+
+```
+ADVERTISED AS UP TO        YOU ACTUALLY KEEP
+30.0%              ->      8.8%
+```
+
+And every time the calculator refuses to guess, it leaves an unknown. Those
+used to be a flat list of caveats where nothing separated a $2,000 question
+from a $200,000 one. They're now priced and ranked — because they are the
+highest-value phone calls a producer can make:
+
+| | |
+|---|---|
+| **−$260,215** at risk | Is New Mexico's annual funding pool still open? |
+| **+$151,861** if confirmed | Does the Georgia promotional-logo uplift apply? |
+| **+$148,437** if confirmed | Is the shoot 60+ miles outside Albuquerque? |
+| **+$51,025** if confirmed | Do employer fringes count as qualified spend? |
+
+Each figure is that jurisdiction's net benefit recomputed with the question
+answered the other way — a difference between two runs of the same calculator,
+never an estimate. That's the only reason they can sit beside the verified
+numbers.
+
 ### The thing no rate table can answer
 
 **Shoot in one jurisdiction, post in another.** Every incentive comparison
@@ -154,7 +180,7 @@ can perform.
   keys in Secret Manager.
 - **Frontend** — React 19 + Vite + TypeScript + Tailwind v4 on Firebase
   Hosting; d3-geo + TopoJSON vector map (no tile API, no key in the browser).
-- **Tests** — 297 backend, 76 frontend, run in CI on every push.
+- **Tests** — 313 backend, 92 frontend, run in CI on every push.
 
 ## Data sources
 

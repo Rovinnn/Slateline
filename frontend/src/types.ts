@@ -167,6 +167,18 @@ export interface BenefitBreakdown {
   timing_note: string | null;
 }
 
+/** Something still unresolved about a jurisdiction, and what it's worth.
+ *  Mirrors backend/app/questions.py OpenQuestion. */
+export interface OpenQuestion {
+  question: string;
+  /** Signed dollars: positive is upside if confirmed, negative is at risk. */
+  worth: number;
+  /** How the figure was derived, so it can be argued with. */
+  basis: string;
+  /** Who actually answers this. */
+  ask: string;
+}
+
 /** One way to run the production: single-location, or shoot here and post there.
  *  Mirrors backend/app/split.py SplitPlan. */
 export interface SplitPlan {
