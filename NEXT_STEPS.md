@@ -14,6 +14,11 @@ roughly **one working day**, which should dominate every priority call below.
 
 ## 1. Blocking — submission fails without these
 
+> **See [HANDOFF.md](HANDOFF.md) for the executable version of this section**
+> — exact commands, verification steps and gotchas, written 6 Sep for whoever
+> has the Google Cloud credentials. The table below is the summary; that file
+> is what to actually work from.
+
 | # | Item | Owner | Notes |
 |---|---|---|---|
 | 1 | **Make the repo public** | teammate | Currently private. The checklist requires "repo public; license detectable in the About section". MIT LICENSE is already at repo root, so this is a settings toggle. Stage 1 is pass/fail. |
