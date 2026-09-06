@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ComparisonTable } from "./ComparisonTable";
 import { FundingAvailability, SourceEvidence } from "./Evidence";
-import { MapView } from "./MapView";
+import { MapView, labelAngle, relocationLabel } from "./MapView";
 import type { Row } from "../lib/explain";
 import type { BenefitBreakdown, JurisdictionRule, SourceRef } from "../types";
 
@@ -214,5 +214,42 @@ describe("MapView", () => {
 
   it("does not crash with no jurisdictions to plot", () => {
     expect(() => renderToStaticMarkup(<MapView rows={[]} homeBaseLabel="Los Angeles, CA" />)).not.toThrow();
+  });
+});
+
+describe("map line labels", () => {
+  // What the distance actually costs, put on the line rather than left in a
+  // hover tooltip. Google Maps returned real routed distances from the start,
+  // but until airfare scaled with distance they changed no number, and even
+  // after that the figure was only visible if you knew to point at a pin.
+  // Nobody hovers during a demo.
+
+  it("states the distance and what it costs, in one string", () => {
+    expect(relocationLabel(3747, 115_344, false)).toBe("3,747 km · −$115k");
+    expect(relocationLabel(1412, 111_142, false)).toBe("1,412 km · −$111k");
+  });
+
+  it("says nothing when there is nothing honest to say", () => {
+    // No Maps result for this jurisdiction: relocation excludes travel
+    // entirely, so a label would imply a measurement we don't have.
+    expect(relocationLabel(null, 104_100, false)).toBeNull();
+    // Not ranked at all — labelling its travel cost invites comparison with
+    // jurisdictions that were actually computed.
+    expect(relocationLabel(3747, 115_344, true)).toBeNull();
+  });
+
+  it("keeps labels upright on lines running in any direction", () => {
+    // The flip matters: for a US production travelling east, most lines run
+    // right-to-left on screen, and without it every one renders upside down.
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [-3, -2], [2, -5], [-4, 3]]) {
+      const a = labelAngle(dx, dy);
+      expect(a).toBeGreaterThanOrEqual(-90);
+      expect(a).toBeLessThanOrEqual(90);
+    }
+  });
+
+  it("orients a due-east line flat and a due-west line flat too", () => {
+    expect(labelAngle(1, 0)).toBe(0);
+    expect(labelAngle(-1, 0)).toBe(0);
   });
 });

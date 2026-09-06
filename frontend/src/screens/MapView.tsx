@@ -29,6 +29,45 @@ interface Row {
  * actual routed distance behind relocation cost comes from the Maps
  * Distance Matrix call in maps_client.py, shown on the memo tab.
  */
+/**
+ * The label that goes on a home-base-to-jurisdiction line, and how to orient it.
+ *
+ * Pulled out of the component because the component can't be rendered without
+ * a browser: the map body is gated on a geography fetch that happens in an
+ * effect, so static rendering only ever exercises the loading state. This is
+ * the part with actual logic in it, and it's testable on its own.
+ *
+ * Returns null where there's nothing honest to say — no distance measured, or
+ * a jurisdiction that isn't ranked at all.
+ */
+export function relocationLabel(
+  km: number | null | undefined,
+  relocation: number,
+  excluded: boolean,
+): string | null {
+  if (excluded || km == null) return null;
+  return `${Math.round(km).toLocaleString()} km · ${moneyShort(-relocation)}`;
+}
+
+/**
+ * Degrees to rotate a label so it runs along its line and still reads
+ * left-to-right. Without the flip, every westward line renders its text
+ * upside down — which is most of them for a US production travelling east.
+ */
+export function labelAngle(dx: number, dy: number): number {
+  // atan2 gives (-180, 180]. Fold the back half onto the front so the result
+  // always lands in [-90, 90] and the text reads left-to-right.
+  //
+  // Adding 180 instead of subtracting it renders identically — rotate(315)
+  // and rotate(-45) are the same picture — but returns values like 360 for a
+  // due-west line, which is why this is a subtraction and why the test pins
+  // the range rather than just eyeballing the output.
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angle > 90) return angle - 180;
+  if (angle < -90) return angle + 180;
+  return angle;
+}
+
 export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: string }) {
   const home = HOME_BASES.find((h) => h.label === homeBaseLabel) ?? HOME_BASES[0];
   const [geo, setGeo] = useState<{ countries: Feature<Geometry>[]; states: Feature<Geometry>[] } | null>(null);
@@ -68,6 +107,7 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
         net: r.benefit.net_benefit,
         excluded: !r.benefit.computable,
         km: r.benefit.distance_km,
+        relocation: r.benefit.relocation_cost,
       })),
     [rows],
   );
@@ -152,18 +192,56 @@ export function MapView({ rows, homeBaseLabel }: { rows: Row[]; homeBaseLabel: s
 
             {points.map((p) => {
               const [x, y] = project(p.lat, p.lng);
+              // Label the line with what the distance actually costs. Until
+              // now this lived only in a hover tooltip, so the one number the
+              // map exists to explain — relocation, one of the four
+              // components of the net figure — was invisible unless you knew
+              // to point at a pin. Nobody hovers during a demo.
+              const label = relocationLabel(p.km, p.relocation, p.excluded);
+              // Sit the text at the midpoint, rotated along the line, and
+              // flipped where it would otherwise render upside down.
+              const mx = (hx + x) / 2;
+              const my = (hy + y) / 2;
+              const angle = labelAngle(x - hx, y - hy);
               return (
-                <line
-                  key={`line-${p.name}`}
-                  x1={hx}
-                  y1={hy}
-                  x2={x}
-                  y2={y}
-                  stroke={p.excluded ? "#C0BDB6" : netColor(p.net, lo, hi)}
-                  strokeWidth={1}
-                  strokeDasharray={p.excluded ? "3 3" : undefined}
-                  opacity={0.7}
-                />
+                <g key={`line-${p.name}`}>
+                  <line
+                    x1={hx}
+                    y1={hy}
+                    x2={x}
+                    y2={y}
+                    stroke={p.excluded ? "#C0BDB6" : netColor(p.net, lo, hi)}
+                    strokeWidth={1}
+                    strokeDasharray={p.excluded ? "3 3" : undefined}
+                    opacity={0.7}
+                  />
+                  {label && (
+                    <g transform={`translate(${mx},${my}) rotate(${angle})`}>
+                      {/* Painted behind the text so it stays legible where a
+                          line crosses a coastline or another route. */}
+                      <text
+                        y={-4}
+                        textAnchor="middle"
+                        fontFamily="'IBM Plex Mono',monospace"
+                        fontSize={10}
+                        stroke="#FBFAF7"
+                        strokeWidth={3.5}
+                        strokeLinejoin="round"
+                      >
+                        {label}
+                      </text>
+                      <text
+                        y={-4}
+                        textAnchor="middle"
+                        fontFamily="'IBM Plex Mono',monospace"
+                        fontSize={10}
+                        fill="#57534C"
+                      >
+                        {label}
+                      </text>
+                    </g>
+                  )}
+                </g>
               );
             })}
 
