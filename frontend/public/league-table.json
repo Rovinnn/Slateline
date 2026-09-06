@@ -17,18 +17,41 @@
   },
   "rows": [
     {
+      "uplift_count": 4,
+      "advertised_is_stacked": true,
+      "jurisdiction": "British Columbia",
+      "program": "Film Incentive BC",
+      "currency": "CAD",
+      "advertised": 1.045,
+      "base_rate": 0.4,
+      "credit_type": "refundable",
+      "confidence": "official_secondary",
+      "computable": true,
+      "sources": [
+        "https://www2.gov.bc.ca/gov/content/taxes/income-taxes/corporate/credits/film-tv",
+        "https://creativebc.com/motion-picture-tax-credits/film-incentive-bc/",
+        "https://hellodarwin.com/business-aid/programs/film-incentive-bc-tax-credit"
+      ],
+      "effective": 0.10196785714285712,
+      "net_benefit": 203935.71428571426,
+      "gap_points": 94.30321428571428,
+      "months_to_payment": 12
+    },
+    {
+      "uplift_count": 4,
+      "advertised_is_stacked": true,
       "jurisdiction": "Illinois",
       "program": "Film Production Services Tax Credit Act of 2008",
       "currency": "USD",
       "advertised": 0.6499999999999999,
       "base_rate": 0.35,
       "credit_type": "transferable",
-      "confidence": "primary_source",
+      "confidence": "official_secondary",
       "computable": true,
       "sources": [
         "https://www.ep.com/production-incentives/us/illinois/",
         "https://dceo.illinois.gov/whyillinois/film/filmtaxcredit.html",
-        "https://www.ep.com/production-incentives/us/illinois/"
+        "https://www.wrapbook.com/production-incentives/us/illinois"
       ],
       "effective": 0.1625323692677246,
       "net_benefit": 325064.7385354492,
@@ -36,37 +59,41 @@
       "months_to_payment": 18
     },
     {
-      "jurisdiction": "New Jersey",
-      "program": "New Jersey Film & Digital Media Tax Credit Program",
-      "currency": "USD",
-      "advertised": 0.54,
+      "uplift_count": 0,
+      "advertised_is_stacked": false,
+      "jurisdiction": "AUS",
+      "program": "Location Offset",
+      "currency": "AUD",
+      "advertised": 0.3,
       "base_rate": 0.3,
-      "credit_type": "transferable",
-      "confidence": "official_secondary",
+      "credit_type": "rebate",
+      "confidence": "primary_source",
       "computable": true,
       "sources": [
-        "https://www.njeda.gov/film",
-        "https://www.nj.gov/state/njfilm/dos-njfim-nj-financial-incentives.html",
-        "https://www.nj.gov/njfilm/incentives-credit.shtml"
+        "https://www.arts.gov.au/funding-and-support/tax-rebates-film-and-television-producers",
+        "https://www.ato.gov.au/forms-and-instructions/film-industry-incentives-2025",
+        "https://hoodlum.tv/australia-film-incentive/"
       ],
-      "effective": 0.16941355840384403,
-      "net_benefit": 338827.1168076881,
-      "gap_points": 37.0586441596156,
-      "months_to_payment": 18
+      "effective": -0.05205,
+      "net_benefit": -104100.0,
+      "gap_points": 35.205,
+      "months_to_payment": 0
     },
     {
+      "uplift_count": 3,
+      "advertised_is_stacked": true,
       "jurisdiction": "New Mexico",
-      "program": "Film Production Tax Credit",
+      "program": "New Film Production Tax Credit",
       "currency": "USD",
       "advertised": 0.45,
       "base_rate": 0.25,
       "credit_type": "refundable",
-      "confidence": "primary_source",
+      "confidence": "official_secondary",
       "computable": true,
       "sources": [
-        "https://law.justia.com/codes/new-mexico/chapter-7/article-2f/section-7-2f-13",
+        "https://www.tax.newmexico.gov/tax-professionals/tax-credits-overview-forms/film-production-tax-credit",
         "https://nmfilm.com/whynewmexico/incentives-2",
-        "https://nmfilm.location.pro/incentive"
+        "https://www.shamelstudio.com/tools/film-tax-incentives/new-mexico"
       ],
       "effective": 0.1268004464285714,
       "net_benefit": 253600.89285714284,
@@ -74,74 +101,103 @@
       "months_to_payment": 12
     },
     {
+      "uplift_count": 3,
+      "advertised_is_stacked": true,
       "jurisdiction": "California",
       "program": "Film & Television Tax Credit Program 4.0",
       "currency": "USD",
-      "advertised": 0.26,
+      "advertised": 0.4,
       "base_rate": 0.2,
       "credit_type": "refundable",
       "confidence": "official_secondary",
       "computable": true,
       "sources": [
         "https://www.ep.com/production-incentives/us/california",
-        "http://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202520260AB1138",
-        "http://lao.ca.gov/Publications/Report/5000"
+        "https://film.ca.gov/tax-credit/the-basics-4-0",
+        "https://www.wrapbook.com/production-incentives/us/california"
       ],
-      "effective": 0.03053928571428571,
-      "net_benefit": 61078.57142857142,
-      "gap_points": 22.94607142857143,
+      "effective": 0.07964642857142855,
+      "net_benefit": 159292.8571428571,
+      "gap_points": 32.035357142857144,
       "months_to_payment": 12
     },
     {
-      "jurisdiction": "Pennsylvania",
-      "program": "Film Tax Credit Program",
-      "currency": "USD",
-      "advertised": 0.35,
-      "base_rate": 0.25,
-      "credit_type": "transferable",
-      "confidence": "conflicting",
+      "uplift_count": 2,
+      "advertised_is_stacked": false,
+      "jurisdiction": "Ireland",
+      "program": "Section 481",
+      "currency": "EUR",
+      "advertised": 0.48,
+      "base_rate": 0.32,
+      "credit_type": "refundable",
+      "confidence": "primary_source",
       "computable": true,
       "sources": [
-        "https://dced.pa.gov/programs/film-tax-credit-program",
-        "https://film.org/incentives/",
-        "https://en.wikipedia.org/wiki/Pennsylvania_Film_Production_Tax_Credit"
+        "https://www.revenue.ie/en/companies-and-charities/reliefs-and-exemptions/film-relief/index.aspx",
+        "https://www.ep.com/production-incentives/europe/ireland/",
+        "https://filminireland.com/irish-film-tax-incentive/"
       ],
-      "effective": 0.13144837696318507,
-      "net_benefit": 262896.7539263701,
-      "gap_points": 21.855162303681492,
-      "months_to_payment": 18
+      "effective": 0.23366428571428569,
+      "net_benefit": 467328.57142857136,
+      "gap_points": 24.63357142857143,
+      "months_to_payment": 12
     },
     {
+      "uplift_count": 1,
+      "advertised_is_stacked": false,
       "jurisdiction": "Georgia",
       "program": "Georgia Entertainment Industry Investment Act",
       "currency": "USD",
       "advertised": 0.30000000000000004,
       "base_rate": 0.2,
       "credit_type": "transferable",
-      "confidence": "official_secondary",
+      "confidence": "primary_source",
       "computable": true,
       "sources": [
         "https://georgia.org/industries/film-entertainment/georgia-film-tv-production/production-incentives",
-        "https://www.castandcrew.com/services/financial-services/incentives-map/georgia",
-        "https://www.wrapbook.com/production-incentive-center/incentives/georgia"
+        "https://www.ep.com/production-incentives/us/georgia",
+        "https://dor.georgia.gov/film-tax-credit-information"
       ],
-      "effective": 0.11899579745064891,
-      "net_benefit": 237991.59490129782,
-      "gap_points": 18.100420254935113,
+      "effective": 0.09348319552252607,
+      "net_benefit": 186966.39104505215,
+      "gap_points": 20.6516804477474,
       "months_to_payment": 18
     },
     {
+      "uplift_count": 1,
+      "advertised_is_stacked": false,
+      "jurisdiction": "Hungary",
+      "program": "Hungarian Film Incentive",
+      "currency": "HUF",
+      "advertised": 0.375,
+      "base_rate": 0.3,
+      "credit_type": "rebate",
+      "confidence": "official_secondary",
+      "computable": true,
+      "sources": [
+        "https://nfi.hu/en/filming-in-hungary/hungarian-film-incentive",
+        "https://hu.andersen.com/services/tax-rebate-for-film-productions",
+        "https://www.laokoonfilm.com/tax-rebate"
+      ],
+      "effective": 0.1936896332204869,
+      "net_benefit": 387379.2664409738,
+      "gap_points": 18.13103667795131,
+      "months_to_payment": 9
+    },
+    {
+      "uplift_count": 1,
+      "advertised_is_stacked": false,
       "jurisdiction": "Kentucky",
-      "program": "Kentucky Entertainment Incentive (KEI) Program",
+      "program": "Kentucky Entertainment Incentive Program",
       "currency": "USD",
       "advertised": 0.35,
       "base_rate": 0.3,
       "credit_type": "refundable",
-      "confidence": "official_secondary",
+      "confidence": "primary_source",
       "computable": true,
       "sources": [
-        "https://revenue.ky.gov/Business/Pages/Film-Industry-Tax-Credit.aspx",
-        "https://www.wkyt.com/2025/11/12/kentucky-film-incentives-boost-state-economy-since-2022-leaders-report/",
+        "https://www.ep.com/production-incentives/us/kentucky",
+        "https://www.wrapbook.com/production-incentives/us/kentucky",
         "https://www.shamelstudio.com/tools/film-tax-incentives/kentucky"
       ],
       "effective": 0.18339642857142854,
@@ -150,90 +206,46 @@
       "months_to_payment": 12
     },
     {
-      "jurisdiction": "Massachusetts",
-      "program": "Film Incentive Tax Credit",
+      "uplift_count": 0,
+      "advertised_is_stacked": false,
+      "jurisdiction": "Colombia",
+      "program": "CINA (Certificado de Inversi\u00f3n Audiovisual)",
       "currency": "USD",
-      "advertised": 0.25,
-      "base_rate": 0.25,
+      "advertised": 0.35,
+      "base_rate": 0.35,
       "credit_type": "transferable",
       "confidence": "official_secondary",
       "computable": true,
       "sources": [
-        "https://mafilm.org/production-tax-incentives/",
-        "https://mafilm.org/production-tax-incentives/",
-        "https://mafilm.org/production-tax-incentives/"
+        "https://www.hollywoodreporter.com/business/business-news/colombia-2026-tax-credit-budget-foreign-productions-cina-1236454508/",
+        "https://www.bu.com.co/en/insights/noticias/colombia-leading-incentive-hub-audiovisual-production",
+        "https://variety.com/2025/film/news/colombia-boosts-tax-incentive-2026-1236612415/"
       ],
-      "effective": 0.13144837696318507,
-      "net_benefit": 262896.7539263701,
-      "gap_points": 11.855162303681494,
+      "effective": 0.20737873984450303,
+      "net_benefit": 414757.47968900605,
+      "gap_points": 14.262126015549695,
       "months_to_payment": 18
     },
     {
-      "jurisdiction": "Ohio",
-      "program": "Ohio Motion Picture Tax Credit",
-      "currency": "USD",
-      "advertised": 0.3,
-      "base_rate": 0.3,
+      "uplift_count": 1,
+      "advertised_is_stacked": false,
+      "jurisdiction": "United Kingdom",
+      "program": "Audio-Visual Expenditure Credit (AVEC)",
+      "currency": "GBP",
+      "advertised": 0.2925,
+      "base_rate": 0.255,
       "credit_type": "refundable",
       "confidence": "primary_source",
       "computable": true,
       "sources": [
-        "https://development.ohio.gov/business/ohio-film/ohio-film-program",
-        "https://codes.ohio.gov/ohio-revised-code/section-122.85",
-        "https://www.ep.com/production-incentives/us/ohio/"
+        "https://www.ukscreenalliance.co.uk/subpages/uk-film-high-end-tv-tax-incentives/",
+        "https://www.ep.com/production-incentives/europe/unitedkingdom/f/",
+        "https://filmlondon.org.uk/filming-in-london/tax-relief"
       ],
-      "effective": 0.20911071428571426,
-      "net_benefit": 418221.4285714285,
-      "gap_points": 9.088928571428573,
+      "effective": 0.1756285714285714,
+      "net_benefit": 351257.14285714284,
+      "gap_points": 11.687142857142858,
       "months_to_payment": 12
-    },
-    {
-      "jurisdiction": "Louisiana",
-      "program": "Motion Picture Production Tax Credit",
-      "currency": "USD",
-      "advertised": 0.6,
-      "base_rate": 0.25,
-      "credit_type": "refundable",
-      "confidence": "official_secondary",
-      "computable": false,
-      "sources": [
-        "https://www.louisianaentertainment.gov/film/motion-picture-production-program",
-        "https://www.shamelstudio.com/tools/film-tax-incentives/louisiana",
-        "https://neworleanscitybusiness.com/blog/2025/06/10/louisiana-film-tax-credit-reform-2025/"
-      ],
-      "reason": "Discretionary/jury-allocated program; benefit is not modelable."
-    },
-    {
-      "jurisdiction": "New York",
-      "program": "Empire State Film Production Credit",
-      "currency": "USD",
-      "advertised": 0.5,
-      "base_rate": 0.3,
-      "credit_type": "refundable",
-      "confidence": "conflicting",
-      "computable": false,
-      "sources": [
-        "https://esd.ny.gov/new-york-state-film-tax-credit-program-production",
-        "https://www.tax.ny.gov/pit/credits/film_prod.htm",
-        "https://www.wrapbook.com/production-incentives/us/new-york"
-      ],
-      "reason": "Discretionary/jury-allocated program; benefit is not modelable."
-    },
-    {
-      "jurisdiction": "Texas",
-      "program": "Texas Moving Image Industry Incentive Program",
-      "currency": "USD",
-      "advertised": 0.125,
-      "base_rate": 0.05,
-      "credit_type": "rebate",
-      "confidence": "primary_source",
-      "computable": false,
-      "sources": [
-        "https://gov.texas.gov/film/page/tmiiip",
-        "https://www.ep.com/production-incentives/us/texas/",
-        "https://www.shamelstudio.com/tools/film-tax-incentives/texas"
-      ],
-      "reason": "Discretionary/jury-allocated program; benefit is not modelable."
     }
   ],
   "extraction_failures": [],

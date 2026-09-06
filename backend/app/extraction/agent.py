@@ -384,6 +384,27 @@ _US_PREFIXES = ("usa-", "us-", "usa ", "us ")
 _US_SUFFIXES = (", usa", ", us", ", united states", " (usa)", " (us)")
 
 
+#: Bare ISO country codes observed coming back from live extraction — the
+#: same inconsistency US states show ("GA" for Georgia), just outside the
+#: postal-code table. Hungary came back as "HU" in a league-table run.
+ISO_COUNTRY_NAMES: dict[str, str] = {
+    "IE": "Ireland", "GB": "United Kingdom", "UK": "United Kingdom", "FR": "France",
+    "DE": "Germany", "IT": "Italy", "ES": "Spain", "PT": "Portugal", "BE": "Belgium",
+    "NL": "Netherlands", "AT": "Austria", "CH": "Switzerland", "DK": "Denmark",
+    "SE": "Sweden", "NO": "Norway", "FI": "Finland", "IS": "Iceland", "EE": "Estonia",
+    "LV": "Latvia", "LT": "Lithuania", "PL": "Poland", "CZ": "Czech Republic",
+    "SK": "Slovakia", "HU": "Hungary", "RO": "Romania", "BG": "Bulgaria",
+    "HR": "Croatia", "RS": "Serbia", "GR": "Greece", "CY": "Cyprus", "MT": "Malta",
+    "AU": "Australia", "NZ": "New Zealand", "FJ": "Fiji", "TH": "Thailand",
+    "MY": "Malaysia", "SG": "Singapore", "PH": "Philippines", "KR": "South Korea",
+    "JP": "Japan", "TW": "Taiwan", "IN": "India", "ID": "Indonesia", "MN": "Mongolia",
+    "ZA": "South Africa", "MA": "Morocco", "JO": "Jordan", "AE": "United Arab Emirates",
+    "SA": "Saudi Arabia", "IL": "Israel", "EG": "Egypt", "KE": "Kenya", "NG": "Nigeria",
+    "CO": "Colombia", "DO": "Dominican Republic", "BR": "Brazil", "CL": "Chile",
+    "UY": "Uruguay", "PA": "Panama", "MX": "Mexico", "AR": "Argentina", "PE": "Peru",
+}
+
+
 def canonicalize_jurisdiction(name: str) -> str:
     """Collapses the ways the model names a US state — "GA", "USA-NM",
     "New Mexico, USA" — to the full state name. Non-US jurisdictions
@@ -404,7 +425,10 @@ def canonicalize_jurisdiction(name: str) -> str:
             break
 
     if len(stripped) == 2:
-        return US_STATE_ABBREVIATIONS.get(stripped.upper(), stripped)
+        code = stripped.upper()
+        # US states first: this tool's centre of gravity, and the two tables
+        # only collide where a code means both. None currently do.
+        return US_STATE_ABBREVIATIONS.get(code) or ISO_COUNTRY_NAMES.get(code, stripped)
 
     # A full name that survived prefix/suffix stripping, but possibly cased
     # oddly ("NEW MEXICO"). Match case-insensitively against the known set so

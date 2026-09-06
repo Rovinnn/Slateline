@@ -194,25 +194,23 @@ class CurrencyAssumptions:
     rates_to_usd: dict[str, float] = field(
         default_factory=lambda: {
             "USD": 1.0,
-            "EUR": 1.08,
-            "GBP": 1.27,
-            "CAD": 0.74,
-            "AUD": 0.66,
-            "NZD": 0.61,
-            "JPY": 0.0067,
-            "KRW": 0.00075,
-            "INR": 0.012,
-            "MXN": 0.058,
-            "ZAR": 0.055,
-            "HUF": 0.0028,
-            "CZK": 0.043,
-            "PLN": 0.25,
-            "MNT": 0.00029,
-            "THB": 0.029,
-            "SGD": 0.74,
-            "ILS": 0.27,
-            "COP": 0.00025,
-            "DOP": 0.017,
+            # Americas
+            "CAD": 0.74, "MXN": 0.058, "BRL": 0.18, "CLP": 0.0011, "COP": 0.00025,
+            "UYU": 0.025, "ARS": 0.0010, "PEN": 0.27, "DOP": 0.017, "PAB": 1.0,
+            "TTD": 0.15, "JMD": 0.0064,
+            # Europe
+            "EUR": 1.08, "GBP": 1.27, "CHF": 1.13, "DKK": 0.145, "SEK": 0.096,
+            "NOK": 0.094, "ISK": 0.0073, "PLN": 0.25, "CZK": 0.043, "HUF": 0.0028,
+            "RON": 0.217, "BGN": 0.552, "RSD": 0.0092, "MKD": 0.0175, "ALL": 0.0108,
+            "TRY": 0.029, "UAH": 0.024, "GEL": 0.37,
+            # Asia-Pacific
+            "AUD": 0.66, "NZD": 0.61, "FJD": 0.44, "JPY": 0.0067, "KRW": 0.00075,
+            "TWD": 0.031, "THB": 0.029, "MYR": 0.225, "SGD": 0.74, "PHP": 0.0175,
+            "IDR": 0.000062, "INR": 0.012, "MNT": 0.00029, "LKR": 0.0034,
+            # Africa & Middle East
+            "ZAR": 0.055, "MAD": 0.10, "EGP": 0.021, "JOD": 1.41, "AED": 0.272,
+            "SAR": 0.267, "ILS": 0.27, "QAR": 0.275, "KES": 0.0077, "NGN": 0.00065,
+            "RWF": 0.00077, "GHS": 0.065, "TND": 0.32, "MUR": 0.022,
         }
     )
     #: When these were last reviewed. Shown next to every converted figure so

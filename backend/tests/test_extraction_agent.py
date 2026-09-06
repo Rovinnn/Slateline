@@ -27,9 +27,12 @@ def test_canonicalize_jurisdiction_leaves_full_names_alone():
     assert canonicalize_jurisdiction("Louisiana") == "Louisiana"
 
 
-def test_canonicalize_jurisdiction_leaves_non_us_two_letter_names_alone():
-    # Not a US postal code, so passed through rather than mangled.
-    assert canonicalize_jurisdiction("UK") == "UK"
+def test_a_non_us_two_letter_code_now_resolves_to_its_country():
+    # This used to assert "UK" passed through untouched, which was right while
+    # the tool only handled US states. Now that it covers 122 jurisdictions in
+    # 59 currencies, a bare country code is the same problem "GA" always was,
+    # and leaving it alone breaks dedup and display the same way.
+    assert canonicalize_jurisdiction("UK") == "United Kingdom"
 
 
 def test_canonicalize_jurisdiction_strips_country_prefixes():
@@ -103,3 +106,27 @@ def test_extract_jurisdiction_rule_ignores_the_models_stated_retrieved_date(mock
     mock_extract.return_value = _canned_raw_response("Georgia", stale_claim)
     rule = extract_jurisdiction_rule("Georgia")
     assert rule.sources[0].retrieved == date.today()
+
+
+def test_bare_country_codes_canonicalise_like_state_codes_do():
+    """Hungary came back as "HU" from a live league-table run.
+
+    Same inconsistency US states show — the model returns a code sometimes and
+    a name others — just outside the postal-code table, so it went unnoticed
+    until the tool started covering countries.
+    """
+    assert canonicalize_jurisdiction("HU") == "Hungary"
+    assert canonicalize_jurisdiction("IE") == "Ireland"
+    assert canonicalize_jurisdiction("jp") == "Japan"
+
+
+def test_us_state_codes_still_win_where_the_two_tables_could_disagree():
+    # "GA" is Georgia the US state here, not any country. US is this tool's
+    # centre of gravity and the lookup order encodes that.
+    assert canonicalize_jurisdiction("GA") == "Georgia"
+    assert canonicalize_jurisdiction("IN") == "Indiana"
+
+
+def test_an_unknown_two_letter_code_passes_through_untouched():
+    # Better a bare code the user can see than a wrong country name.
+    assert canonicalize_jurisdiction("ZZ") == "ZZ"
