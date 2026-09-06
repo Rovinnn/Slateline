@@ -29,7 +29,7 @@ import type {
 import { ComparisonTable } from "./ComparisonTable";
 import { FundingAvailability, RetrievedBadge, SourceEvidence } from "./Evidence";
 import { MapView } from "./MapView";
-import { Waterfall, WhyItWins } from "./Recommendation";
+import { EffectiveRate, Waterfall, WhyItWins } from "./Recommendation";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; rows: Row[] };
 
@@ -587,6 +587,7 @@ function ReadyResults({
         row={hero}
         breakeven={breakeven}
         failing={failingConstraint(hero.rule, liveBudget.constraints)}
+        totalBudget={liveBudget.total}
         runnerUp={rest[0]}
         onRefresh={onRefresh}
         refreshing={refreshing[hero.rule.jurisdiction] ?? false}
@@ -1145,6 +1146,7 @@ function HeroCard({
   row,
   breakeven,
   failing,
+  totalBudget,
   runnerUp,
   onRefresh,
   refreshing,
@@ -1153,6 +1155,8 @@ function HeroCard({
   row: Row;
   breakeven: BreakevenResult | "loading" | "error" | null;
   failing?: string | null;
+  /** Denominator for the effective-rate headline. */
+  totalBudget: number;
   /** Next-best computable jurisdiction, for the money-left-on-the-table line. */
   runnerUp?: Row;
   onRefresh: (jurisdiction: string) => void;
@@ -1199,6 +1203,8 @@ function HeroCard({
               <ConflictList conflicts={rule.conflicts} />
             </div>
           )}
+
+          <EffectiveRate row={row} totalBudget={totalBudget} />
 
           <div className="mb-1 font-mono text-[11px] font-medium tracking-wide text-ink-3">NET BENEFIT</div>
           <div className="mb-1.5 font-mono text-[48px] font-semibold leading-none tracking-tight">

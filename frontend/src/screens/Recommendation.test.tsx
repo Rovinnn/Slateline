@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Waterfall, WhyItWins } from "./Recommendation";
+import { EffectiveRate, Waterfall, WhyItWins } from "./Recommendation";
 import type { Row } from "../lib/explain";
 import type { BenefitBreakdown, JurisdictionRule } from "../types";
 
@@ -171,5 +171,43 @@ describe("WhyItWins", () => {
     // worse than absence.
     const markup = renderToStaticMarkup(<WhyItWins winner={winner} rival={row()} />);
     expect(markup).toBe("");
+  });
+});
+
+describe("EffectiveRate", () => {
+  it("puts the advertised rate next to what actually arrives", () => {
+    // Georgia: marketed as 30%, returning $175,722 on a $2M budget.
+    const georgia = {
+      rule: {
+        jurisdiction: "Georgia", base_rate: 0.2, credit_type: "transferable",
+        uplifts: [{ condition: "GEP logo", bonus_rate: 0.1, machine_checkable: false }],
+      },
+      benefit: benefit({ net_benefit: 175_722, present_value: 291_066, relocation_cost: 115_344 }),
+    } as unknown as Row;
+
+    const body = text(renderToStaticMarkup(<EffectiveRate row={georgia} totalBudget={2_000_000} />));
+    expect(body).toContain("30.0%");
+    expect(body).toContain("8.8%");
+    expect(body).toContain("ADVERTISED AS UP TO");
+    expect(body).toContain("YOU ACTUALLY KEEP");
+  });
+
+  it("labels the advertised figure honestly when there are no uplifts to add", () => {
+    const body = text(renderToStaticMarkup(<EffectiveRate row={row()} totalBudget={2_000_000} />));
+    expect(body).toContain("ADVERTISED RATE");
+    expect(body).not.toContain("UP TO");
+  });
+
+  it("shows a negative return and says what it means", () => {
+    // The only case where the honest answer is "don't go" — clamping it to
+    // zero would hide that entirely.
+    const costly = row({}, { net_benefit: -40_000, present_value: 60_000, relocation_cost: 100_000 });
+    const body = text(renderToStaticMarkup(<EffectiveRate row={costly} totalBudget={2_000_000} />));
+    expect(body).toContain("-2.0%");
+    expect(body).toContain("costs more to reach than its credit is worth");
+  });
+
+  it("renders nothing rather than dividing by a budget of zero", () => {
+    expect(renderToStaticMarkup(<EffectiveRate row={row()} totalBudget={0} />)).toBe("");
   });
 });

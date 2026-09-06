@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWaterfall, explainWin, type Row } from "./explain";
+import { buildWaterfall, effectiveRate, explainWin, type Row } from "./explain";
 import type { BenefitBreakdown, JurisdictionRule } from "../types";
 
 function row(
@@ -269,5 +269,54 @@ describe("a backend deployed before timing existed", () => {
     expect(steps.some((s) => s.label.startsWith("Waiting"))).toBe(false);
     expect(steps.some((s) => s.label === "Audit and compliance")).toBe(false);
     expect(steps.at(-1)).toMatchObject({ label: "Net benefit", value: 420_000 });
+  });
+});
+
+describe("effectiveRate", () => {
+  it("states the advertised headline against what actually arrives", () => {
+    // Georgia: 20% base + 10% uplift marketed as "30%", returning $175,722
+    // on a $2M budget.
+    const r = effectiveRate(
+      row("Georgia", { rate: 0.2, gross: 400_000, realizable: 360_000, presentValue: 291_066, relocation: 115_344 }),
+      2_000_000,
+    );
+    expect(r).not.toBeNull();
+    expect(r!.effective).toBeCloseTo(0.0879, 4);
+  });
+
+  it("counts uplifts in the advertised figure, because that is what is marketed", () => {
+    // Comparing against the base rate alone would understate the gap and let
+    // the tool off the hook for the thing it exists to expose.
+    const withUplift = {
+      ...row("Georgia", { rate: 0.2, gross: 400_000 }),
+      rule: { jurisdiction: "Georgia", base_rate: 0.2, credit_type: "transferable",
+              uplifts: [{ condition: "logo", bonus_rate: 0.1, machine_checkable: false }] } as never,
+    };
+    const r = effectiveRate(withUplift, 2_000_000)!;
+    expect(r.advertised).toBeCloseTo(0.3);
+    expect(r.advertisedIncludesUplifts).toBe(true);
+  });
+
+  it("falls back to the base rate when a program advertises no uplifts", () => {
+    const r = effectiveRate(row("Plainland", { rate: 0.25, gross: 500_000 }), 2_000_000)!;
+    expect(r.advertised).toBeCloseTo(0.25);
+    expect(r.advertisedIncludesUplifts).toBe(false);
+  });
+
+  it("reports the gap in percentage points", () => {
+    const r = effectiveRate(row("X", { rate: 0.3, gross: 400_000, presentValue: 200_000 }), 2_000_000)!;
+    expect(r.gapPoints).toBeCloseTo(20, 5);
+  });
+
+  it("shows a negative return rather than clamping it to zero", () => {
+    // A jurisdiction whose relocation exceeds its credit genuinely costs
+    // money, and rounding that up to 0% would hide the only case where the
+    // answer is "don't go".
+    const r = effectiveRate(row("Costly", { gross: 50_000, presentValue: 50_000, relocation: 150_000 }), 2_000_000)!;
+    expect(r.effective).toBeLessThan(0);
+  });
+
+  it("returns null rather than dividing by a budget of zero", () => {
+    expect(effectiveRate(row("X", { gross: 0 }), 0)).toBeNull();
   });
 });

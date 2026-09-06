@@ -256,3 +256,47 @@ export function buildWaterfall(row: Row): WaterfallStep[] {
   steps.push({ label: "Net benefit", value: benefit.net_benefit, kind: "total" });
   return steps;
 }
+
+/** The advertised headline against what actually reaches the production. */
+export interface EffectiveRate {
+  /** Base rate plus every uplift — the "up to X%" a film office markets. */
+  advertised: number;
+  /** Net benefit as a share of the whole budget. Can be negative. */
+  effective: number;
+  /** Percentage points lost between the two. */
+  gapPoints: number;
+  /** True when the advertised figure includes uplifts we could not verify. */
+  advertisedIncludesUplifts: boolean;
+}
+
+/**
+ * The product's thesis, as a single number.
+ *
+ * Everything else here explains the *mechanism* by which an advertised rate
+ * collapses — qualification, monetisation, the wait, relocation. This states
+ * the collapse itself, which is the part a producer feels immediately:
+ * Georgia advertises up to 30% and returns 8.8% of the budget.
+ *
+ * Denominated in total budget, not qualifying spend, and that choice matters.
+ * Against qualifying spend the figure flatters every jurisdiction, because
+ * qualifying spend is already the subset that survived the rules. A producer
+ * asks "what do I get back on the money I'm spending", and the money they're
+ * spending is the whole budget.
+ *
+ * `advertised` sums the uplifts because that is what gets marketed — Georgia
+ * is sold as "30%", which is 20% base plus a 10% uplift contingent on
+ * commercial distribution within five years. Comparing against the base rate
+ * alone would understate the gap and let the tool off the hook.
+ */
+export function effectiveRate(row: Row, totalBudget: number): EffectiveRate | null {
+  if (!(totalBudget > 0)) return null;
+  const uplifts = row.rule.uplifts?.reduce((sum, u) => sum + u.bonus_rate, 0) ?? 0;
+  const advertised = row.rule.base_rate + uplifts;
+  const effective = row.benefit.net_benefit / totalBudget;
+  return {
+    advertised,
+    effective,
+    gapPoints: (advertised - effective) * 100,
+    advertisedIncludesUplifts: uplifts > 0,
+  };
+}
