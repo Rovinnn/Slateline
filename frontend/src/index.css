@@ -58,6 +58,17 @@
   --color-map-excluded-line: #c0bdb6;
   --color-map-excluded-stroke: #a7a49c;
   --color-map-label-halo: #fbfaf7;
+
+  /* Splash screen (App.tsx) only. It's a fixed dark cinematic frame by
+     design, not a themed surface — so these are deliberately NOT
+     overridden in the dark-mode block below (unlike --color-ink/--color-paper,
+     which swap on purpose for other elements). Values are the light-mode
+     ink/paper/teal-accent/ink-3/red hex literals, pinned. */
+  --color-splash-bg: #1a2630;
+  --color-splash-text: #f7f5f1;
+  --color-splash-accent: #2dd4bf;
+  --color-splash-muted: #879196;
+  --color-splash-glow-2: #b45309;
 }
 
 /*

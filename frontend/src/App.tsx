@@ -176,7 +176,7 @@ function App() {
               without a photo or icon anywhere — a dash pattern, not a texture. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-0.75 print:hidden"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-0.75 opacity-40 print:hidden"
             style={{ backgroundImage: "repeating-linear-gradient(to right, var(--color-ink) 0 6px, transparent 6px 12px)" }}
           />
         </header>
@@ -233,7 +233,7 @@ function SplashScreen({ splashOut, onSkip }: { splashOut: boolean; onSkip: () =>
       role="button"
       tabIndex={0}
       aria-label="Skip intro"
-      className="fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-ink"
+      className="fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-splash-bg"
       style={{ transition: "opacity 260ms ease", opacity: splashOut ? 0 : 1 }}
     >
       <div
@@ -241,7 +241,7 @@ function SplashScreen({ splashOut, onSkip }: { splashOut: boolean; onSkip: () =>
         className="absolute"
         style={{
           inset: "-20%",
-          background: "radial-gradient(circle, var(--color-teal-accent) 0%, transparent 60%)",
+          background: "radial-gradient(circle, var(--color-splash-accent) 0%, transparent 60%)",
           filter: "blur(60px)",
           animation: "iv-glow1 9s ease-in-out infinite",
         }}
@@ -251,20 +251,20 @@ function SplashScreen({ splashOut, onSkip }: { splashOut: boolean; onSkip: () =>
         className="absolute"
         style={{
           inset: "-20%",
-          background: "radial-gradient(circle, var(--color-red) 0%, transparent 60%)",
+          background: "radial-gradient(circle, var(--color-splash-glow-2) 0%, transparent 60%)",
           filter: "blur(70px)",
           animation: "iv-glow2 11s ease-in-out infinite",
         }}
       />
       <div className="relative z-10 flex flex-col items-center gap-5">
         <Mark size={84} spin />
-        <div className="font-display text-[34px] font-semibold uppercase tracking-[0.01em] text-paper">
+        <div className="font-display text-[34px] font-semibold uppercase tracking-[0.01em] text-splash-text">
           Slateline
         </div>
-        <div className="font-mono text-[12px] tracking-wide text-teal-accent">
+        <div className="font-mono text-[12px] tracking-wide text-splash-accent">
           JURISDICTION COMPARISON · NET OF RELOCATION
         </div>
-        <div className="mt-6 font-mono text-[10.5px] tracking-wide text-ink-3">CLICK TO ENTER</div>
+        <div className="mt-6 font-mono text-[10.5px] tracking-wide text-splash-muted">CLICK TO ENTER</div>
       </div>
     </div>
   );
