@@ -25,7 +25,7 @@ export function useHeroGlow() {
   const style: CSSProperties = {
     transition: "opacity 300ms ease",
     opacity: pos.on ? 1 : 0,
-    background: `radial-gradient(circle 560px at ${pos.x}% ${pos.y}%, rgba(45,212,191,0.14), rgba(251,191,36,0.07) 45%, transparent 72%)`,
+    background: `radial-gradient(circle farthest-corner at ${pos.x}% ${pos.y}%, rgba(45,212,191,0.14), rgba(251,191,36,0.07) 45%, transparent 72%)`,
   };
 
   return { onMove, onLeave, style };
