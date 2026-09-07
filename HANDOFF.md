@@ -182,6 +182,18 @@ license" rather than nothing.
 
 ---
 
+## 4b. Warm the deployed cache before recording or judging
+
+```bash
+cd backend && python scripts/warm_cache.py
+```
+
+~90 seconds, and it takes the results screen from a 30-60s cold load to
+near-instant (measured: 92s cold, 1s warm). The cache is in-process, so a
+Cloud Run cold start throws it away — re-run before anything anyone watches.
+`--min-instances=1` on the service is the durable fix and costs a few dollars
+a month; it has not been set.
+
 ## 5. Demo video (≤3 min, public on YouTube/Vimeo)
 
 The brief is explicit: *"a demo showing your agent functioning as built, not a

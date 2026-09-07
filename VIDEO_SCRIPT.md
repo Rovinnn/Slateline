@@ -164,6 +164,20 @@ No third-party logos.
 
 ---
 
+## Warm the site first — do not skip this
+
+A cold jurisdiction is a live search plus an extraction, 30-60 seconds each,
+and the results screen fires one per jurisdiction on mount. Recording cold
+spends a quarter of the runtime on a spinner.
+
+```bash
+cd backend && python scripts/warm_cache.py
+```
+
+Takes about 90 seconds and warms the four the results screen loads plus four
+likely search-box demos. Verified: 92s cold, 1s warm. The cache is
+per-instance, so re-run it if you leave the recording for an hour.
+
 ## Shot checklist before recording
 
 - [ ] Redeploy backend + frontend from current `master` first — the live URL must
