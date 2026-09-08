@@ -35,7 +35,7 @@ import type {
   PoolStatus,
   RelocationAssumptions,
 } from "../types";
-import { ComparisonTable } from "./ComparisonTable";
+import { DecisionResults } from "./DecisionResults";
 import { FundingAvailability, RetrievedBadge, SourceEvidence } from "./Evidence";
 import { MapView, RelocationStrip } from "./MapView";
 import { EffectiveRate, Waterfall, WhyItWins } from "./Recommendation";
@@ -480,38 +480,57 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
         </div>
       )}
 
-      {state.status === "ready" && tab === "memo" && (
-        <ReadyResults
-          rows={state.rows}
-          liveBudget={liveBudget}
-          initialBudget={initialBudget}
-          onBudgetChange={setLiveBudget}
-          assumptions={assumptions}
-          onAssumptionsChange={setAssumptions}
-          timing={timing}
-          onTimingChange={setTiming}
-          breakeven={breakeven}
-          split={split}
-          questions={questions}
-          robustness={robustness}
-          printing={printing}
-          showAll={showAll}
-          setShowAll={setShowAll}
-          showUnverified={showUnverified}
-          setShowUnverified={setShowUnverified}
-          onRefresh={refreshRule}
-          refreshing={refreshing}
-          refreshError={refreshError}
-          challenges={challenges}
-          onViewMap={() => setTab("map")}
-        />
-      )}
-
-      {state.status === "ready" && tab === "compare" && (
-        <ComparisonTable
-          rows={state.rows}
-          failingFor={(rule) => failingConstraint(rule, liveBudget.constraints)}
-        />
+      {state.status === "ready" && (tab === "memo" || tab === "compare") && (
+        <>
+          <div className="print:hidden">
+            <DecisionResults
+              mode={tab}
+              rows={state.rows}
+              liveBudget={liveBudget}
+              initialBudget={initialBudget}
+              onBudgetChange={setLiveBudget}
+              assumptions={assumptions}
+              onAssumptionsChange={setAssumptions}
+              timing={timing}
+              onTimingChange={setTiming}
+              breakeven={breakeven}
+              split={split}
+              questions={questions}
+              robustness={robustness}
+              onRefresh={refreshRule}
+              refreshing={refreshing}
+              refreshError={refreshError}
+              challenges={challenges}
+              onViewMap={() => setTab("map")}
+            />
+          </div>
+          <div className="hidden print:block">
+            <ReadyResults
+              rows={state.rows}
+              liveBudget={liveBudget}
+              initialBudget={initialBudget}
+              onBudgetChange={setLiveBudget}
+              assumptions={assumptions}
+              onAssumptionsChange={setAssumptions}
+              timing={timing}
+              onTimingChange={setTiming}
+              breakeven={breakeven}
+              split={split}
+              questions={questions}
+              robustness={robustness}
+              printing
+              showAll={showAll}
+              setShowAll={setShowAll}
+              showUnverified={showUnverified}
+              setShowUnverified={setShowUnverified}
+              onRefresh={refreshRule}
+              refreshing={refreshing}
+              refreshError={refreshError}
+              challenges={challenges}
+              onViewMap={() => setTab("map")}
+            />
+          </div>
+        </>
       )}
 
       {state.status === "ready" && tab === "map" && <MapView rows={state.rows} homeBaseLabel={liveBudget.home_base} />}
