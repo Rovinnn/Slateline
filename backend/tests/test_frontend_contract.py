@@ -170,6 +170,16 @@ def test_open_question_shape_is_declared(ts_source):
     assert _interface_fields(ts_source, "OpenQuestion") == _dataclass_fields(OpenQuestion)
 
 
+@pytest.mark.parametrize("ts_name,cls_name", [("UncertainInput", "UncertainInput"),
+                                             ("FlipPoint", "FlipPoint"),
+                                             ("Robustness", "Robustness")])
+def test_robustness_shapes_are_declared(ts_source, ts_name, cls_name):
+    # Crosses the boundary via /compute/robustness.
+    from app import robustness
+
+    assert _interface_fields(ts_source, ts_name) == _dataclass_fields(getattr(robustness, cls_name))
+
+
 def test_split_plan_shape_is_declared(ts_source):
     # Crosses the boundary via /compute/split. Lives in app/split.py rather
     # than models.py, so it sits outside SHARED_MODELS above.

@@ -23,6 +23,7 @@ from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_
 from .maps_client import DistanceResult, get_distance
 from .jurisdictions import SUGGESTED, SuggestedJurisdiction, grouped
 from .questions import OpenQuestion, open_questions
+from .robustness import Robustness, analyse_robustness
 from .split import SplitPlan, analyse_splits
 from .models import (
     BenefitBreakdown,
@@ -220,6 +221,33 @@ def suggested_jurisdictions() -> list[SuggestedJurisdiction]:
     Anything not on this list still works.
     """
     return [j for _, members in grouped() for j in members]
+
+
+@app.post("/compute/robustness", response_model=Optional[Robustness])
+def compute_robustness(
+    budget: BudgetVector,
+    winner: JurisdictionRule,
+    runner_up: JurisdictionRule,
+    distances: Optional[dict[str, float]] = Body(default=None),
+    assumptions: Optional[RelocationAssumptions] = None,
+    timing: Optional[CreditTimingAssumptions] = None,
+    transfer_discount: float = Body(default=DEFAULT_TRANSFER_DISCOUNT),
+) -> Optional[Robustness]:
+    """Whether the top two hold their order across what nobody has verified.
+
+    Null when the two are passed in the wrong order — there's no margin to
+    defend, so any statement about robustness would describe a comparison that
+    doesn't exist. That's a valid answer rather than an error, hence 200.
+    """
+    return analyse_robustness(
+        budget,
+        verify_rule(winner),
+        verify_rule(runner_up),
+        distances=distances,
+        assumptions=assumptions,
+        timing=timing,
+        transfer_discount=transfer_discount,
+    )
 
 
 @app.post("/compute/questions", response_model=list[OpenQuestion])

@@ -2,6 +2,7 @@ import type {
   ChallengeResponse,
   CreditTimingAssumptions,
   OpenQuestion,
+  Robustness,
   SuggestedJurisdiction,
   SplitResponse,
   BenefitBreakdown,
@@ -148,6 +149,28 @@ export function searchJurisdiction(jurisdiction: string, opts?: { refresh?: bool
   const params = new URLSearchParams({ jurisdiction });
   if (opts?.refresh) params.set("refresh", "true");
   return postJson<JurisdictionRule>(`/jurisdictions/search?${params.toString()}`, {});
+}
+
+/**
+ * Whether the recommendation survives the inputs nobody has verified.
+ *
+ * Resolves to null when the two are passed in the wrong order — there's no
+ * margin to defend, which is a valid answer rather than an error.
+ */
+export function computeRobustness(
+  budget: BudgetVector,
+  winner: JurisdictionRule,
+  runnerUp: JurisdictionRule,
+  opts?: { distances?: Record<string, number>; assumptions?: RelocationAssumptions; timing?: CreditTimingAssumptions },
+): Promise<Robustness | null> {
+  return postJson<Robustness | null>("/compute/robustness", {
+    budget,
+    winner,
+    runner_up: runnerUp,
+    distances: opts?.distances ?? null,
+    assumptions: opts?.assumptions ?? null,
+    timing: opts?.timing ?? null,
+  });
 }
 
 /** The curated starting set for the jurisdiction picker. Not an allowlist. */

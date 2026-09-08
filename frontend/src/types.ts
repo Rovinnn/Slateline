@@ -176,6 +176,36 @@ export interface BenefitBreakdown {
   timing_note: string | null;
 }
 
+/** One thing nobody has verified, and the range it plausibly falls in.
+ *  Mirrors backend/app/robustness.py. */
+export interface UncertainInput {
+  name: string;
+  assumed: string;
+  low_label: string;
+  high_label: string;
+  /** Why it's uncertain, not merely variable. */
+  because: string;
+}
+
+/** An input value at which the recommendation changes. */
+export interface FlipPoint {
+  input_name: string;
+  threshold: string;
+  new_winner: string;
+  because: string;
+}
+
+/** Whether the top two hold their order across what we don't know. */
+export interface Robustness {
+  winner: string;
+  runner_up: string;
+  margin: number;
+  winner_holds_in: number;
+  combinations_tested: number;
+  flips: FlipPoint[];
+  inputs_swept: UncertainInput[];
+}
+
 /** A curated suggestion, not an allowlist — anything typed still works.
  *  Mirrors backend/app/jurisdictions.py SuggestedJurisdiction. */
 export interface SuggestedJurisdiction {
