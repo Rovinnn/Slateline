@@ -11,7 +11,7 @@ Every field the form asks for, with the answer ready to paste. Written 6 Sep
 | field | value |
 |---|---|
 | **Live URL** | https://zeta-structure-437412-v7.web.app |
-| **Repo** | https://github.com/claudekootam-ship-it/incentive-verifier |
+| **Repo** | https://github.com/Rovinnn/Slateline |
 | **API** | https://incentive-verifier-backend-559874048514.us-central1.run.app |
 | **Video** | _(paste once uploaded — must be public on YouTube/Vimeo)_ |
 | **Track** | **Parallel** (select exactly one) |
@@ -74,16 +74,20 @@ them, each with the number attached. The four that land hardest:
 - [ ] **Devpost form submitted**
 - [ ] One track selected on the form
 
-## GitHub About sidebar — ✅ done 6 Sep
+## GitHub About sidebar — redo on the new repo
 
-Set via the API and verified from an unauthenticated view:
+The project moved to https://github.com/Rovinnn/Slateline. The old repo's
+About sidebar was filled in; the new one starts empty, so set it again — a
+judge landing on a bare repo sees no one-liner and no link to the live app.
+
+Repo homepage → ⚙️ next to "About":
 
 - **description** — "Computes what a film tax incentive is actually worth — live
   statute search, deterministic maths, and a second pass that tries to disprove
   the first."
 - **homepage** — https://zeta-structure-437412-v7.web.app
 - **topics** — 10, incl. `gemini` `google-cloud` `parallel-search` `adk` `vertex-ai`
-- **license** — MIT, detected by GitHub
+- **license** — MIT; confirm GitHub detects it on the new repo
 
 ---
 
