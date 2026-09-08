@@ -399,12 +399,12 @@ export function Results({ budget: initialBudget, onEditInputs }: { budget: Budge
 
   return (
     <div
-      className="relative mx-auto min-h-150 max-w-330 overflow-hidden px-7 pb-20"
+      className="relative min-h-150 overflow-hidden"
       onMouseMove={glow.onMove}
       onMouseLeave={glow.onLeave}
     >
-      <div aria-hidden className="pointer-events-none absolute inset-0 print:hidden" style={glow.style} />
-      <div className="relative z-10">
+      <div aria-hidden className="pointer-events-none fixed inset-0 print:hidden" style={glow.style} />
+      <div className="relative z-10 mx-auto max-w-330 px-7 pb-20">
       <div className="flex flex-wrap items-center gap-5 pt-4">
         <div role="tablist" className="flex gap-0.5 print:hidden">
           <TabButton active={tab === "memo"} onClick={() => setTab("memo")}>MEMO</TabButton>

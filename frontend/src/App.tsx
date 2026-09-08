@@ -291,12 +291,12 @@ function HomeScreen({
   return (
     <>
       <main
-        className="relative mx-auto max-w-330 overflow-hidden px-7 pb-16 pt-11"
+        className="relative overflow-hidden"
         onMouseMove={glow.onMove}
         onMouseLeave={glow.onLeave}
       >
-        <div aria-hidden className="pointer-events-none absolute inset-0" style={glow.style} />
-        <div className="relative z-10">
+        <div aria-hidden className="pointer-events-none fixed inset-0" style={glow.style} />
+        <div className="relative z-10 mx-auto max-w-330 px-7 pb-16 pt-11">
         <div className="mb-9">
           <h1 className="mb-1.5 font-display text-[30px] font-semibold tracking-tight">
             Compare shooting locations on net benefit.

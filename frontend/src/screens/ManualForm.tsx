@@ -283,10 +283,14 @@ export function ManualForm({
               onChange={(e) => setBudget((b) => ({ ...b, home_base: e.target.value }))}
               className="w-full border border-border-2 bg-card-2 px-2.5 py-2.5 font-mono text-[13px] font-medium text-ink outline-none"
             >
-              {HOME_BASES.map((h) => (
-                <option key={h.id} value={h.label}>
-                  {h.label}
-                </option>
+              {[...new Set(HOME_BASES.map((homeBase) => homeBase.region))].map((region) => (
+                <optgroup key={region} label={region}>
+                  {HOME_BASES.filter((homeBase) => homeBase.region === region).map((homeBase) => (
+                    <option key={homeBase.id} value={homeBase.label}>
+                      {homeBase.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <div className="mt-2 font-mono text-[10.5px] text-ink-2">

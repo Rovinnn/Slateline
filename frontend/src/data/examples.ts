@@ -85,13 +85,36 @@ export const DEFAULT_JURISDICTIONS = ["Georgia", "New Mexico", "Louisiana", "Tex
 export interface HomeBase {
   id: string;
   label: string;
+  region: string;
   lat: number;
   lng: number;
 }
 
 export const HOME_BASES: HomeBase[] = [
-  { id: "lax", label: "Los Angeles, CA", lat: 34.052, lng: -118.244 },
-  { id: "nyc", label: "New York, NY", lat: 40.713, lng: -74.006 },
-  { id: "atl", label: "Atlanta, GA", lat: 33.749, lng: -84.388 },
-  { id: "ldn", label: "London, UK", lat: 51.507, lng: -0.128 },
+  { id: "lax", label: "Los Angeles, CA", region: "United States", lat: 34.052, lng: -118.244 },
+  { id: "nyc", label: "New York, NY", region: "United States", lat: 40.713, lng: -74.006 },
+  { id: "atl", label: "Atlanta, GA", region: "United States", lat: 33.749, lng: -84.388 },
+  { id: "tor", label: "Toronto, Canada", region: "Canada & Mexico", lat: 43.6532, lng: -79.3832 },
+  { id: "yvr", label: "Vancouver, Canada", region: "Canada & Mexico", lat: 49.2827, lng: -123.1207 },
+  { id: "mex", label: "Mexico City, Mexico", region: "Canada & Mexico", lat: 19.4326, lng: -99.1332 },
+  { id: "ldn", label: "London, UK", region: "Europe", lat: 51.507, lng: -0.128 },
+  { id: "par", label: "Paris, France", region: "Europe", lat: 48.8566, lng: 2.3522 },
+  { id: "ber", label: "Berlin, Germany", region: "Europe", lat: 52.52, lng: 13.405 },
+  { id: "mad", label: "Madrid, Spain", region: "Europe", lat: 40.4168, lng: -3.7038 },
+  { id: "rom", label: "Rome, Italy", region: "Europe", lat: 41.9028, lng: 12.4964 },
+  { id: "prg", label: "Prague, Czechia", region: "Europe", lat: 50.0755, lng: 14.4378 },
+  { id: "bud", label: "Budapest, Hungary", region: "Europe", lat: 47.4979, lng: 19.0402 },
+  { id: "dxb", label: "Dubai, UAE", region: "Middle East", lat: 25.2048, lng: 55.2708 },
+  { id: "auh", label: "Abu Dhabi, UAE", region: "Middle East", lat: 24.4539, lng: 54.3773 },
+  { id: "bom", label: "Mumbai, India", region: "Asia", lat: 19.076, lng: 72.8777 },
+  { id: "sel", label: "Seoul, South Korea", region: "Asia", lat: 37.5665, lng: 126.978 },
+  { id: "tyo", label: "Tokyo, Japan", region: "Asia", lat: 35.6762, lng: 139.6503 },
+  { id: "bkk", label: "Bangkok, Thailand", region: "Asia", lat: 13.7563, lng: 100.5018 },
+  { id: "syd", label: "Sydney, Australia", region: "Oceania", lat: -33.8688, lng: 151.2093 },
+  { id: "mel", label: "Melbourne, Australia", region: "Oceania", lat: -37.8136, lng: 144.9631 },
+  { id: "akl", label: "Auckland, New Zealand", region: "Oceania", lat: -36.8509, lng: 174.7645 },
+  { id: "cpt", label: "Cape Town, South Africa", region: "Africa", lat: -33.9249, lng: 18.4241 },
+  { id: "jnb", label: "Johannesburg, South Africa", region: "Africa", lat: -26.2041, lng: 28.0473 },
+  { id: "sao", label: "São Paulo, Brazil", region: "South America", lat: -23.5505, lng: -46.6333 },
+  { id: "bue", label: "Buenos Aires, Argentina", region: "South America", lat: -34.6037, lng: -58.3816 },
 ];
