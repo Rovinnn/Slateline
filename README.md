@@ -10,7 +10,7 @@ one, live, with receipts.**
 | **Demo video** | https://www.youtube.com/watch?v=fbK92korb9s |
 | **Coverage** | 122 jurisdictions, 59 currencies, 6 regions |
 | **Track** | Parallel — live Search API at request time |
-| **Tests** | 341 backend, 107 frontend, CI on every push |
+| **Tests** | 366 backend, 107 frontend, CI on every push |
 
 Every US state advertises a film incentive — *"Georgia 30%!"* — and producers pick
 shooting locations on those numbers. Four things sit between the advertised rate and
@@ -297,7 +297,7 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       reconciling, components summing, credit monotonic in spend, canonical
       jurisdiction names, `retrieved` stamped today, coastal states not
       flagged landlocked); it's a manual/scheduled CI job since it spends real
-      quota. **341 backend tests, 107 frontend.**
+      quota. **366 backend tests, 107 frontend.**
 
       `net == gross − relocation` was the invariant until a credit stopped
       being priced as cash on wrap day; it's now
@@ -349,10 +349,23 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       15% rather than 25%, capped at a share of the BTL budget). We exclude
       them, understating NM by $16,875 on a $2M drama rather than overstating
       by $67,500 — the smaller error, stated on the card.
-- [x] **Deployed and verified 6 Sep 2026.** Both halves current; smoke test
-      6/6 against production. The adversarial pass and the ADK agent have now
-      run live — each found a real bug on its first execution, both fixed.
-      See [VERIFY_LIVE.md](VERIFY_LIVE.md) for what was checked and found.
+- [x] **Deployed and verified 9 Sep 2026.** Smoke test against production;
+      the adversarial pass and the ADK agent have both run live, each finding
+      a real bug on its first execution. See [VERIFY_LIVE.md](VERIFY_LIVE.md).
+- [x] **Retrieval is the reproducibility problem, not the model.** Running the
+      deployed product — rather than the test suite — showed the same request
+      returning different winners: the live search returns a different set of
+      sources every call (one jurisdiction came back with 5, 10, 12 and 25),
+      so the model read different text and extracted a different program.
+      Three fixes, in the order they mattered: sources are now ranked by
+      authority (statute and tax-authority hosts first, matched structurally
+      so non-Anglophone governments aren't scored zero) and truncated to a
+      fixed set; every `generate_content` call pins `temperature: 0`, with a
+      test that scans the tree and fails on an unpinned one; and where the
+      money is a grant rather than a statutory claim, a second independent
+      retrieval must agree before the jurisdiction is ranked — disagreement
+      refuses instead of voting, because over-refusing costs a table row and
+      over-ranking costs a location decision.
 
 See BUILD_BRIEF.md section 8 for the intended build order.
 
