@@ -55,10 +55,10 @@ Full spec: [BUILD_BRIEF.md](BUILD_BRIEF.md) · Submission write-up and findings:
 ## Layout
 
 ```
-backend/    FastAPI + Google ADK/Gemini + Parallel Search + Google Maps, deployed on Cloud Run
-frontend/   React + TypeScript + Tailwind, deployed as a static site
-Incentive Verifier Web App/   Interactive design-canvas mockup — the visual/UX spec the
-                               real frontend is being built against (not runnable code)
+backend/         FastAPI + Gemini (Vertex) + ADK + Parallel Search + Google Maps, on Cloud Run
+frontend/        React + TypeScript + Tailwind, static site on Firebase Hosting
+design-canvas/   Interactive mockup — the visual spec the frontend was built against
+samples/         A realistic movie budget PDF, for testing the upload path
 ```
 
 ## Setup
@@ -288,7 +288,7 @@ and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
       reconciling, components summing, credit monotonic in spend, canonical
       jurisdiction names, `retrieved` stamped today, coastal states not
       flagged landlocked); it's a manual/scheduled CI job since it spends real
-      quota. **267 backend tests, 68 frontend.**
+      quota. **341 backend tests, 107 frontend.**
 
       `net == gross − relocation` was the invariant until a credit stopped
       being priced as cash on wrap day; it's now

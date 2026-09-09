@@ -3,7 +3,7 @@ import type { BudgetVector } from "../types";
 /**
  * The three example budgets required by BUILD_BRIEF.md section 7 ("Try an
  * example"). Figures match the design canvas prototype
- * (../../Incentive Verifier Web App/Incentive Verifier.dc.html) so the real
+ * (../../design-canvas/Incentive Verifier.dc.html) so the real
  * app's numbers agree with the approved visual spec.
  */
 export interface Example {
