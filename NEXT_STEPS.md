@@ -95,6 +95,9 @@ per-category rates and caps on `JurisdictionRule.qualifying` — a schema
 change, and the right next correctness project after the ones below.
 
 ### 2.3b Original note — statute hand-verification
+
+> Superseded — kept for the reasoning. See the section above it for what
+> was actually done.
 Build order step 3 says *"verify a few by hand against the actual statutes"*
 and section 9 wants *"hand-verified"* golden values. **This has never been
 done.** Our golden numbers were produced by running our own code and recording
@@ -124,11 +127,14 @@ nothing to stop it *transcribing* one wrongly. Values live in
 This also closes BUILD_BRIEF §4's "the agent must invoke the calculator tool",
 which the REST pipeline satisfied only in spirit.
 
-**Not verified live** — the model's own tool-selection behaviour has never run
+**Since verified live** — the agent has run end to end; its tool-selection behaviour was
 against Vertex, because no credentials existed on this machine. Tools are
 tested against the real calculator; see VERIFY_LIVE.md §3b.
 
 ### 2.4b Original note — ADK agent wrapper
+
+> Superseded — kept for the reasoning. See the section above it for what
+> was actually done.
 Universal requirements say *"Powered by Gemini **and Google Cloud Agent
 Builder**"*, and track map §4 is titled *"Build on ADK, Not Wrapper
 Libraries"*. We call `google-genai` directly; `google-adk` is in

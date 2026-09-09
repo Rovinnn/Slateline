@@ -338,11 +338,12 @@ argument for why hand-verification and conflict detection matter.
 - **US-specific constraint data.** The "ocean coastline" filter knows US state
   geography and nothing else, so it makes no claim either way about a non-US
   jurisdiction rather than guessing.
-- **The ADK agent's own planning has never run against live Vertex.** Its
-  tools are tested against the real calculator, its declarations are checked,
-  and the CLI wiring is verified up to the credential boundary — but nobody
-  could authenticate on the machine it was written on, so the model's actual
-  tool-selection behaviour is unobserved. The REST pipeline, which is what the
-  deployed frontend uses, is unaffected by this and unchanged.
+- **The ADK agent has run live, but not extensively.** Its first real run
+  followed the intended tool order and reported only figures that came from
+  tool results — and caught a genuine bug by doing so, recommending the wrong
+  jurisdiction because one extracted input was a zero cap. Fixed. It has not
+  been exercised across many prompts, so its planning behaviour is verified
+  rather than characterised. The REST pipeline, which is what the deployed
+  frontend uses, is independent of it.
 
 Not tax advice. Figures are estimates for comparison, and the tool says so.

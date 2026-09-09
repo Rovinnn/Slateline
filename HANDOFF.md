@@ -155,11 +155,11 @@ with expected values, severities, and what to do when something fails.
 
 The four things on it that matter most:
 
-1. **The adversarial challenge pass has never run against real Parallel and
-   Gemini** — only mocked responses, because nobody could authenticate. Its
-   first live execution will be in production. If it invents conflicts, remove
-   the `challengeJurisdiction` effect from `Results.tsx` and redeploy; the
-   ranking doesn't depend on it.
+1. **The adversarial challenge pass has run live and been corrected.** Its
+   first real execution produced exactly the predicted failure — treating our
+   own missing values as contradictions, so four sources that *agreed* with us
+   were reported as disagreeing. Fixed with a code guard; Georgia went from 4
+   findings to 1, New Mexico from 7 to 2, and the survivors are real.
 2. **Live extraction can now be graded, not just inspected.** Georgia, New
    Mexico and Louisiana were hand-verified against the statutes on 6 Sep, so
    they're a correctness oracle. Compare what the live pipeline extracts

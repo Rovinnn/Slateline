@@ -135,11 +135,11 @@ curl -s -X POST "$BACKEND/jurisdictions/search?jurisdiction=Georgia" \
 
 ---
 
-## 3. Code paths that have NEVER run live
+## 3. Code paths whose first live run has now happened
 
-These were written and unit-tested with mocked model responses, because nobody
-could authenticate. **Their first real execution will be on the deployed
-site.**
+Both were written and unit-tested against mocked model responses, and both
+have since run for real — each finding a genuine bug on its first execution,
+both fixed. Re-run them against the deployment to confirm the fixes carried.
 
 ### 3a. The adversarial challenge pass — ✅ RUN 6 Sep, bug found and fixed
 
