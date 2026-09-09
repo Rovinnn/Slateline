@@ -70,7 +70,7 @@ def test_search_endpoint_calls_extraction_and_reverifies_confidence(monkeypatch)
     # Rule comes back from Layer 1 with a stale confidence label; the endpoint
     # must recompute it via verify_rule rather than trust what extraction set.
     unverified = make_rule(jurisdiction="Extractland", sources=[], confidence="primary_source")
-    monkeypatch.setattr(main, "extract_jurisdiction_rule", lambda jurisdiction: unverified)
+    monkeypatch.setattr(main, "extract_jurisdiction_rule_confirmed", lambda jurisdiction: unverified)
 
     resp = client.post("/jurisdictions/search", params={"jurisdiction": "Extractland"})
 
@@ -84,7 +84,7 @@ def test_search_endpoint_returns_502_on_extraction_failure(monkeypatch):
     def boom(jurisdiction):
         raise RuntimeError("Parallel search returned zero results")
 
-    monkeypatch.setattr(main, "extract_jurisdiction_rule", boom)
+    monkeypatch.setattr(main, "extract_jurisdiction_rule_confirmed", boom)
 
     resp = client.post("/jurisdictions/search", params={"jurisdiction": "Nowhereland"})
 
@@ -99,7 +99,7 @@ def test_search_endpoint_caches_so_a_repeat_lookup_skips_extraction(monkeypatch)
         calls.append(jurisdiction)
         return make_rule(jurisdiction="Cacheland", sources=[])
 
-    monkeypatch.setattr(main, "extract_jurisdiction_rule", record_and_extract)
+    monkeypatch.setattr(main, "extract_jurisdiction_rule_confirmed", record_and_extract)
 
     first = client.post("/jurisdictions/search", params={"jurisdiction": "Cacheland"})
     second = client.post("/jurisdictions/search", params={"jurisdiction": "Cacheland"})
@@ -116,7 +116,7 @@ def test_search_endpoint_refresh_bypasses_the_cache(monkeypatch):
         calls.append(jurisdiction)
         return make_rule(jurisdiction="Refreshland", sources=[])
 
-    monkeypatch.setattr(main, "extract_jurisdiction_rule", record_and_extract)
+    monkeypatch.setattr(main, "extract_jurisdiction_rule_confirmed", record_and_extract)
 
     client.post("/jurisdictions/search", params={"jurisdiction": "Refreshland"})
     client.post("/jurisdictions/search", params={"jurisdiction": "Refreshland", "refresh": True})

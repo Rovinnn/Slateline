@@ -10,15 +10,18 @@ teammate's machine. The code is done and tested; none of it is live.
 - Backend — Cloud Run revision `incentive-verifier-backend-00008-rpm`
   (rollback points: `00007`, `00006-cs9`, `00005-gqt`, `00004-rfw`). Smoke
   test **6/6**.
-- Frontend — Firebase Hosting release `1788708772764000`, bundle
-  `index-B46yLlPn.js`. Carries the cinematic UI refresh, the Slateline
+- Frontend — Firebase Hosting, bundle `index-oPfuxnq5.js` (re-verified
+  9 Sep: the served bundle hash matches a clean local build of HEAD, so the
+  deployment is current). Carries the cinematic UI refresh, the Slateline
   rebrand, and the reconciled split-location-allocation feature
   (`app/split.py`).
 
 Verified end to end against production: four jurisdictions extracted live,
-real Maps distances, New Mexico ranked first at $259,952 over Georgia at
-$175,722, discretionary programs correctly refused rather than ranked, and the
-adversarial pass running on the winner.
+real Maps distances, discretionary programs correctly refused rather than
+ranked, and the adversarial pass running on the winner. (That run predates the
+statute hand-verification later the same day, which corrected three fields and
+moved Louisiana ahead of New Mexico — the current ranking is the table under
+§5, not whatever the deployment showed at the time.)
 
 What remains is entirely **items 4-6 below** — repo public, video, Devpost.
 Those are pass/fail gates and none of them are code.
@@ -209,9 +212,10 @@ $2M indie drama, because the advertised order and the real order disagree:
 | Georgia | 20% + 10% = up to **30%** | $188,825 |
 
 New Mexico advertises the biggest number and loses. Louisiana and New Mexico
-advertise the *same* 25% base and differ by $5,350 — because New Mexico's
-credit excludes non-resident below-the-line crew and Louisiana's pays three
-months later at 90% of face. No rate table contains that.
+advertise the *same* 25% base and differ by $5,349 — because New Mexico's
+credit excludes non-resident below-the-line crew, while Louisiana's is
+transferable at 90% of face and pays six months later. No rate table contains
+that.
 
 Then open the winner's card: the waterfall walks the advertised rate down to
 cash, and "why it wins" splits the gap into components that sum exactly to it.

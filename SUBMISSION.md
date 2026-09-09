@@ -51,6 +51,9 @@ the line it came from). For each jurisdiction it then:
    category, wage caps, minimum-spend cliffs, tiers, fringes, payout
    mechanism, and the discount from wrap to cash.
 4. **Pulls real driving/flight distance** from Google Maps for relocation cost.
+   Works across **122 jurisdictions in 59 currencies** — 36 US states, 11
+   Canadian provinces, 36 European countries, and programmes across
+   Asia-Pacific, Latin America, Africa and the Middle East.
 5. **Runs a second search pass whose only job is to disprove the first** —
    looking for suspensions, exhausted pools and pending amendments, and
    reporting contradictions rather than silently overwriting.
@@ -68,15 +71,18 @@ statutes and state regulations rather than taken from a rate table:
 
 | | advertised | net benefit | why |
 |---|---|---|---|
-| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** | transferable at 90% of face, 15-month wait, 3,049 km away |
+| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** | transferable at 90% of face, 18-month wait, 3,049 km away |
 | New Mexico | 25% + 20% = up to **45%** | $260,215 | refundable, fastest, closest — but non-resident crew don't qualify |
-| Georgia | 20% + 10% = up to **30%** | $188,825 | transferable, 18-month wait, mandatory audit, furthest away |
+| Georgia | 20% + 10% = up to **30%** | $188,825 | lowest rate, transferable at 90% of face, 18-month wait, furthest away |
 
-Figures use real Google Maps routed distances from Los Angeles.
+Figures use real Google Maps routed distances from Los Angeles, and are the three
+statutes we hand-checked against the source law. The deployed app ranks off **live**
+extraction per request, so its exact figures differ — searching the current law is
+the product, and a frozen table would be a different (worse) one.
 
 **The advertised order and the real order are not the same.** New Mexico
 advertises the highest headline number and does not win. And Louisiana and New
-Mexico advertise the *same* 25% base rate yet differ by $5,350, for reasons no
+Mexico advertise the *same* 25% base rate yet differ by $5,349, for reasons no
 rate table contains: New Mexico's credit excludes non-resident below-the-line
 crew (NMSA 7-2F-15 makes them a separate 15% credit capped at 15% of the BTL
 budget), while Louisiana's is transferred back to the state at 90% of face and
@@ -312,6 +318,35 @@ argument for why hand-verification and conflict detection matter.
 
 ### Known limitations, stated plainly
 
+- **The same query can produce a different winner.** Two identical requests
+  minutes apart ranked New Mexico first ($246,822 vs Louisiana's $218,107),
+  then Louisiana first ($265,564 vs $246,822). The extraction call was
+  sampling at the model default, which is indefensible for a call whose only
+  job is transcribing figures out of retrieved text, and it is now pinned to
+  greedy decoding. That narrowed it but did not close it: the live search
+  returns a different set of sources each run — Louisiana has come back with
+  5, 10, 12 and 25 — so the model reads different text and extracts a
+  different set of uplifts. Reconciling across repeated retrievals is the
+  honest fix and is not built. Until it is, treat a narrow margin as a tie;
+  the robustness panel already says when one is narrow enough to be inside
+  what nobody has verified.
+
+- **Where the pipeline can't agree with itself, it refuses.** Whether a
+  program is a legal entitlement or a discretionary grant decides whether it
+  can be modelled at all, and a single extraction cannot settle it: the live
+  search returns a different candidate pool on every call — three consecutive
+  runs of Texas came back with 11, 9 and 14 sources — so the model reads
+  different text and can reach a different conclusion. Three runs gave
+  discretionary True, False, False. A majority vote answers False there, which
+  is wrong, so this deliberately isn't a vote: where the money is not a
+  statutory claim, a second independent retrieval has to agree before the
+  jurisdiction is ranked, and one run calling it a grant is enough to refuse.
+  Over-refusing costs a row in a table; over-ranking costs a location
+  decision. Tax credits are claims by construction and take the single-call
+  path, so only grants pay the extra latency and only on a cold cache.
+  Retrieval churn still moves the dollar figures themselves, so treat a narrow
+  margin as a tie — the robustness panel says when one is narrow enough.
+
 - **Only three jurisdictions have been hand-verified** (Georgia, New Mexico,
   Louisiana, on 6 Sep 2026, against the statutes and regulations cited in
   `seed_jurisdictions.py`). Every other jurisdiction the tool can search is
@@ -327,14 +362,14 @@ argument for why hand-verification and conflict detection matter.
   and per-mechanism waits are ours. They're visible and editable in the UI for
   exactly that reason, and a rule's own stated timeline overrides them.
 - **First load takes 30–60 seconds** on a cold jurisdiction. Cached after.
-- **US-only in practice, by refusal rather than by omission.** Any
-  jurisdiction can be searched and extracted — Ireland's Section 481 comes
-  back correctly at 32% in EUR — but the calculator refuses to rank a non-USD
-  program rather than converting it, because comparing euros against dollars
-  with no unit anywhere would be a confidently wrong number. Non-USD programs
-  land in "can't verify" with the currency named. Supporting them properly
-  means FX rates and a per-jurisdiction currency on every figure, not a
-  one-line change.
+- **Exchange rates are assumptions, not a live feed.** 122 jurisdictions
+  across six regions are supported in 59 currencies, and a non-USD program is
+  converted rather than refused — Ireland's Section 481 ranks at $467,329 from
+  32% in EUR. But this tool has no FX feed and doesn't pretend to: the rates
+  are dated defaults, shown on screen beside every converted figure and
+  editable, on the same principle as relocation and payment timing. A currency
+  with no supplied rate is still refused, so nothing is ever compared across
+  currencies without a visible conversion.
 - **US-specific constraint data.** The "ocean coastline" filter knows US state
   geography and nothing else, so it makes no claim either way about a non-US
   jurisdiction rather than guessing.

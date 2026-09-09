@@ -336,6 +336,10 @@ def _challenge_with_forced_function_call(
                     "allowed_function_names": ["record_challenge_result"],
                 }
             },
+            # Greedy decoding. A falsification pass that returns different
+            # contradictions each run is not a check, it is a coin toss — and
+            # this one already shipped a false-positive bug once.
+            "temperature": 0,
         },
     )
     for part in response.candidates[0].content.parts:

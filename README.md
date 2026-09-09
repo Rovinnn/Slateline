@@ -8,6 +8,7 @@ one, live, with receipts.**
 | **Live demo** | https://zeta-structure-437412-v7.web.app |
 | **API** | https://incentive-verifier-backend-559874048514.us-central1.run.app |
 | **Demo video** | https://www.youtube.com/watch?v=fbK92korb9s |
+| **Coverage** | 122 jurisdictions, 59 currencies, 6 regions |
 | **Track** | Parallel — live Search API at request time |
 | **Tests** | 341 backend, 107 frontend, CI on every push |
 
@@ -25,18 +26,26 @@ verify is listed as "can't verify" rather than guessed.
 
 ### What it produces
 
-A $2M indie drama out of Los Angeles, on hand-verified statutes and real distances:
+A $2M indie drama out of Los Angeles, on the three **hand-verified** statutes and
+real routed distances:
 
 | | advertised | net benefit |
 |---|---|---|
-| **New Mexico** | 25% + uplifts | **$259,952** |
-| Georgia | 20% + 10% uplift | $175,722 |
-| Louisiana / Texas | — | *can't verify — discretionary, not modelable* |
+| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** |
+| New Mexico | 25% + 20% = up to **45%** | $260,215 |
+| Georgia | 20% + 10% = up to **30%** | $188,825 |
+| Texas | — | *can't verify — discretionary, not modelable* |
 
-The advertised rate and the real answer are different questions. Georgia's $400,000
-credit is worth $175,722 once you account for selling a transferable credit at a
-discount, an 18-month wait to be paid, a mandatory audit, and flying 18 people 3,747 km.
-No rate table contains that.
+The advertised rate and the real answer are different questions. New Mexico advertises
+the highest headline number and does not win. Georgia's $400,000 credit is worth
+$188,825 once you account for selling a transferable credit at 90% of face, an
+18-month wait to be paid, and flying 18 people 3,498 km. No rate table contains that.
+
+> These are the figures for the three statutes we hand-checked against the source
+> law, which is why they're the ones quoted here. The deployed app ranks off **live**
+> extraction on every request, so the exact figures it shows will differ — that's the
+> point of searching rather than shipping a rate table, and it's also why the numbers
+> move as the sources do.
 
 ### The architectural bet
 

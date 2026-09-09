@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from ..calculator import compute_benefit
 from ..constraints import constraint_gaps_for
-from ..extraction.agent import extract_jurisdiction_rule
+from ..extraction.agent import extract_jurisdiction_rule_confirmed
 from ..extraction.challenge import apply_challenge, challenge_rule
 from ..maps_client import get_distance
 from ..models import BudgetVector
@@ -124,7 +124,11 @@ def search_jurisdiction(jurisdiction: str, session_id: str = DEFAULT_SESSION) ->
         reading; the full extracted rule stays in the session for the
         calculator to use.
     """
-    rule = verify_rule(extract_jurisdiction_rule(jurisdiction))
+    # The confirmed variant, same as /jurisdictions/search: a grant that
+    # only one retrieval in three identifies as discretionary must not be
+    # ranked as bankable here either, or the agent gives a confident
+    # recommendation the web UI would have refused.
+    rule = verify_rule(extract_jurisdiction_rule_confirmed(jurisdiction))
     state = session_store.get(session_id)
     state.rules[rule.jurisdiction] = rule
     return {

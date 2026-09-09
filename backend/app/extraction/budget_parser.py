@@ -117,6 +117,11 @@ def _extract_with_forced_function_call(pdf_bytes: bytes) -> dict:
             "tool_config": {
                 "function_calling_config": {"mode": "ANY", "allowed_function_names": ["record_budget"]}
             },
+            # Greedy decoding: this call transcribes figures off a topsheet. There
+            # is nothing to sample for, and a budget that parses differently on
+            # a re-upload would undermine the one number the producer typed in
+            # themselves. Same reason as agent.py.
+            "temperature": 0,
         },
     )
     for part in response.candidates[0].content.parts:

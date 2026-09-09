@@ -31,6 +31,9 @@ and Parallel's AI features only. No LangChain, no other agent framework.
 
 from __future__ import annotations
 
+import re
+
+from dataclasses import replace
 from datetime import date
 from typing import Any
 
@@ -295,9 +298,70 @@ RECORD_JURISDICTION_RULE_SCHEMA: dict[str, Any] = {
 }
 
 
+# Domain patterns that mark a source as the law or the administering agency
+# rather than somebody writing about them. Matched against the host only.
+# Government hosts, matched structurally rather than by listing countries.
+# An earlier version of this listed .gov/.gov.uk/.gov.au/.govt.nz/.gc.ca and
+# nothing else, which quietly meant that for most of the 122 supported
+# jurisdictions every source scored 0 and the "read the statute first"
+# ordering degraded to alphabetical. Spain (.gob.es), France (.gouv.fr),
+# Korea (.go.kr) and Colombia (.gov.co) are not edge cases in a tool that
+# advertises six regions.
+_GOV_HOST = re.compile(
+    r"(^|\.)(gov|gob|gouv|govt|go|gc|admin|bund|overheid)(\.[a-z]{2,3})?(\.[a-z]{2})?$"
+    r"|(^|\.)(gov|gob|gouv|govt)\."
+)
+
+_STATUTE_HOSTS = (
+    ".europa.eu",
+    "legis", "legislature", "statutes", "revenue.", "lawserver", "justia",
+    "ministerio", "ministere", "ministry",
+)
+_AGENCY_HOSTS = ("film", "screen", "creates", "mediaboard", "commission")
+
+# How many sources reach the model. Enough to cover a program's terms, few
+# enough that the tail of commentary doesn't crowd out the statute.
+_MAX_SOURCES = 14
+
+
+def _host(url: str) -> str:
+    from urllib.parse import urlparse
+
+    return (urlparse(url).hostname or "").lower()
+
+
+def _authority(url: str) -> int:
+    """2 = the law or a tax authority, 1 = the film agency, 0 = commentary.
+
+    Deterministic and computed from the URL alone, because it has to run
+    BEFORE the model sees anything. (`SourceRef.is_primary` is decided by the
+    model afterwards and so is useless for choosing what to send it.)
+    """
+    host = _host(url)
+    if _GOV_HOST.search(host) or any(p in host for p in _STATUTE_HOSTS):
+        return 2
+    if any(p in host for p in _AGENCY_HOSTS):
+        return 1
+    return 0
+
+
 def _search(jurisdiction: str) -> list[WebSearchResult]:
-    """Parallel Search for the jurisdiction's film incentive program, ordered
-    by SEARCH_TARGETS_PRIORITY.
+    """Parallel Search for the jurisdiction's film incentive program, ranked
+    by source authority and truncated to a fixed size.
+
+    The ranking is the point. Retrieval is where this pipeline's
+    irreproducibility came from: the same jurisdiction returned 5, 10, 12 and
+    25 sources on different runs, so the model read different text each time
+    and extracted a different program. Worse, the tail is cross-jurisdiction
+    commentary — a search for one state returns articles comparing all fifty
+    — which is how "tax credit" ended up in the sources of a state whose
+    program is a cash grant, and how that grant got ranked as an entitlement.
+
+    Sorting by authority and cutting to a fixed count makes the input stable
+    for a given jurisdiction and biases it toward the statute, which is the
+    only text that can settle what a program actually is. Deduped by URL, with
+    the URL itself as the tie-break so the order never depends on which query
+    happened to return a page first.
     """
     client = Parallel(api_key=settings.parallel_api_key)
     results: list[WebSearchResult] = []
@@ -307,7 +371,17 @@ def _search(jurisdiction: str) -> list[WebSearchResult]:
             search_queries=[f"{jurisdiction} film tax incentive {target}"],
         )
         results.extend(response.results)
-    return results
+
+    seen: set[str] = set()
+    deduped: list[WebSearchResult] = []
+    for r in results:
+        if r.url in seen:
+            continue
+        seen.add(r.url)
+        deduped.append(r)
+
+    deduped.sort(key=lambda r: (-_authority(r.url), r.url))
+    return deduped[:_MAX_SOURCES]
 
 
 def _extract_with_forced_function_call(jurisdiction: str, search_results: list[WebSearchResult]) -> dict:
@@ -342,6 +416,14 @@ def _extract_with_forced_function_call(jurisdiction: str, search_results: list[W
             # Forced function calling: the model MUST call record_jurisdiction_rule — it cannot
             # respond with prose instead, which is what keeps arithmetic out of its hands.
             "tool_config": {"function_calling_config": {"mode": "ANY", "allowed_function_names": ["record_jurisdiction_rule"]}},
+            # Greedy decoding. This call transcribes figures out of retrieved
+            # text; there is nothing here worth sampling for, and sampling is
+            # measurable damage. At the default temperature two identical
+            # requests for Louisiana returned net benefits of $218,107 and
+            # $265,564 — a $47k spread that changed which jurisdiction the
+            # tool recommended. Source retrieval still varies run to run, so
+            # this narrows the variance rather than eliminating it.
+            "temperature": 0,
         },
     )
     for part in response.candidates[0].content.parts:
@@ -451,6 +533,48 @@ def _parse_date(value: str | None) -> date | None:
         return date.fromisoformat(value)
     except ValueError:
         return None
+
+
+#: Payout mechanisms that are statutory claims. Anything else is money an
+#: agency hands out, and gets the second opinion in
+#: extract_jurisdiction_rule_confirmed().
+_CLAIMED_BY_RIGHT = frozenset({"refundable", "transferable", "non_refundable"})
+
+
+def extract_jurisdiction_rule_confirmed(jurisdiction: str) -> JurisdictionRule:
+    """Extraction, plus a second opinion where the money is not a statutory
+    claim.
+
+    Layer 1 cannot decide entitlement-vs-grant reliably, and the reason is
+    measurable rather than mysterious: the live search returns a different
+    candidate pool on every call — three consecutive extractions of Texas came
+    back with 11, 9 and 14 sources — so the model reads different text each
+    time and reaches a different conclusion. Three runs gave discretionary
+    True, False, False.
+
+    A majority vote would answer False there, which is wrong, so this is
+    deliberately NOT a vote. Disagreement is the finding: if two independent
+    retrievals cannot agree that a production is entitled to this money, the
+    tool has no basis for telling a producer the money is guaranteed, and says
+    so instead of ranking it. One run claiming "grant" outweighs one claiming
+    "entitlement", because the asymmetry is real — over-refusing costs a row
+    in a table, over-ranking costs a location decision.
+
+    The second call is only spent where it changes anything. A tax credit is
+    a statutory claim by construction and takes the single-call path, which is
+    the overwhelming majority of jurisdictions; only rebates and grants pay
+    the extra latency, and the cache absorbs it after the first request.
+    """
+    first = extract_jurisdiction_rule(jurisdiction)
+    if first.credit_type in _CLAIMED_BY_RIGHT or first.is_discretionary:
+        return first
+
+    second = extract_jurisdiction_rule(jurisdiction)
+    if second.is_discretionary:
+        # The retrievals disagree. Refuse rather than present unguaranteed
+        # money as a ranked, bankable figure.
+        return replace(first, is_discretionary=True)
+    return first
 
 
 def extract_jurisdiction_rule(jurisdiction: str) -> JurisdictionRule:

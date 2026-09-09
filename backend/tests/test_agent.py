@@ -131,7 +131,7 @@ def test_set_budget_reports_an_inconsistent_total_without_refusing_it():
 
 
 def test_search_stores_the_rule_but_returns_only_a_readable_summary():
-    with patch("app.agent.tools.extract_jurisdiction_rule", return_value=GEORGIA):
+    with patch("app.agent.tools.extract_jurisdiction_rule_confirmed", return_value=GEORGIA):
         summary = search_jurisdiction("Georgia", session_id=SESSION)
 
     assert summary["headline_rate"] == "20.0%"
@@ -296,3 +296,26 @@ def test_vertex_routing_does_not_override_an_explicit_deployment_setting():
             del os.environ["GOOGLE_CLOUD_LOCATION"]
         else:
             os.environ["GOOGLE_CLOUD_LOCATION"] = previous
+
+
+def test_agent_and_web_ui_use_the_same_extraction_path():
+    """Both entry points must refuse the same jurisdictions.
+
+    The agent shipped calling the single-shot extractor after the web
+    endpoint moved to the confirmed one, so a grant the UI refused could
+    still be recommended by the agent — with fluent reasoning, which is
+    exactly what makes a wrong answer persuasive (finding 12).
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "app"
+    offenders = []
+    for path in root.rglob("*.py"):
+        if path.name == "agent.py" and path.parent.name == "extraction":
+            continue  # defines both
+        src = path.read_text(encoding="utf-8")
+        for m in re.finditer(r"(?<!_confirmed)\bextract_jurisdiction_rule\((?!_confirmed)", src):
+            line = src[:m.start()].count("\n") + 1
+            offenders.append(f"{path.name}:{line}")
+    assert not offenders, f"single-shot extraction still used in: {offenders}"

@@ -100,17 +100,22 @@ Open on the ranking, because the advertised order and the real order disagree:
 
 | | advertised | net benefit |
 |---|---|---|
-| **New Mexico** | 25% + uplifts | **$259,952** |
-| Georgia | 20% + 10% | $175,722 |
-| Louisiana / Texas | — | can't verify — discretionary |
+| **Louisiana** | 25% + 15% = up to **40%** | **$265,564** |
+| New Mexico | 25% + 20% = up to **45%** | $260,215 |
+| Georgia | 20% + 10% = up to **30%** | $188,825 |
+| Texas | — | can't verify — discretionary |
 
-Georgia's $400,000 credit is worth $175,722 after selling a transferable
-credit at a discount, an 18-month wait, a mandatory audit and flying 18 people
-3,747 km. Then open the winner's card and let the waterfall walk it down.
+New Mexico advertises the biggest number and loses. Georgia's $400,000 credit
+is worth $188,825 after selling a transferable credit at 90% of face, an
+18-month wait, and flying 18 people 3,498 km. Then open the winner's card and
+let the waterfall walk it down.
+
+**Narrate whatever is on screen, not this table.** These are the hand-verified
+statute figures; the app ranks off live extraction and will show its own.
 
 **Two beats now compete for strongest.** The effective rate — "advertised up
 to 30%, you actually keep 8.8%" — states the entire thesis in one frame with
-no narration. And the priced unknowns: "-$260,215 at risk: is the funding pool
+no narration. And the priced unknowns: "-$266,994 at risk: is the funding pool
 still open?" turns the tool from analysis into a to-do list.
 
 **The strongest single beat is the split panel** — "shoot in Louisiana, post

@@ -157,3 +157,34 @@ def test_schema_never_asks_the_model_for_a_derived_figure():
     props = set(RECORD_BUDGET_SCHEMA["parameters"]["properties"])
     for derived in ("net_benefit", "gross_credit", "qualifying_spend", "sum", "subtotal"):
         assert derived not in props
+
+
+def test_every_model_call_pins_temperature():
+    """Sampling is wrong for every call in this pipeline.
+
+    All three of these read figures out of a document and record them; none
+    of them is generating prose. Two shipped without a temperature and so
+    returned different answers to identical inputs — the jurisdiction
+    extractor's drift changed which state the tool recommended. This test
+    exists so the next call added here can't quietly do it again.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "app"
+    offenders = []
+    for path in root.rglob("*.py"):
+        src = path.read_text(encoding="utf-8")
+        for m in re.finditer(r"generate_content\(", src):
+            seg = src[m.start():]
+            depth = 0
+            for i, ch in enumerate(seg):
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            if "temperature" not in seg[:i]:
+                offenders.append(path.name)
+    assert not offenders, f"generate_content without a pinned temperature in: {offenders}"

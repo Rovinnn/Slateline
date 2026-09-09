@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import cache
 from .calculator import DEFAULT_TRANSFER_DISCOUNT, compute_benefit
 from .constraints import constraint_gaps_for
-from .extraction.agent import extract_jurisdiction_rule
+from .extraction.agent import extract_jurisdiction_rule_confirmed
 from .extraction.challenge import ChallengeReport, apply_challenge, challenge_rule
 from .extraction.budget_parser import MAX_PDF_BYTES, ParsedBudget, parse_budget_pdf
 from .maps_client import DistanceResult, get_distance
@@ -184,7 +184,7 @@ def search_jurisdictions(jurisdiction: str, refresh: bool = False) -> Jurisdicti
         if cached is not None:
             return cached
     try:
-        rule = extract_jurisdiction_rule(jurisdiction)
+        rule = extract_jurisdiction_rule_confirmed(jurisdiction)
     except Exception as exc:
         raise HTTPException(
             status_code=502,
