@@ -13,7 +13,7 @@ Every field the form asks for, with the answer ready to paste. Written 6 Sep
 | **Live URL** | https://zeta-structure-437412-v7.web.app |
 | **Repo** | https://github.com/Rovinnn/Slateline |
 | **API** | https://incentive-verifier-backend-559874048514.us-central1.run.app |
-| **Video** | _(paste once uploaded — must be public on YouTube/Vimeo)_ |
+| **Video** | https://www.youtube.com/watch?v=fbK92korb9s |
 | **Track** | **Parallel** (select exactly one) |
 
 ## Tagline
@@ -70,7 +70,7 @@ them, each with the number attached. The four that land hardest:
 - [x] **MIT license detected by GitHub** (confirmed via the API: `"license": "MIT"`)
 - [x] Run instructions in [README.md](README.md) §Setup
 - [x] Description incl. features, tech, data sources, findings and learnings
-- [ ] **Demo video ≤3 min, public** ← the only remaining blocker
+- [x] **Demo video ≤3 min, public** — https://www.youtube.com/watch?v=fbK92korb9s
 - [ ] **Devpost form submitted**
 - [ ] One track selected on the form
 

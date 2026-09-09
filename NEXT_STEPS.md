@@ -1,7 +1,7 @@
 # Next steps — 2026-09-04
 
 Written at the end of a working session, for whoever picks this up (including
-future me). Supersedes the forward-looking half of [PROGRESS.md](PROGRESS.md),
+future me). Supersedes the earlier progress snapshot,
 which is now a historical snapshot from Aug 30.
 
 **Deadline reality check.** `BUILD_BRIEF.md` says 9 Sep; the track map says

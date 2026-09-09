@@ -7,9 +7,9 @@ one, live, with receipts.**
 |---|---|
 | **Live demo** | https://zeta-structure-437412-v7.web.app |
 | **API** | https://incentive-verifier-backend-559874048514.us-central1.run.app |
-| **Demo video** | _(add link)_ |
+| **Demo video** | https://www.youtube.com/watch?v=fbK92korb9s |
 | **Track** | Parallel — live Search API at request time |
-| **Tests** | 283 backend, 68 frontend, CI on every push |
+| **Tests** | 341 backend, 107 frontend, CI on every push |
 
 Every US state advertises a film incentive — *"Georgia 30%!"* — and producers pick
 shooting locations on those numbers. Four things sit between the advertised rate and
